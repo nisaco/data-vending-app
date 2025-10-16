@@ -164,7 +164,7 @@ const allPlans = {
         { id: 'tigo_20gb', name: '20GB', price: 6000 },
         { id: 'tigo_30gb', name: '30GB', price: 8000 },
         { id: 'tigo_50gb', name: '50GB', price: 11200 },
-        { id: 'tigo_100gb', name: '100GB', price: 18600 }
+        { id: 'tigo_100gb', name: '100GB', price: 18600 },
     ],
     "Telecel": [
         { id: 'telecel_5gb', name: '5GB', price: 2120 },
@@ -187,4 +187,5 @@ app.get('/api/data-plans', (req, res) => {
         // Otherwise, send an empty array
         res.json([]);
     }
+
 });
