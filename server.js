@@ -114,9 +114,29 @@ app.post('/paystack/webhook', (req, res) => {
     }
     res.sendStatus(200);
 });
+// Add this with your other API routes in server.js
 
+app.get('/api/get-all-orders', (req, res) => {
+    const { secret } = req.query;
+
+    // Basic security check
+    if (secret !== process.env.ADMIN_SECRET) {
+        return res.status(403).json({ error: "Unauthorized" });
+    }
+
+    const sql = "SELECT * FROM orders ORDER BY created_at DESC"; // Get newest orders first
+
+    db.all(sql, [], (err, rows) => {
+        if (err) {
+            console.error("Error fetching orders:", err.message);
+            return res.status(500).json({ error: "Failed to fetch orders" });
+        }
+        res.json({ orders: rows });
+    });
+});
 // Start the server
 app.listen(PORT, () => {
     console.log(`Server running on http://localhost:${PORT}`);
 });
+
 
