@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Dashboard</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            background-color: #f4f4f9;
+            color: #333;
+            margin: 0;
+            padding: 2rem;
+        }
+        .container {
+            max-width: 1200px;
+            margin: auto;
+            background: #fff;
+            padding: 2rem;
+            border-radius: 8px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+        h1 {
+            text-align: center;
+            margin-bottom: 1rem;
+        }
+        .controls {
+            display: flex;
+            gap: 1rem;
+            margin-bottom: 2rem;
+            align-items: center;
+        }
+        input[type="password"] {
+            padding: 0.75rem;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            flex-grow: 1;
+        }
+        button {
+            padding: 0.75rem 1.5rem;
+            background-color: #009879;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+        button:hover {
+            background-color: #007a63;
+        }
+        #status {
+            text-align: center;
+            margin-top: 1rem;
+            font-weight: bold;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 1rem;
+        }
+        th, td {
+            padding: 12px 15px;
+            border: 1px solid #ddd;
+            text-align: left;
+        }
+        th {
+            background-color: #009879;
+            color: #ffffff;
+        }
+        tbody tr:nth-of-type(even) {
+            background-color: #f3f3f3;
+        }
+        .status-span {
+            padding: 5px 10px;
+            border-radius: 15px;
+            color: white;
+            font-weight: bold;
+            font-size: 0.8em;
+        }
+        .status-sent { background-color: #28a745; }
+        .status-failed { background-color: #dc3545; }
+        .status-pending { background-color: #ffc107; color: #333; }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <h1>Order Dashboard</h1>
+        <div class="controls">
+            <input type="password" id="adminSecret" placeholder="Enter Admin Secret">
+            <button id="fetchOrdersBtn">Fetch Orders</button>
+        </div>
+        <div id="status"></div>
+        <table>
+            <thead>
+                <tr>
+                    <th>Order ID</th>
+                    <th>Date</th>
+                    <th>Phone Number</th>
+                    <th>Data Plan</th>
+                    <th>Amount (GHS)</th>
+                    <th>Status</th>
+                    <th>Reference</th>
+                </tr>
+            </thead>
+            <tbody id="ordersTableBody">
+                </tbody>
+        </table>
+    </div>
+
+    <script>
+        const fetchOrdersBtn = document.getElementById('fetchOrdersBtn');
+        const adminSecretInput = document.getElementById('adminSecret');
+        const ordersTableBody = document.getElementById('ordersTableBody');
+        const statusDiv = document.getElementById('status');
+
+        fetchOrdersBtn.addEventListener('click', () => {
+            const secret = adminSecretInput.value;
+            if (!secret) {
+                statusDiv.textContent = 'Please enter the admin secret.';
+                statusDiv.style.color = 'red';
+                return;
+            }
+
+            statusDiv.textContent = 'Fetching orders...';
+            statusDiv.style.color = 'orange';
+            ordersTableBody.innerHTML = ''; // Clear previous results
+
+            fetch(`/api/get-all-orders?secret=${secret}`)
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error('Failed to fetch. Check secret or server logs.');
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    const orders = data.orders;
+                    if (orders.length === 0) {
+                        statusDiv.textContent = 'No orders found.';
+                        statusDiv.style.color = 'black';
+                        return;
+                    }
+                    
+                    statusDiv.textContent = `Displaying ${orders.length} orders.`;
+                    statusDiv.style.color = 'green';
+                    
+                    orders.forEach(order => {
+                        const row = document.createElement('tr');
+                        
+                        // Map status to a CSS class for styling
+                        let statusClass = '';
+                        if (order.status === 'data_sent') statusClass = 'status-sent';
+                        else if (order.status === 'data_failed') statusClass = 'status-failed';
+                        else statusClass = 'status-pending';
+
+                        row.innerHTML = `
+                            <td>${order.id}</td>
+                            <td>${new Date(order.created_at).toLocaleString('en-GB')}</td>
+                            <td>${order.phone_number}</td>
+                            <td>${order.data_plan}</td>
+                            <td>${order.amount.toFixed(2)}</td>
+                            <td><span class="status-span ${statusClass}">${order.status.replace('_', ' ')}</span></td>
+                            <td>${order.reference}</td>
+                        `;
+                        ordersTableBody.appendChild(row);
+                    });
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    statusDiv.textContent = error.message;
+                    statusDiv.style.color = 'red';
+                });
+        });
+    </script>
+
+</body>
+</html>
