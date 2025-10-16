@@ -44,26 +44,26 @@
                     body: JSON.stringify({ username, password })
                 });
                 
-                const result = await response.json();
-
-                // This 'if' statement checks if the server responded with a success status (like 200 OK)
+                // response.ok is true if the HTTP status is 200-299 (a success)
                 if (response.ok) {
                     statusDiv.textContent = 'Success! Redirecting...';
                     statusDiv.style.color = 'green';
                     
-                    // This is the critical line that redirects the user to the purchase page
+                    // This command tells the browser to navigate to the new page.
                     window.location.href = '/purchase'; 
                 } else {
-                    // If the server responded with an error (like 401 Unauthorized), show the error message
-                    statusDiv.textContent = result.message;
+                    // If login fails, the server sends an error message we can display
+                    const result = await response.json();
+                    statusDiv.textContent = result.message || 'Invalid credentials.';
                     statusDiv.style.color = 'red';
                 }
             } catch (error) {
-                console.error('Login error:', error);
-                statusDiv.textContent = 'An error occurred. Please try again.';
+                console.error('Login system error:', error);
+                statusDiv.textContent = 'A network error occurred. Please try again.';
                 statusDiv.style.color = 'red';
             }
         });
     </script>
 </body>
 </html>
+
