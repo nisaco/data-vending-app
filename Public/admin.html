@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Dashboard</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+    <div class="container">
+        <h1>Admin Order Dashboard</h1>
+        <div class="controls" style="display: flex; gap: 1rem; margin-bottom: 2rem; align-items: center;">
+            <input type="password" id="adminSecret" placeholder="Enter Admin Secret" style="flex-grow: 1;">
+            <button id="fetchOrdersBtn">Fetch All Orders</button>
+        </div>
+        <div id="status"></div>
+        <table>
+            <thead>
+                <tr>
+                    <th>Order ID</th>
+                    <th>User ID</th>
+                    <th>Date</th>
+                    <th>Phone</th>
+                    <th>Data Plan</th>
+                    <th>Amount</th>
+                    <th>Status</th>
+                </tr>
+            </thead>
+            <tbody id="ordersTableBody">
+                <!-- Orders will be inserted here by JavaScript -->
+            </tbody>
+        </table>
+    </div>
+
+    <script>
+        const fetchOrdersBtn = document.getElementById('fetchOrdersBtn');
+        const adminSecretInput = document.getElementById('adminSecret');
+        const ordersTableBody = document.getElementById('ordersTableBody');
+        const statusDiv = document.getElementById('status');
+
+        fetchOrdersBtn.addEventListener('click', () => {
+            const secret = adminSecretInput.value;
+            if (!secret) {
+                statusDiv.textContent = 'Please enter the admin secret.';
+                statusDiv.style.color = 'red';
+                return;
+            }
+
+            statusDiv.textContent = 'Fetching orders...';
+            statusDiv.style.color = 'orange';
+            ordersTableBody.innerHTML = ''; // Clear previous results
+
+            fetch(`/api/get-all-orders?secret=${secret}`)
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error('Failed to fetch. Check secret or server logs.');
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    const orders = data.orders;
+                    if (!orders || orders.length === 0) {
+                        statusDiv.textContent = 'No orders found.';
+                        statusDiv.style.color = 'black';
+                        return;
+                    }
+                    
+                    statusDiv.textContent = `Displaying ${orders.length} total orders.`;
+                    statusDiv.style.color = 'green';
+                    
+                    orders.forEach(order => {
+                        const row = document.createElement('tr');
+                        const statusClass = `status-${order.status.replace('_', '-')}`;
+
+                        row.innerHTML = `
+                            <td>${order.id}</td>
+                            <td>${order.user_id}</td>
+                            <td>${new Date(order.created_at).toLocaleString('en-GB')}</td>
+                            <td>${order.phone_number}</td>
+                            <td>${order.data_plan}</td>
+                            <td>GHS ${order.amount.toFixed(2)}</td>
+                            <td><span class="status-span ${statusClass}">${order.status.replace('_', ' ')}</span></td>
+                        `;
+                        ordersTableBody.appendChild(row);
+                    });
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    statusDiv.textContent = error.message;
+                    statusDiv.style.color = 'red';
+                });
+        });
+    </script>
+
+</body>
+</html>
