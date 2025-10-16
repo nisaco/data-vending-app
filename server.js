@@ -1,4 +1,5 @@
 require('dotenv').config();
+const path = require('path');
 const express = require('express');
 const axios = require('axios');
 const crypto = require('crypto');
@@ -47,7 +48,7 @@ const allPlans = {
 
 // Middleware
 app.use(express.json());
-app.use(express.static('public'));
+app.use(express.static(path.join(__dirname, 'Public')));
 
 // API Routes
 app.get('/api/data-plans', (req, res) => {
@@ -118,3 +119,4 @@ app.post('/paystack/webhook', (req, res) => {
 app.listen(PORT, () => {
     console.log(`Server running on http://localhost:${PORT}`);
 });
+
