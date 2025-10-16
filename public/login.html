@@ -7,7 +7,7 @@
 </head>
 <body>
     <div class="container">
-        <h1>Log In</h1>
+        <h1>Log In to Your Account</h1>
         <form id="loginForm">
             <div class="form-group">
                 <label for="username">Username</label>
@@ -20,7 +20,9 @@
             <button type="submit">Log In</button>
         </form>
         <div id="status"></div>
-        <p>Don't have an account? <a href="signup.html">Sign Up</a></p>
+        <p style="text-align: center; margin-top: 1rem;">
+            Don't have an account? <a href="signup.html">Sign Up</a>
+        </p>
     </div>
 
     <script>
@@ -32,19 +34,33 @@
             const username = document.getElementById('username').value;
             const password = document.getElementById('password').value;
 
-            const response = await fetch('/api/login', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ username, password })
-            });
-            
-            const result = await response.json();
-            if (response.ok) {
-                statusDiv.textContent = 'Success! Redirecting...';
-                statusDiv.style.color = 'green';
-                window.location.href = '/purchase'; // Redirect to the protected purchase page
-            } else {
-                statusDiv.textContent = result.message;
+            statusDiv.textContent = 'Logging in...';
+            statusDiv.style.color = 'orange';
+
+            try {
+                const response = await fetch('/api/login', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ username, password })
+                });
+                
+                const result = await response.json();
+
+                // This 'if' statement checks if the server responded with a success status (like 200 OK)
+                if (response.ok) {
+                    statusDiv.textContent = 'Success! Redirecting...';
+                    statusDiv.style.color = 'green';
+                    
+                    // This is the critical line that redirects the user to the purchase page
+                    window.location.href = '/purchase'; 
+                } else {
+                    // If the server responded with an error (like 401 Unauthorized), show the error message
+                    statusDiv.textContent = result.message;
+                    statusDiv.style.color = 'red';
+                }
+            } catch (error) {
+                console.error('Login error:', error);
+                statusDiv.textContent = 'An error occurred. Please try again.';
                 statusDiv.style.color = 'red';
             }
         });
