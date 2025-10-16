@@ -34,8 +34,11 @@ app.use(express.static(path.join(__dirname, 'public')));
 
 // --- 4. AUTHENTICATION & USER ROUTES ---
 const isAuthenticated = (req, res, next) => {
-    if (req.session.user) next();
-    else res.redirect('/login.html');
+    if (req.session.user) {
+        next();
+    } else {
+        res.redirect('/login.html');
+    }
 };
 app.get('/purchase', isAuthenticated, (req, res) => {
     res.sendFile(path.join(__dirname, 'public', 'purchase.html'));
@@ -136,4 +139,5 @@ async function sendConfirmationEmail(email, username) {
 app.listen(PORT, () => {
     console.log(`Server running on http://localhost:${PORT}`);
 });
+
 
