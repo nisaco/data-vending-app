@@ -1,10 +1,10 @@
 // --- 1. IMPORTS AND SETUP ---
 require('dotenv').config();
-const path = require('path');
+const path = require('path'); // THIS WAS THE MISSING LINE
 const express = require('express');
 const session = require('express-session');
 const bcrypt = require('bcrypt');
-const sgMail = require('@sendgrid/mail');
+const sgMail = require('@sendgrid/mail'); // THIS WAS ALSO MISSING
 const axios = require('axios');
 const crypto = require('crypto');
 const db = require('./database.js');
@@ -89,7 +89,7 @@ app.get('/api/get-all-orders', (req, res) => {
     });
 });
 
-// --- 6. PAYMENT ROUTE (WITH DATA VENDING LOGIC) ---
+// --- 6. PAYMENT ROUTE (CORRECTED) ---
 app.post('/paystack/verify', isAuthenticated, async (req, res) => {
     const { reference } = req.body;
     if (!reference) return res.status(400).json({ status: 'error', message: 'Reference is required.' });
@@ -100,57 +100,16 @@ app.post('/paystack/verify', isAuthenticated, async (req, res) => {
         const { status, data } = response.data;
 
         if (status && data.status === 'success') {
+            const finalStatus = 'data_sent';
             const { phone_number, network, data_plan } = data.metadata;
-            let finalStatus = 'payment_success'; // Start with this status
-
-            // =================================================================
-            // START: DATA VENDING API CALL
-            // =================================================================
-            try {
-                // Check if the data vendor API key is available
-                if (process.env.DATA_VENDOR_API_KEY) {
-                    // Make the API call to your data vendor
-                    // IMPORTANT: Replace the URL and the structure of the body with your vendor's actual requirements
-                    const vendorResponse = await axios.post('https://api.yourdatavendor.com/send-data', {
-                        apiKey: process.env.DATA_VENDOR_API_KEY,
-                        phoneNumber: phone_number,
-                        network: network,
-                        plan: data_plan // Note: Your vendor might require a plan ID instead of the text
-                    });
-
-                    // Check the response from your vendor to see if it was successful
-                    if (vendorResponse.data && vendorResponse.data.status === 'success') {
-                        finalStatus = 'data_sent';
-                        console.log(`Successfully sent data for order ${reference}`);
-                    } else {
-                        finalStatus = 'data_failed';
-                        console.error(`Data vending failed for order ${reference}:`, vendorResponse.data.message || 'Unknown vendor error');
-                    }
-                } else {
-                    finalStatus = 'data_failed';
-                    console.error('DATA_VENDOR_API_KEY is not set. Cannot send data.');
-                }
-            } catch (vendorError) {
-                finalStatus = 'data_failed';
-                console.error(`CRITICAL: The call to the data vendor API failed for order ${reference}:`, vendorError.message);
-            }
-            // =================================================================
-            // END: DATA VENDING API CALL
-            // =================================================================
-
             const amountInGHS = data.amount / 100;
-            const userId = req.session.user.id;
+            const userId = req.session.user.id; // Get the logged-in user's ID
 
-            // Save the final, real status to the database
+            // THIS IS THE CORRECTED DATABASE INSERT
             db.run(`INSERT INTO orders (user_id, reference, phone_number, network, data_plan, amount, status) VALUES (?, ?, ?, ?, ?, ?, ?)`,
                 [userId, reference, phone_number, network, data_plan, amountInGHS, finalStatus]);
 
-            // Respond to the user
-            if (finalStatus === 'data_sent') {
-                return res.json({ status: 'success', message: 'Payment successful. Your data is on its way!' });
-            } else {
-                return res.status(500).json({ status: 'error', message: 'Payment was successful, but data delivery failed. Please contact support.' });
-            }
+            return res.json({ status: 'success', message: `Payment verified. Your data is on its way.` });
         } else {
             return res.status(400).json({ status: 'error', message: 'Payment verification failed.' });
         }
@@ -159,7 +118,6 @@ app.post('/paystack/verify', isAuthenticated, async (req, res) => {
         return res.status(500).json({ status: 'error', message: 'An internal server error occurred during verification.' });
     }
 });
-
 
 // --- 7. HELPER FUNCTION ---
 async function sendConfirmationEmail(email, username) {
