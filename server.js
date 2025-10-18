@@ -21,23 +21,18 @@ const allPlans = {
 
 // --- 3. MIDDLEWARE ---
 const sessionSecret = process.env.SESSION_SECRET || 'fallback-secret-for-local-dev-only-12345';
-
-// Add a warning if we have to use the fallback
 if (sessionSecret === 'fallback-secret-for-local-dev-only-12345') {
-    console.log('---');
-    console.log('WARNING: SESSION_SECRET not found. Using a temporary secret for local development.');
-    console.log('This is okay for testing, but make sure the real secret is set on Render.');
-    console.log('---');
+    console.log('--- WARNING: SESSION_SECRET not found. Using a temporary secret. OK for local testing. ---');
 }
-
 app.use(session({
-    secret: sessionSecret, // Use the variable that now has a guaranteed value
+    secret: sessionSecret,
     resave: false,
     saveUninitialized: false,
     cookie: { secure: process.env.NODE_ENV === 'production', maxAge: 1000 * 60 * 60 } // 1 hour
 }));
 app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
+
 
 // --- 4. AUTHENTICATION & PAGE ROUTES ---
 const isAuthenticated = (req, res, next) => req.session.user ? next() : res.redirect('/login.html');
@@ -94,7 +89,7 @@ app.get('/api/get-all-orders', (req, res) => {
     });
 });
 
-// --- 6. PAYMENT ROUTE ---
+// --- 6. PAYMENT ROUTE (WITH DATA VENDING LOGIC) ---
 app.post('/paystack/verify', isAuthenticated, async (req, res) => {
     const { reference } = req.body;
     if (!reference) return res.status(400).json({ status: 'error', message: 'Reference is required.' });
@@ -105,26 +100,66 @@ app.post('/paystack/verify', isAuthenticated, async (req, res) => {
         const { status, data } = response.data;
 
         if (status && data.status === 'success') {
-            // TODO: Add real logic to call your Data Vending API here.
-            // Based on the result, set the finalStatus variable.
-            const finalStatus = 'data_sent'; // Assume success for now
-
             const { phone_number, network, data_plan } = data.metadata;
+            let finalStatus = 'payment_success'; // Start with this status
+
+            // =================================================================
+            // START: DATA VENDING API CALL
+            // =================================================================
+            try {
+                // Check if the data vendor API key is available
+                if (process.env.DATA_VENDOR_API_KEY) {
+                    // Make the API call to your data vendor
+                    // IMPORTANT: Replace the URL and the structure of the body with your vendor's actual requirements
+                    const vendorResponse = await axios.post('https://api.yourdatavendor.com/send-data', {
+                        apiKey: process.env.DATA_VENDOR_API_KEY,
+                        phoneNumber: phone_number,
+                        network: network,
+                        plan: data_plan // Note: Your vendor might require a plan ID instead of the text
+                    });
+
+                    // Check the response from your vendor to see if it was successful
+                    if (vendorResponse.data && vendorResponse.data.status === 'success') {
+                        finalStatus = 'data_sent';
+                        console.log(`Successfully sent data for order ${reference}`);
+                    } else {
+                        finalStatus = 'data_failed';
+                        console.error(`Data vending failed for order ${reference}:`, vendorResponse.data.message || 'Unknown vendor error');
+                    }
+                } else {
+                    finalStatus = 'data_failed';
+                    console.error('DATA_VENDOR_API_KEY is not set. Cannot send data.');
+                }
+            } catch (vendorError) {
+                finalStatus = 'data_failed';
+                console.error(`CRITICAL: The call to the data vendor API failed for order ${reference}:`, vendorError.message);
+            }
+            // =================================================================
+            // END: DATA VENDING API CALL
+            // =================================================================
+
             const amountInGHS = data.amount / 100;
             const userId = req.session.user.id;
 
+            // Save the final, real status to the database
             db.run(`INSERT INTO orders (user_id, reference, phone_number, network, data_plan, amount, status) VALUES (?, ?, ?, ?, ?, ?, ?)`,
                 [userId, reference, phone_number, network, data_plan, amountInGHS, finalStatus]);
 
-            return res.json({ status: 'success', message: `Payment verified. Data plan is being sent.` });
+            // Respond to the user
+            if (finalStatus === 'data_sent') {
+                return res.json({ status: 'success', message: 'Payment successful. Your data is on its way!' });
+            } else {
+                return res.status(500).json({ status: 'error', message: 'Payment was successful, but data delivery failed. Please contact support.' });
+            }
         } else {
             return res.status(400).json({ status: 'error', message: 'Payment verification failed.' });
         }
     } catch (error) {
         console.error('Verification Error:', error.message);
-        return res.status(500).json({ status: 'error', message: 'An internal server error occurred.' });
+        return res.status(500).json({ status: 'error', message: 'An internal server error occurred during verification.' });
     }
 });
+
 
 // --- 7. HELPER FUNCTION ---
 async function sendConfirmationEmail(email, username) {
@@ -137,13 +172,13 @@ async function sendConfirmationEmail(email, username) {
         to: email,
         from: 'YOUR_VERIFIED_SENDER_EMAIL@example.com', // IMPORTANT: Use your verified SendGrid sender email
         subject: 'Welcome to DataLink!',
-        html: `<b>Hello ${username},</b><br><p>Your account has been created successfully. You can now log in to purchase data.</p>`,
+        html: `<b>Hello ${username},</b><br><p>Your account has been created successfully.</p>`,
     };
     try {
         await sgMail.send(msg);
         console.log(`Confirmation email sent to ${email}`);
     } catch (error) {
-        console.error('Failed to send email via SendGrid:', error.response?.body || error);
+        console.error('Failed to send email:', error.response?.body || error);
     }
 }
 
