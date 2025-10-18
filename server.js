@@ -4,6 +4,7 @@ const path = require('path');
 const express = require('express');
 const session = require('express-session');
 const bcrypt = require('bcrypt');
+const sgMail = require('@sendgrid/mail');
 const nodemailer = require('nodemailer');
 const axios = require('axios');
 const crypto = require('crypto');
@@ -44,6 +45,8 @@ app.get('/purchase', isAuthenticated, (req, res) => {
     res.sendFile(path.join(__dirname, 'public', 'purchase.html'));
 });
 
+
+
 app.post('/api/signup', async (req, res) => {
     const { username, email, password } = req.body;
     if (!username || !email || !password) return res.status(400).json({ message: 'All fields are required.' });
@@ -51,7 +54,27 @@ app.post('/api/signup', async (req, res) => {
         const hashedPassword = await bcrypt.hash(password, 10);
         db.run(`INSERT INTO users (username, email, password) VALUES (?, ?, ?)`, [username, email, hashedPassword], function(err) {
             if (err) return res.status(400).json({ message: 'Username or email already exists.' });
-            sendConfirmationEmail(email, username);
+            async function sendConfirmationEmail(email, username) {
+    sgMail.setApiKey(process.env.SENDGRID_API_KEY);
+
+    const msg = {
+        to: email,
+        from: 'your-verified-email@example.com', // Use the email you verified as a "Sender" on SendGrid
+        subject: 'Welcome to DataLink! ✔',
+        html: `<b>Hello ${username},</b><br><p>Your account has been created successfully. You can now log in and purchase data anytime.</p>`,
+    };
+
+    try {
+        await sgMail.send(msg);
+        console.log(`Confirmation email sent to ${email} via SendGrid`);
+    } catch (error) {
+        console.error('Failed to send email via SendGrid:', error);
+        if (error.response) {
+            console.error(error.response.body);
+        }
+    }
+   }
+            
             res.status(201).json({ message: 'User created successfully!' });
         });
     } catch (error) { res.status(500).json({ message: 'Server error.' }); }
@@ -139,5 +162,6 @@ async function sendConfirmationEmail(email, username) {
 app.listen(PORT, () => {
     console.log(`Server running on http://localhost:${PORT}`);
 });
+
 
 
