@@ -1,0 +1,67 @@
+body {
+    background: linear-gradient(-45deg, #009879, #007a63, #23a6d5, #23d5ab);
+    background-size: 400% 400%;
+    animation: gradient 15s ease infinite;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100vh;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    color: #fff;
+    padding: 1rem;
+    box-sizing: border-box;
+}
+@keyframes gradient {
+    0% { background-position: 0% 50%; }
+    50% { background-position: 100% 50%; }
+    100% { background-position: 0% 50%; }
+}
+.auth-container {
+    background: rgba(255, 255, 255, 0.1);
+    backdrop-filter: blur(10px);
+    padding: 2.5rem;
+    border-radius: 15px;
+    box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+    border: 1px solid rgba(255, 255, 255, 0.18);
+    width: 100%;
+    max-width: 400px;
+    text-align: center;
+}
+.auth-container h1 {
+    margin-bottom: 2rem;
+    font-size: 2rem;
+}
+.form-group { margin-bottom: 1.5rem; text-align: left; }
+label { display: block; margin-bottom: 0.5rem; font-weight: 500; }
+input {
+    width: 100%;
+    padding: 0.8rem;
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    border-radius: 8px;
+    background: rgba(255, 255, 255, 0.2);
+    color: #fff;
+    font-size: 1rem;
+    box-sizing: border-box;
+}
+input::placeholder { color: #eee; }
+input:focus { outline: none; border-color: #fff; }
+button {
+    width: 100%;
+    padding: 0.9rem;
+    background-color: #fff;
+    color: #009879;
+    border: none;
+    border-radius: 8px;
+    font-size: 1.1rem;
+    font-weight: bold;
+    cursor: pointer;
+    transition: all 0.3s;
+}
+button:hover {
+    background-color: #f0f0f0;
+    transform: translateY(-2px);
+}
+#status { margin-top: 1.5rem; font-weight: bold; min-height: 20px; }
+.auth-link { margin-top: 1.5rem; }
+.auth-link a { color: #fff; text-decoration: none; font-weight: 600; }
+.auth-link a:hover { text-decoration: underline; }
