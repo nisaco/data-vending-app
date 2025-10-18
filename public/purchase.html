@@ -32,23 +32,18 @@
     <script src="https://js.paystack.co/v1/inline.js"></script>
     
     <script>
-        // --- Getting Elements ---
         const networkSelect = document.getElementById('network');
         const dataplanSelect = document.getElementById('dataplan');
         const paymentForm = document.getElementById('paymentForm');
         const statusDiv = document.getElementById('status');
 
-        // --- Fetching Data Plans ---
         const fetchPlansForNetwork = (network) => {
             dataplanSelect.innerHTML = '<option>Loading...</option>';
             fetch(`/api/data-plans?network=${network}`)
                 .then(response => response.json())
                 .then(plans => {
                     dataplanSelect.innerHTML = '';
-                    if (!plans.length) {
-                        dataplanSelect.innerHTML = '<option>No plans available</option>';
-                        return;
-                    }
+                    if (!plans.length) { dataplanSelect.innerHTML = '<option>No plans available</option>'; return; }
                     plans.forEach(p => {
                         const opt = document.createElement('option');
                         opt.value = p.id;
@@ -57,19 +52,14 @@
                         dataplanSelect.appendChild(opt);
                     });
                 })
-                .catch(() => {
-                    dataplanSelect.innerHTML = '<option>Could not load plans</option>';
-                });
+                .catch(() => { dataplanSelect.innerHTML = '<option>Could not load plans</option>'; });
         };
 
         networkSelect.addEventListener('change', () => fetchPlansForNetwork(networkSelect.value));
         document.addEventListener('DOMContentLoaded', () => fetchPlansForNetwork(networkSelect.value));
 
-        // --- Handling Form Submission ---
         paymentForm.addEventListener("submit", function(e) {
             e.preventDefault();
-            console.log("Pay Now button clicked. Form submitted."); // DEBUG LOG 1
-
             const selected = dataplanSelect.options[dataplanSelect.selectedIndex];
             if (!selected || !selected.dataset.amount) {
                 statusDiv.textContent = "Please select a valid data plan.";
@@ -77,12 +67,9 @@
                 return;
             }
 
-            // Define the callback function separately for clarity
             const paymentCallback = function(response) {
-                console.log("Paystack callback started. Reference:", response.reference); // DEBUG LOG 3
                 statusDiv.textContent = "Verifying payment, please wait...";
                 statusDiv.style.color = "orange";
-
                 fetch('/paystack/verify', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
@@ -90,24 +77,14 @@
                 })
                 .then(verifyResponse => verifyResponse.json())
                 .then(data => {
-                    console.log("Verification response received:", data); // DEBUG LOG 4
                     statusDiv.textContent = data.message;
                     statusDiv.style.color = data.status === 'success' ? 'green' : 'red';
                 })
                 .catch(err => {
-                    console.error("Verification fetch error:", err); // DEBUG LOG 5
                     statusDiv.textContent = "An error occurred during verification.";
                     statusDiv.style.color = "red";
                 });
             };
-
-            const paymentOnClose = function() {
-                console.log("Paystack popup closed."); // DEBUG LOG
-                statusDiv.textContent = "Transaction cancelled.";
-                statusDiv.style.color = "red";
-            };
-
-            console.log("Setting up PaystackPop..."); // DEBUG LOG 2
             
             PaystackPop.setup({
                 key: 'pk_test_dca1d232650e7728ef04caaf18e286b0708ac281', // IMPORTANT: Replace with YOUR REAL Paystack Public Key
@@ -120,11 +97,13 @@
                     network: networkSelect.value, 
                     data_plan: selected.text 
                 },
-                callback: paymentCallback, // Use the clearly defined function
-                onClose: paymentOnClose    // Use the clearly defined function
+                callback: paymentCallback,
+                onClose: function() { 
+                    statusDiv.textContent = "Transaction cancelled."; 
+                    statusDiv.style.color = "red"; 
+                }
             }).openIframe();
         });
     </script>
 </body>
 </html>
-
