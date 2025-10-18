@@ -1,6 +1,6 @@
 // --- 1. IMPORTS AND SETUP ---
 require('dotenv').config();
-const path = require('path'); // THIS WAS THE MISSING LINE
+const path = require('path'); // THIS WAS THE MISSING LINE CAUSING THE CRASH
 const express = require('express');
 const session = require('express-session');
 const bcrypt = require('bcrypt');
@@ -100,12 +100,11 @@ app.post('/paystack/verify', isAuthenticated, async (req, res) => {
         const { status, data } = response.data;
 
         if (status && data.status === 'success') {
-            const finalStatus = 'data_sent';
+            const finalStatus = 'data_sent'; // Assuming success for now
             const { phone_number, network, data_plan } = data.metadata;
             const amountInGHS = data.amount / 100;
             const userId = req.session.user.id; // Get the logged-in user's ID
 
-            // THIS IS THE CORRECTED DATABASE INSERT
             db.run(`INSERT INTO orders (user_id, reference, phone_number, network, data_plan, amount, status) VALUES (?, ?, ?, ?, ?, ?, ?)`,
                 [userId, reference, phone_number, network, data_plan, amountInGHS, finalStatus]);
 
