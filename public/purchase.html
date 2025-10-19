@@ -3,7 +3,6 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-     <link rel="icon" type="image/x-icon" href="apple-touch-icon.png">
     <title>Purchase Data</title>
     <link rel="stylesheet" href="style.css">
 </head>
@@ -23,7 +22,11 @@
         <form id="paymentForm">
             <div class="form-group"><label for="network">Select Network</label><select id="network" required><option value="MTN">MTN</option><option value="AirtelTigo">AirtelTigo</option><option value="Telecel">Telecel</option></select></div>
             <div class="form-group"><label for="dataplan">Select Data Plan</label><select id="dataplan" required><option value="" data-amount="0">Loading plans...</option></select></div>
-            <div class="form-group"><label for="phone">Phone Number</label><input type="tel" id="phone" placeholder="e.g., 0244123456" required></div>
+            <!-- Phone number input with 10-digit validation -->
+            <div class="form-group">
+                <label for="phone">Phone Number (10 digits starting with 0)</label>
+                <input type="tel" id="phone" pattern="0[0-9]{9}" maxlength="10" placeholder="e.g., 0501234567" required>
+            </div>
             <div class="form-group"><label for="email">Email for Receipt</label><input type="email" id="email" placeholder="your.email@example.com" required></div>
             <button type="submit" id="pay-button">Pay Now</button>
         </form>
@@ -38,25 +41,32 @@
         const paymentForm = document.getElementById('paymentForm');
         const statusDiv = document.getElementById('status');
         const payButton = document.getElementById('pay-button');
+        const phoneInput = document.getElementById('phone'); 
         
         // IMPORTANT: Replace this with your actual Paystack Public Key
-        const PAYSTACK_PUBLIC_KEY = 'pk_live_62dc43eeea153c81c216b75e3967f8a44ee94fc3'; 
+        const PAYSTACK_PUBLIC_KEY = 'pk_test_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxx'; 
         
-        // --- PAYSTACK FEE CALCULATION ---
-        // This function calculates the amount we must charge the customer
+        // --- PAYSTACK FEE CALCULATION (Modified to pass 1.9% fee to customer) ---
         function calculateTotalCharge(planPriceInPesewas) {
+            // Business absorbs the GHS 0.80 flat fee. Customer pays only the 1.9% variable fee.
             const TRANSACTION_FEE_RATE = 0.019;
-            const TRANSACTION_FEE_FLAT = 80; // 80 pesewas
-            const TRANSACTION_FEE_CAP = 2000; // Max fee of 20.00 GHS 
+            const TRANSACTION_FEE_FLAT = 80; 
+            const TRANSACTION_FEE_CAP = 2000; 
 
-            let calculatedFee = (planPriceInPesewas * TRANSACTION_FEE_RATE) + TRANSACTION_FEE_FLAT;
+            // 1. Calculate the fee AS IF the business were paying the full amount
+            let feeForCapCheck = (planPriceInPesewas * TRANSACTION_FEE_RATE) + TRANSACTION_FEE_FLAT;
             
-            if (calculatedFee > TRANSACTION_FEE_CAP) {
-                calculatedFee = TRANSACTION_FEE_CAP;
-            }
+            // 2. Apply Cap Check
+            let totalFee = feeForCapCheck > TRANSACTION_FEE_CAP ? TRANSACTION_FEE_CAP : feeForCapCheck;
             
-            // Return the total amount the customer must pay (price + fee)
-            return planPriceInPesewas + Math.round(calculatedFee);
+            // 3. Calculate the Net Fee to pass to the customer (Total Fee - Absorbed Flat Fee)
+            // Note: Math.max(0, ...) ensures the customer's fee is never negative.
+            let netFeeToPass = Math.max(0, totalFee - TRANSACTION_FEE_FLAT); 
+
+            // 4. Calculate the total charged to the customer
+            const totalAmountCharged = planPriceInPesewas + Math.round(netFeeToPass);
+            
+            return totalAmountCharged;
         }
         
         // --- UI UPDATE: ONLY SHOWS THE BASE PRICE ---
@@ -71,7 +81,6 @@
             
             const sellingPriceGHS = (priceInPesewas / 100).toFixed(2);
             
-            // ONLY SHOWS THE BASE SELLING PRICE ON THE BUTTON
             payButton.textContent = `Pay GHS ${sellingPriceGHS}`;
             payButton.disabled = false;
         }
@@ -90,11 +99,10 @@
                     plans.forEach(p => {
                         const opt = document.createElement('option');
                         opt.value = p.id; 
-                        opt.dataset.amount = p.price; // Your selling price (with markup)
+                        opt.dataset.amount = p.price; 
                         opt.textContent = `${p.name} - GHS ${(p.price / 100).toFixed(2)}`;
                         dataplanSelect.appendChild(opt);
                     });
-                    // Initial update when plans are loaded
                     updatePayButton(dataplanSelect.options[dataplanSelect.selectedIndex]);
                 })
                 .catch(() => { 
@@ -113,16 +121,21 @@
             const selected = dataplanSelect.options[dataplanSelect.selectedIndex];
             const priceInPesewas = parseInt(selected.dataset.amount);
             
+            // 🛑 CLIENT-SIDE VALIDATION CHECK 🛑
+            if (!phoneInput.checkValidity()) {
+                statusDiv.textContent = "Please enter a valid 10-digit phone number starting with 0.";
+                statusDiv.style.color = "red";
+                phoneInput.focus();
+                return;
+            }
+
             if (!selected || priceInPesewas === 0 || isNaN(priceInPesewas)) {
                 statusDiv.textContent = "Please select a valid data plan.";
                 statusDiv.style.color = "red";
                 return;
             }
             
-            // *** CRITICAL CHANGE: Calculate the final charge HERE ***
             const totalAmountWithFees = calculateTotalCharge(priceInPesewas);
-            // The Paystack modal will now open and display this total amount, 
-            // including the fee, as the final charge.
 
             payButton.disabled = true;
             payButton.textContent = 'Opening Checkout...';
@@ -155,11 +168,11 @@
             PaystackPop.setup({
                 key: PAYSTACK_PUBLIC_KEY, 
                 email: document.getElementById('email').value,
-                amount: totalAmountWithFees, // ⬅️ THIS IS THE TOTAL CHARGE (Price + Fee)
+                amount: totalAmountWithFees, 
                 currency: 'GHS',
                 ref: 'DL-' + Math.floor((Math.random() * 1000000000) + 1),
                 metadata: { 
-                    phone_number: document.getElementById('phone').value, 
+                    phone_number: phoneInput.value, 
                     network: networkSelect.value, 
                     data_plan: selected.value,
                 },
@@ -173,5 +186,3 @@
             }).openIframe();
         });
     </script>
-</body>
-</html>
