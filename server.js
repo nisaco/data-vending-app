@@ -12,9 +12,8 @@ const app = express();
 const PORT = process.env.PORT || 10000;
 
 // --- 2. DATA (PLANS) - STATIC COST PRICE AND ID SETUP ---
+// NOTE: Since the API doesn't have a price list endpoint, these are the base COST PRICES (in pesewas).
 const allPlans = {
-    // ID must be the 'capacity' string (e.g., '1', '2', '5')
-    // Price must be the COST PRICE (in pesewas) for profit calculation
     "MTN": [
         { id: '1', name: '1GB', price: 450 }, 
         { id: '2', name: '2GB', price: 930 }, 
@@ -55,6 +54,7 @@ app.use(express.static(path.join(__dirname, 'public')));
 
 
 // --- 4. AUTHENTICATION & PAGE ROUTES ---
+// This middleware is critical: If no session, redirect to login.
 const isAuthenticated = (req, res, next) => req.session.user ? next() : res.redirect('/login.html');
 
 app.get('/', (req, res) => res.sendFile(path.join(__dirname, 'public', 'index.html')));
@@ -80,6 +80,7 @@ app.post('/api/login', async (req, res) => {
         if (!user || !await bcrypt.compare(password, user.password)) {
             return res.status(401).json({ message: 'Invalid credentials.' });
         }
+        // Success: Set the session cookie and return 200 OK
         req.session.user = { id: user._id, username: user.username };
         res.json({ message: 'Logged in successfully!' });
     } catch (error) {
@@ -91,7 +92,7 @@ app.get('/api/logout', (req, res) => {
     req.session.destroy(() => res.redirect('/login.html'));
 });
 
-// Protected page routes
+// Protected page routes (MUST use Express routing, not static file access)
 app.get('/purchase', isAuthenticated, (req, res) => res.sendFile(path.join(__dirname, 'public', 'purchase.html')));
 app.get('/dashboard', isAuthenticated, (req, res) => res.sendFile(path.join(__dirname, 'public', 'dashboard.html')));
 
@@ -100,13 +101,12 @@ app.get('/dashboard', isAuthenticated, (req, res) => res.sendFile(path.join(__di
 app.get('/api/data-plans', (req, res) => {
     const costPlans = allPlans[req.query.network] || [];
     
-    // Apply profit margin (Markup Logic)
+    // Apply profit margin (Fixed 10 Pesewas Markup)
     const sellingPlans = costPlans.map(p => {
-        const FIXED_MARKUP = 10; // ⬅️ FIXED 10 PESEWAS (GHS 0.10) PROFIT
-
-        // Round up the final price to the nearest 5 or 0 for a clean look
+        const FIXED_MARKUP = 10; // 10 PESEWAS (GHS 0.10) PROFIT
+        
         const rawSellingPrice = p.price + FIXED_MARKUP;
-        const sellingPrice = Math.ceil(rawSellingPrice / 5) * 5; // Rounds up to nearest multiple of 5
+        const sellingPrice = Math.ceil(rawSellingPrice / 5) * 5; // Rounds up to nearest multiple of 5 (clean pricing)
         
         return {
             id: p.id, 
@@ -194,7 +194,7 @@ app.post('/paystack/verify', isAuthenticated, async (req, res) => {
         const amountInGHS = data.amount / 100;
         const userId = req.session.user.id;
         
-        // --- STEP 2: TRANSFER DATA VIA RESELLER API ---
+        // --- STEP 2: TRANSFER DATA VIA RESELLER API (Datahub Ghana) ---
         const resellerApiUrl = 'https://console.ckgodsway.com/api/data-purchase';
         
         const networkKey = NETWORK_KEY_MAP[network];
