@@ -3,55 +3,167 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-     <link rel="icon" type="image/x-icon" href="apple-touch-icon.png">
-    <title>My Dashboard</title>
-    <link rel="stylesheet" href="style.css">
+    <title>My Dashboard - DataLink</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        :root { --primary: #009879; --secondary: #007a63; }
+        .text-primary { color: var(--primary); }
+        .bg-primary { background-color: var(--primary); }
+        
+        /* Table Status Colors */
+        .status-data_sent { background-color: #10b981; } /* Emerald Green */
+        .status-pending_review { background-color: #f59e0b; } /* Amber Orange */
+        .status-payment_success { background-color: #3b82f6; } /* Blue */
+        
+        /* Tab Styling */
+        .filter-tab {
+            transition: all 0.2s ease-in-out;
+            padding: 8px 16px;
+            border-bottom: 2px solid transparent;
+            cursor: pointer;
+            font-weight: 500;
+        }
+        .filter-tab.active {
+            color: var(--primary);
+            border-bottom: 2px solid var(--primary);
+            font-weight: 700;
+        }
+    </style>
 </head>
-<body>
-    <nav class="navbar">
-        <div class="nav-container">
-            <a href="/purchase" class="nav-brand">DataLink</a>
-            <div class="nav-menu">
-                <a href="/dashboard" class="nav-link active">Dashboard</a>
-                <a href="/api/logout" class="nav-link nav-link-logout">Logout</a>
+<body class="bg-gray-50 min-h-screen font-sans">
+    
+    <!-- Navbar -->
+    <nav class="bg-white shadow-lg">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex justify-between items-center h-16">
+            <a href="/purchase" class="text-xl font-bold text-primary">DataLink</a>
+            <div class="flex space-x-4">
+                <a href="/dashboard" class="text-primary hover:text-secondary transition font-bold border-b-2 border-primary">Dashboard</a>
+                <a href="/api/logout" class="text-red-500 hover:text-red-700 transition font-medium">Logout</a>
             </div>
         </div>
     </nav>
-    <div class="container">
-        <h1>My Order History</h1>
-        <p class="subtitle">Here are all the data purchases you've made.</p>
-        <div id="status"></div>
-        <table>
-            <thead><tr><th>Date</th><th>Phone</th><th>Plan</th><th>Amount (GHS)</th><th>Status</th></tr></thead>
-            <tbody id="ordersTableBody"></tbody>
-        </table>
+
+    <!-- Main Content Card -->
+    <div class="container mx-auto p-4 max-w-4xl">
+        <div class="bg-white p-6 md:p-8 rounded-2xl shadow-xl mt-8 border border-gray-100">
+            
+            <h1 class="text-3xl font-extrabold text-center text-gray-800 mb-2">My Order History</h1>
+            <p class="text-center text-gray-500 mb-6">Filter by network to quickly review your purchases.</p>
+            
+            <!-- Network Filters -->
+            <div id="network-filters" class="flex justify-center space-x-4 mb-6 border-b border-gray-200 text-gray-600">
+                <div class="filter-tab active" data-network="All">All Orders</div>
+                <div class="filter-tab" data-network="MTN">MTN</div>
+                <div class="filter-tab" data-network="AirtelTigo">AirtelTigo</div>
+                <div class="filter-tab" data-network="Telecel">Telecel</div>
+            </div>
+            
+            <div id="status" class="text-center font-medium mb-4 text-gray-700">Loading your orders...</div>
+
+            <!-- Responsive Table Container -->
+            <div class="overflow-x-auto rounded-xl border border-gray-200 shadow-inner">
+                <table class="w-full text-sm text-left text-gray-500">
+                    <thead class="text-xs text-white uppercase bg-primary">
+                        <tr>
+                            <th scope="col" class="py-3 px-6 rounded-tl-xl">Date</th>
+                            <th scope="col" class="py-3 px-6">Phone</th>
+                            <th scope="col" class="py-3 px-6">Plan</th>
+                            <th scope="col" class="py-3 px-6">Amount (GHS)</th>
+                            <th scope="col" class="py-3 px-6 rounded-tr-xl">Status</th>
+                        </tr>
+                    </thead>
+                    <tbody id="ordersTableBody" class="bg-white divide-y divide-gray-100">
+                        <!-- Order rows will be inserted here by JavaScript -->
+                    </tbody>
+                </table>
+            </div>
+
+        </div>
     </div>
+    
     <script>
+        let userOrders = []; // Global array to hold all fetched orders
+        const statusDiv = document.getElementById('status');
+        const tableBody = document.getElementById('ordersTableBody');
+        const filterContainer = document.getElementById('network-filters');
+
+        function renderOrders(orders) {
+            tableBody.innerHTML = '';
+            if (orders.length === 0) {
+                statusDiv.textContent = "No orders found for this network.";
+                statusDiv.style.color = 'black';
+                return;
+            }
+
+            statusDiv.textContent = ''; // Clear status if orders are present
+            
+            orders.forEach(order => {
+                const row = tableBody.insertRow();
+                const statusText = order.status.replace(/_/g, ' '); 
+                const statusClass = `status-${order.status}`;
+                
+                row.className = 'hover:bg-gray-50 transition duration-150';
+
+                row.innerHTML = `
+                    <td class="py-4 px-6">${new Date(order.created_at).toLocaleString('en-GB')}</td>
+                    <td class="py-4 px-6">${order.phone_number}</td>
+                    <td class="py-4 px-6">${order.data_plan}</td>
+                    <td class="py-4 px-6 font-semibold text-gray-800">${order.amount.toFixed(2)}</td>
+                    <td class="py-4 px-6">
+                        <span class="px-3 py-1 text-white text-xs font-bold uppercase rounded-full ${statusClass}">
+                            ${statusText}
+                        </span>
+                    </td>
+                `;
+            });
+        }
+        
+        function filterAndRenderOrders(network) {
+            let filtered = userOrders;
+            if (network !== 'All') {
+                filtered = userOrders.filter(order => order.network === network);
+            }
+            renderOrders(filtered);
+        }
+
         document.addEventListener('DOMContentLoaded', async () => {
-            const statusDiv = document.getElementById('status');
-            const tableBody = document.getElementById('ordersTableBody');
-            statusDiv.textContent = 'Loading your orders...';
             try {
                 const response = await fetch('/api/my-orders');
+                
+                if (response.status === 401) {
+                    statusDiv.textContent = 'Session expired. Redirecting to login...';
+                    statusDiv.style.color = 'red';
+                    setTimeout(() => window.location.href = '/login.html', 1000);
+                    return;
+                }
+                
                 if (!response.ok) throw new Error('Could not fetch orders. Please try logging in again.');
-                const { orders } = await response.json();
-                tableBody.innerHTML = '';
-                if (!orders.length) { statusDiv.textContent = "You haven't made any purchases yet."; return; }
-                statusDiv.textContent = '';
-                orders.forEach(order => {
-                    const row = tableBody.insertRow();
-                    const statusClass = `status-${order.status}`;
-                    row.innerHTML = `
-                        <td>${new Date(order.created_at).toLocaleString('en-GB')}</td>
-                        <td>${order.phone_number}</td>
-                        <td>${order.data_plan}</td>
-                        <td>${order.amount.toFixed(2)}</td>
-                        <td><span class="status-span ${statusClass}">${order.status.replace('_', ' ')}</span></td>
-                    `;
-                });
+                
+                const data = await response.json();
+                userOrders = data.orders || [];
+
+                if (userOrders.length === 0) { 
+                    statusDiv.textContent = "You haven't made any purchases yet."; 
+                    statusDiv.style.color = 'black';
+                    return; 
+                }
+                
+                // Initial render: show 'All Orders'
+                filterAndRenderOrders('All');
+
             } catch (error) {
-                statusDiv.textContent = error.message;
+                statusDiv.textContent = `Error: ${error.message}`;
                 statusDiv.style.color = 'red';
+            }
+        });
+
+        // Add event listener for filter tabs
+        filterContainer.addEventListener('click', (e) => {
+            const target = e.target.closest('.filter-tab');
+            if (target) {
+                document.querySelectorAll('.filter-tab').forEach(tab => tab.classList.remove('active'));
+                target.classList.add('active');
+                filterAndRenderOrders(target.dataset.network);
             }
         });
     </script>
