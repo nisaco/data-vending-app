@@ -147,8 +147,29 @@ app.get('/api/get-all-orders', async (req, res) => {
         }));
 
         res.json({ orders: formattedOrders });
+    
+// --- In server.js, inside the /paystack/verify  ---
+// ...
+
     } catch (error) {
-        res.status(500).json({ error: "Failed to fetch orders" });
+        // --- CATCH BLOCK FOR VERIFICATION/TRANSACTION ERRORS ---
+        
+        let errorMessage = 'An internal server error occurred during verification.';
+        
+        // Check if the error came from Paystack (status codes 400s or 500s)
+        if (error.response && error.response.data && error.response.data.message) {
+            errorMessage = `Paystack/Reseller Error: ${error.response.data.message}`;
+            // Log the full response from the external API to your server logs
+            console.error('External API Error Details:', error.response.data);
+            
+        } else if (error.message) {
+            errorMessage = `Network Error: ${error.message}`;
+        }
+
+        // Log the severe error to your Render dashboard logs
+        console.error('Fatal Verification Failure:', error); 
+        
+        return res.status(500).json({ status: 'error', message: errorMessage });
     }
 });
 
@@ -253,3 +274,4 @@ app.post('/paystack/verify', isAuthenticated, async (req, res) => {
 app.listen(PORT, '0.0.0.0', () => {
     console.log(`Server running on port ${PORT}`);
 });
+
