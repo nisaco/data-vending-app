@@ -7,7 +7,6 @@ const bcrypt = require('bcrypt');
 const sgMail = require('@sendgrid/mail');
 const axios = require('axios');
 const { User, Order } = require('./database.js'); 
-// IMPORT Mongoose here to access the database connection and ObjectId tools
 const mongoose = require('mongoose'); 
 
 const app = express();
@@ -167,18 +166,19 @@ app.get('/api/admin/all-users-status', async (req, res) => {
         rawSessions.forEach(sessionDoc => {
             try {
                 const sessionData = JSON.parse(sessionDoc.session);
-                // CRITICAL FIX: The session user ID is stored as a string, so we add the string version.
                 if (sessionData.user && sessionData.user.id) {
-                    activeUserIds.add(sessionData.user.id.toString());
+                    // 🛑 CRITICAL FIX: Strip any extra characters (like quotes) that might cause the mismatch
+                    let sessionId = sessionData.user.id.toString().replace(/['"]+/g, '');
+                    activeUserIds.add(sessionId);
                 }
             } catch (e) {
-                // Ignore corrupted sessions
+                // console.error("Error parsing session:", e); // Optional: Re-enable for debugging only
             }
         });
 
         // 3. Merge status data
         const userListWithStatus = registeredUsers.map(user => {
-            // CRITICAL FIX: Convert the Mongoose user._id object to a string for comparison
+            // Convert the Mongoose user._id object to a string for comparison
             const userIdString = user._id.toString();
             
             return {
