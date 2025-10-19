@@ -25,41 +25,42 @@
         <p class="auth-link">Don't have an account? <a href="signup.html">Sign Up</a></p>
     </div>
     <script>
-        document.getElementById('loginForm').addEventListener('submit', async (e) => {
-            e.preventDefault();
-            const statusDiv = document.getElementById('status');
-            const [username, password] = [document.getElementById('username').value, document.getElementById('password').value];
+    document.getElementById('loginForm').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const statusDiv = document.getElementById('status');
+        const [username, password] = [document.getElementById('username').value, document.getElementById('password').value];
+        
+        const button = e.target.querySelector('button');
+        button.disabled = true;
+        statusDiv.textContent = 'Logging in...';
+        statusDiv.style.color = 'yellow';
+        
+        try {
+            const response = await fetch('/api/login', {
+                method: 'POST', headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ username, password })
+            });
             
-            // Disable button and show loading state
-            const button = e.target.querySelector('button');
-            button.disabled = true;
-            statusDiv.textContent = 'Logging in...';
-            statusDiv.style.color = 'yellow';
-            
-            try {
-                const response = await fetch('/api/login', {
-                    method: 'POST', headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ username, password })
-                });
+            if (response.ok) {
+                statusDiv.textContent = 'Success! Redirecting to purchase page...';
+                statusDiv.style.color = 'lightgreen';
                 
-                if (response.ok) {
-                    statusDiv.textContent = 'Success! Redirecting to purchase page...';
-                    statusDiv.style.color = 'lightgreen';
-                    // *** THE REDIRECTION FIX ***
-                    window.location.href = '/purchase';
-                } else {
-                    const result = await response.json();
-                    statusDiv.textContent = result.message || 'Login failed. Invalid credentials.';
-                    statusDiv.style.color = 'pink';
-                }
-            } catch(err) {
-                statusDiv.textContent = 'Network error. Could not connect to server.';
+                // 🛑 CRITICAL FIX: Redirect to the protected EXPRESS ROUTE
+                window.location.href = '/purchase'; 
+            } else {
+                const result = await response.json();
+                statusDiv.textContent = result.message || 'Login failed. Invalid credentials.';
                 statusDiv.style.color = 'pink';
-            } finally {
-                button.disabled = false;
-                button.textContent = 'Log In';
             }
-        });
-    </script>
+        } catch(err) {
+            statusDiv.textContent = 'Network error. Could not connect to server.';
+            statusDiv.style.color = 'pink';
+        } finally {
+            button.disabled = false;
+            button.textContent = 'Log In';
+        }
+    });
+</script>
 </body>
+
 </html>
