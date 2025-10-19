@@ -11,9 +11,9 @@
         .bg-primary { background-color: var(--primary); }
         
         /* Table Status Colors */
-        .status-data_sent { background-color: #10b981; } 
-        .status-pending_review { background-color: #f59e0b; } 
-        .status-payment_success { background-color: #3b82f6; } 
+        .status-data_sent { background-color: #10b981; } /* Emerald Green */
+        .status-pending_review { background-color: #f59e0b; } /* Amber Orange */
+        .status-payment_success { background-color: #3b82f6; } /* Blue */
         
         /* Tab Styling */
         .filter-tab {
@@ -42,6 +42,13 @@
         .action-btn:hover {
             background-color: #dc2626;
         }
+        /* Custom card for stats */
+        .stat-card {
+            background-color: #f7f7f7;
+            padding: 1rem;
+            border-radius: 12px;
+            box-shadow: inset 0 1px 3px rgba(0,0,0,0.05);
+        }
     </style>
 </head>
 <body class="bg-gray-50 min-h-screen font-sans">
@@ -62,6 +69,12 @@
             
             <h1 class="text-3xl font-extrabold text-center text-gray-800 mb-2">Admin Order Dashboard</h1>
             <p class="text-center text-gray-500 mb-6">Monitor all transactions and manually resolve pending orders.</p>
+
+            <!-- User Count Stat -->
+            <div id="user-count-display" class="stat-card mb-6 text-center hidden">
+                <p class="text-sm text-gray-600 font-medium">Total Registered Clients</p>
+                <p id="client-count" class="text-4xl font-extrabold text-primary"></p>
+            </div>
 
             <div class="flex flex-col sm:flex-row gap-3 mb-6 items-center justify-center">
                 <input type="password" id="adminSecret" placeholder="Enter Admin Secret" class="w-full sm:w-64 p-3 border border-gray-300 rounded-lg focus:ring-primary focus:border-primary">
@@ -110,7 +123,10 @@
         const tableBody = document.getElementById('ordersTableBody');
         const adminSecretInput = document.getElementById('adminSecret');
         const filterContainer = document.getElementById('network-filters');
+        const userCountDisplay = document.getElementById('user-count-display');
+        const clientCountElement = document.getElementById('client-count');
 
+        // Function to render the table rows
         function renderOrders(orders) {
             tableBody.innerHTML = '';
             if (orders.length === 0) {
@@ -149,6 +165,7 @@
             });
         }
         
+        // Function to filter data based on tab click
         function filterAndRenderOrders(network) {
             let filtered = adminOrders;
             if (network !== 'All') {
@@ -157,11 +174,34 @@
             renderOrders(filtered);
         }
 
+        // --- FUNCTION TO FETCH USER COUNT ---
+        async function fetchUserCount(secret) {
+            try {
+                const response = await fetch(`/api/admin/user-count?secret=${secret}`);
+                if (response.ok) {
+                    const data = await response.json();
+                    clientCountElement.textContent = data.count;
+                    userCountDisplay.classList.remove('hidden');
+                } else {
+                    clientCountElement.textContent = 'N/A';
+                }
+            } catch (error) {
+                clientCountElement.textContent = 'Error';
+            }
+        }
+
         // --- FUNCTION TO FETCH ALL ORDERS ---
         document.getElementById('fetchOrdersBtn').addEventListener('click', async () => {
             const secret = adminSecretInput.value;
-            if (!secret) { statusDiv.textContent = 'Please enter the admin secret.'; statusDiv.style.color = 'red'; return; }
+            if (!secret) { 
+                statusDiv.textContent = 'Please enter the admin secret.'; 
+                statusDiv.style.color = 'red'; 
+                return; 
+            }
             
+            // Fetch the total number of users simultaneously
+            fetchUserCount(secret);
+
             statusDiv.textContent = 'Fetching all orders...';
             tableBody.innerHTML = '';
             
@@ -177,7 +217,6 @@
                     statusDiv.style.color = 'black';
                 }
                 
-                // Initial render after fetching: show 'All Orders'
                 filterAndRenderOrders('All');
 
             } catch (error) {
