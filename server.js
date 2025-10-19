@@ -41,8 +41,6 @@ const NETWORK_KEY_MAP = {
 };
 
 // --- 3. MIDDLEWARE ---
-
-// CRITICAL RENDER FIX: Trust the proxy (Render) to handle the secure connection.
 app.set('trust proxy', 1); 
 
 const sessionSecret = process.env.SESSION_SECRET || 'fallback-secret-for-local-dev-only-12345';
@@ -50,7 +48,6 @@ app.use(session({
     secret: sessionSecret,
     resave: false,
     saveUninitialized: false,
-    // Set secure: true so the cookie only transmits over HTTPS (Render's layer)
     cookie: { secure: true, maxAge: 1000 * 60 * 60 } 
 }));
 app.use(express.json());
@@ -102,15 +99,16 @@ app.get('/dashboard', isAuthenticated, (req, res) => res.sendFile(path.join(__di
 app.get('/api/data-plans', (req, res) => {
     const costPlans = allPlans[req.query.network] || [];
     
+    // Apply profit margin: 20 PESEWAS (GHS 0.20) profit.
     const sellingPlans = costPlans.map(p => {
-        const FIXED_MARKUP = 10; 
+        const FIXED_MARKUP = 20; // ⬅️ NEW PROFIT BUFFER: GHS 0.20
         const rawSellingPrice = p.price + FIXED_MARKUP;
-        const sellingPrice = Math.ceil(rawSellingPrice / 5) * 5; 
+        const sellingPrice = Math.ceil(rawSellingPrice / 5) * 5; // Rounds up to nearest multiple of 5
         
         return {
             id: p.id, 
             name: p.name,
-            price: sellingPrice
+            price: sellingPrice // This is the final selling price in pesewas
         };
     });
 
@@ -178,10 +176,9 @@ app.post('/paystack/verify', isAuthenticated, async (req, res) => {
     let finalStatus = 'payment_success'; 
     
     try {
-        // 🛑 NEW DEBUG LOGS: CHECK IF KEYS ARE DEFINED 🛑
+        // --- DEBUG LOGS ---
         console.log(`Debug Check: Paystack Key Length: ${process.env.PAYSTACK_SECRET_KEY ? process.env.PAYSTACK_SECRET_KEY.length : '0'}`);
         console.log(`Debug Check: Data API Key Length: ${process.env.DATA_API_SECRET ? process.env.DATA_API_SECRET.length : '0'}`);
-        // If either length is 0, the environment variable is missing in Render!
 
         // --- STEP 1: VERIFY PAYMENT WITH PAYSTACK ---
         const paystackUrl = `https://api.paystack.co/transaction/verify/${reference}`;
@@ -221,13 +218,11 @@ app.post('/paystack/verify', isAuthenticated, async (req, res) => {
             if (transferResponse.data.success === true) {
                 finalStatus = 'data_sent';
             } else {
-                // Log failed API response content
                 console.error('Data API failed response:', transferResponse.data);
                 finalStatus = 'pending_review';
             }
 
         } catch (transferError) {
-            // Log network error details
             console.error('Data API Network Error:', transferError.message);
             finalStatus = 'pending_review';
         }
@@ -253,7 +248,7 @@ app.post('/paystack/verify', isAuthenticated, async (req, res) => {
         }
 
     } catch (error) {
-        // 🛑 Detailed error logging for fatal errors
+        // Detailed error logging for fatal errors
         let errorMessage = 'An internal server error occurred during verification.';
         
         if (error.response && error.response.data && error.response.data.error) {
