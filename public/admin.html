@@ -3,68 +3,188 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-     <link rel="icon" type="image/x-icon" href="apple-touch-icon.png">
-    <title>Admin Dashboard</title>
-    <link rel="stylesheet" href="style.css">
+    <title>Admin Dashboard - DataLink</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        :root { --primary: #009879; --secondary: #007a63; }
+        .text-primary { color: var(--primary); }
+        .bg-primary { background-color: var(--primary); }
+        
+        /* Table Status Colors */
+        .status-data_sent { background-color: #10b981; } 
+        .status-pending_review { background-color: #f59e0b; } 
+        .status-payment_success { background-color: #3b82f6; } 
+        
+        /* Tab Styling */
+        .filter-tab {
+            transition: all 0.2s ease-in-out;
+            padding: 8px 16px;
+            border-bottom: 2px solid transparent;
+            cursor: pointer;
+            font-weight: 500;
+        }
+        .filter-tab.active {
+            color: var(--primary);
+            border-bottom: 2px solid var(--primary);
+            font-weight: 700;
+        }
+        
+        /* Button styling for actions */
+        .action-btn {
+            background-color: #ef4444; /* Red */
+            color: white;
+            padding: 4px 10px;
+            border-radius: 6px;
+            font-weight: 600;
+            font-size: 0.75rem;
+            transition: background-color 0.2s;
+        }
+        .action-btn:hover {
+            background-color: #dc2626;
+        }
+    </style>
 </head>
-<body>
-    <div class="container">
-        <h1>Admin Order Dashboard</h1>
-        <p class="subtitle">View and manage all client orders.</p>
-        <div class="controls">
-            <input type="password" id="adminSecret" placeholder="Enter Admin Secret">
-            <button id="fetchOrdersBtn">Fetch All Orders</button>
+<body class="bg-gray-50 min-h-screen font-sans">
+    
+    <!-- Navbar (Minimalist for Admin View) -->
+    <nav class="bg-white shadow-lg">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex justify-between items-center h-16">
+            <span class="text-xl font-bold text-primary">Admin Panel</span>
+            <div class="flex space-x-4">
+                <a href="/purchase" class="text-gray-600 hover:text-primary transition font-medium">Client View</a>
+            </div>
         </div>
-        <div id="status"></div>
-        <table>
-            <thead><tr><th>Order ID</th><th>Username</th><th>Date</th><th>Phone</th><th>Plan</th><th>Amount (GHS)</th><th>Status</th><th>Action</th></tr></thead>
-            <tbody id="ordersTableBody"></tbody>
-        </table>
+    </nav>
+
+    <!-- Main Content Card -->
+    <div class="container mx-auto p-4 max-w-7xl">
+        <div class="bg-white p-6 md:p-8 rounded-2xl shadow-xl mt-8 border border-gray-100">
+            
+            <h1 class="text-3xl font-extrabold text-center text-gray-800 mb-2">Admin Order Dashboard</h1>
+            <p class="text-center text-gray-500 mb-6">Monitor all transactions and manually resolve pending orders.</p>
+
+            <div class="flex flex-col sm:flex-row gap-3 mb-6 items-center justify-center">
+                <input type="password" id="adminSecret" placeholder="Enter Admin Secret" class="w-full sm:w-64 p-3 border border-gray-300 rounded-lg focus:ring-primary focus:border-primary">
+                <button id="fetchOrdersBtn" class="w-full sm:w-auto py-3 px-6 bg-primary text-white font-bold rounded-lg hover:bg-secondary transition">
+                    Fetch All Orders
+                </button>
+            </div>
+            
+            <!-- Network Filters -->
+            <div id="network-filters" class="flex justify-center space-x-4 mb-6 border-b border-gray-200 text-gray-600">
+                <div class="filter-tab active" data-network="All">All Orders</div>
+                <div class="filter-tab" data-network="MTN">MTN</div>
+                <div class="filter-tab" data-network="AirtelTigo">AirtelTigo</div>
+                <div class="filter-tab" data-network="Telecel">Telecel</div>
+            </div>
+
+            <div id="status" class="text-center font-medium mb-4 text-gray-700">Please enter secret to fetch orders.</div>
+            
+            <!-- Responsive Table Container -->
+            <div class="overflow-x-auto rounded-xl border border-gray-200 shadow-inner">
+                <table class="w-full text-sm text-left text-gray-500">
+                    <thead class="text-xs text-white uppercase bg-primary">
+                        <tr>
+                            <th scope="col" class="py-3 px-6 rounded-tl-xl">ID</th>
+                            <th scope="col" class="py-3 px-6">Username</th>
+                            <th scope="col" class="py-3 px-6">Date</th>
+                            <th scope="col" class="py-3 px-6">Phone</th>
+                            <th scope="col" class="py-3 px-6">Plan</th>
+                            <th scope="col" class="py-3 px-6">Amount</th>
+                            <th scope="col" class="py-3 px-6">Status</th>
+                            <th scope="col" class="py-3 px-6 rounded-tr-xl">Action</th>
+                        </tr>
+                    </thead>
+                    <tbody id="ordersTableBody" class="bg-white divide-y divide-gray-100">
+                        <!-- Order rows will be inserted here by JavaScript -->
+                    </tbody>
+                </table>
+            </div>
+
+        </div>
     </div>
+    
     <script>
+        let adminOrders = []; // Global array to hold all fetched orders
         const statusDiv = document.getElementById('status');
         const tableBody = document.getElementById('ordersTableBody');
         const adminSecretInput = document.getElementById('adminSecret');
+        const filterContainer = document.getElementById('network-filters');
 
-        // --- FUNCTION TO FETCH AND DISPLAY ORDERS ---
-        async function fetchOrders() {
+        function renderOrders(orders) {
+            tableBody.innerHTML = '';
+            if (orders.length === 0) {
+                statusDiv.textContent = "No orders found for this filter.";
+                statusDiv.style.color = 'black';
+                return;
+            }
+
+            statusDiv.textContent = `Displaying ${orders.length} orders.`;
+            statusDiv.style.color = 'green';
+            
+            orders.forEach(order => {
+                const row = tableBody.insertRow();
+                const statusText = order.status.replace(/_/g, ' '); 
+                const statusClass = `status-${order.status}`;
+                
+                const actionButton = order.status === 'pending_review' ? 
+                    `<button class="action-btn" data-id="${order.id}">Mark Sent</button>` : '';
+
+                row.className = 'hover:bg-gray-50 transition duration-150';
+
+                row.innerHTML = `
+                    <td class="py-4 px-6 font-mono text-xs">${order.id.substring(0, 8)}...</td>
+                    <td class="py-4 px-6 font-medium text-gray-900">${order.username}</td>
+                    <td class="py-4 px-6">${new Date(order.created_at).toLocaleString('en-GB')}</td>
+                    <td class="py-4 px-6">${order.phone_number}</td>
+                    <td class="py-4 px-6">${order.data_plan}</td>
+                    <td class="py-4 px-6 text-gray-800 font-semibold">${order.amount.toFixed(2)}</td>
+                    <td class="py-4 px-6">
+                        <span class="px-3 py-1 text-white text-xs font-bold uppercase rounded-full ${statusClass}">
+                            ${statusText}
+                        </span>
+                    </td>
+                    <td class="py-4 px-6">${actionButton}</td>
+                `;
+            });
+        }
+        
+        function filterAndRenderOrders(network) {
+            let filtered = adminOrders;
+            if (network !== 'All') {
+                filtered = adminOrders.filter(order => order.network === network);
+            }
+            renderOrders(filtered);
+        }
+
+        // --- FUNCTION TO FETCH ALL ORDERS ---
+        document.getElementById('fetchOrdersBtn').addEventListener('click', async () => {
             const secret = adminSecretInput.value;
             if (!secret) { statusDiv.textContent = 'Please enter the admin secret.'; statusDiv.style.color = 'red'; return; }
             
             statusDiv.textContent = 'Fetching all orders...';
             tableBody.innerHTML = '';
+            
             try {
                 const response = await fetch(`/api/get-all-orders?secret=${secret}`);
                 if (!response.ok) throw new Error('Failed to fetch. Check secret or server logs.');
-                const { orders } = await response.json();
                 
-                if (!orders || !orders.length) { statusDiv.textContent = 'No orders found.'; return; }
+                const data = await response.json();
+                adminOrders = data.orders || [];
+
+                if (adminOrders.length === 0) { 
+                    statusDiv.textContent = 'No orders found.';
+                    statusDiv.style.color = 'black';
+                }
                 
-                statusDiv.textContent = `Displaying ${orders.length} total orders.`;
-                statusDiv.style.color = 'green';
+                // Initial render after fetching: show 'All Orders'
+                filterAndRenderOrders('All');
 
-                orders.forEach(order => {
-                    const row = tableBody.insertRow();
-                    const statusClass = `status-${order.status}`;
-                    const actionButton = order.status === 'pending_review' ? 
-                        `<button class="action-btn" data-id="${order.id}">Mark Sent</button>` : '';
-
-                    row.innerHTML = `
-                        <td>${order.id.substring(0, 8)}...</td>
-                        <td>${order.username}</td>
-                        <td>${new Date(order.created_at).toLocaleString('en-GB')}</td>
-                        <td>${order.phone_number}</td>
-                        <td>${order.data_plan}</td>
-                        <td>${order.amount.toFixed(2)}</td>
-                        <td><span class="status-span ${statusClass}">${order.status.replace('_', ' ')}</span></td>
-                        <td>${actionButton}</td>
-                    `;
-                });
             } catch (error) {
-                statusDiv.textContent = error.message;
+                statusDiv.textContent = `Error: ${error.message}`;
                 statusDiv.style.color = 'red';
             }
-        }
+        });
         
         // --- FUNCTION TO HANDLE MARK SENT ACTION ---
         async function markOrderSent(orderId, button) {
@@ -87,10 +207,17 @@
 
                 const result = await response.json();
                 if (response.ok) {
+                    // Update the local array status (avoids refetching all data)
+                    const index = adminOrders.findIndex(order => order.id === orderId);
+                    if (index !== -1) {
+                        adminOrders[index].status = 'data_sent';
+                    }
                     statusDiv.textContent = result.message;
                     statusDiv.style.color = 'green';
-                    // Re-fetch the orders to update the table immediately
-                    fetchOrders(); 
+                    
+                    // Re-render the table with the updated data
+                    const activeNetwork = filterContainer.querySelector('.filter-tab.active').dataset.network;
+                    filterAndRenderOrders(activeNetwork);
                 } else {
                     throw new Error(result.error || result.message || 'Failed to update status.');
                 }
@@ -104,13 +231,22 @@
         }
 
         // --- EVENT LISTENERS ---
-        document.getElementById('fetchOrdersBtn').addEventListener('click', fetchOrders);
         
-        // Use event delegation for buttons added dynamically
+        // Use event delegation for the 'Mark Sent' buttons
         tableBody.addEventListener('click', (e) => {
             if (e.target.classList.contains('action-btn')) {
                 const orderId = e.target.dataset.id;
                 markOrderSent(orderId, e.target);
+            }
+        });
+        
+        // Add event listener for filter tabs
+        filterContainer.addEventListener('click', (e) => {
+            const target = e.target.closest('.filter-tab');
+            if (target) {
+                document.querySelectorAll('.filter-tab').forEach(tab => tab.classList.remove('active'));
+                target.classList.add('active');
+                filterAndRenderOrders(target.dataset.network);
             }
         });
     </script>
