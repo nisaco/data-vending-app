@@ -7,7 +7,8 @@ const bcrypt = require('bcrypt');
 const sgMail = require('@sendgrid/mail');
 const axios = require('axios');
 const { User, Order } = require('./database.js'); 
-const mongoose = require('mongoose'); // Import Mongoose here to access the database connection
+// IMPORT Mongoose here to access the database connection and ObjectId tools
+const mongoose = require('mongoose'); 
 
 const app = express();
 const PORT = process.env.PORT || 10000;
@@ -149,7 +150,7 @@ app.get('/api/get-all-orders', async (req, res) => {
     }
 });
 
-// --- NEW ADMIN ENDPOINT: FETCH ALL USERS + ONLINE STATUS ---
+// --- NEW ADMIN ENDPOINT: FETCH ALL USERS + ONLINE STATUS (FIXED) ---
 app.get('/api/admin/all-users-status', async (req, res) => {
     if (req.query.secret !== process.env.ADMIN_SECRET) return res.status(403).json({ error: "Unauthorized" });
     
@@ -161,12 +162,12 @@ app.get('/api/admin/all-users-status', async (req, res) => {
         const sessionsCollection = mongoose.connection.db.collection('sessions');
         const rawSessions = await sessionsCollection.find({}).toArray();
 
-        // Build a map of active user IDs for quick lookup
+        // Build a SET of active user IDs (as strings) for quick lookup
         const activeUserIds = new Set();
         rawSessions.forEach(sessionDoc => {
             try {
                 const sessionData = JSON.parse(sessionDoc.session);
-                // Convert Mongoose ObjectId to string for comparison
+                // CRITICAL FIX: The session user ID is stored as a string, so we add the string version.
                 if (sessionData.user && sessionData.user.id) {
                     activeUserIds.add(sessionData.user.id.toString());
                 }
@@ -176,13 +177,18 @@ app.get('/api/admin/all-users-status', async (req, res) => {
         });
 
         // 3. Merge status data
-        const userListWithStatus = registeredUsers.map(user => ({
-            username: user.username,
-            email: user.email,
-            signedUp: user.createdAt,
-            // Check if user's ID exists in the active set
-            isOnline: activeUserIds.has(user._id.toString())
-        }));
+        const userListWithStatus = registeredUsers.map(user => {
+            // CRITICAL FIX: Convert the Mongoose user._id object to a string for comparison
+            const userIdString = user._id.toString();
+            
+            return {
+                username: user.username,
+                email: user.email,
+                signedUp: user.createdAt,
+                // Check if the user's string ID exists in the active set
+                isOnline: activeUserIds.has(userIdString)
+            };
+        });
 
         res.json({ users: userListWithStatus });
         
@@ -233,10 +239,6 @@ app.post('/paystack/verify', isAuthenticated, async (req, res) => {
     let finalStatus = 'payment_success'; 
     
     try {
-        // --- DEBUG LOGS ---
-        console.log(`Debug Check: Paystack Key Length: ${process.env.PAYSTACK_SECRET_KEY ? process.env.PAYSTACK_SECRET_KEY.length : '0'}`);
-        console.log(`Debug Check: Data API Key Length: ${process.env.DATA_API_SECRET ? process.env.DATA_API_SECRET.length : '0'}`);
-
         // --- STEP 1: VERIFY PAYMENT WITH PAYSTACK ---
         const paystackUrl = `https://api.paystack.co/transaction/verify/${reference}`;
         const paystackResponse = await axios.get(paystackUrl, { 
