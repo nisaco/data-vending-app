@@ -166,6 +166,20 @@ app.post('/api/admin/update-order', async (req, res) => {
         res.status(500).json({ error: "Failed to update order status." });
     }
 });
+// ---(New User Count Endpoint) ---
+app.get('/api/admin/user-count', async (req, res) => {
+    if (req.query.secret !== process.env.ADMIN_SECRET) {
+        return res.status(403).json({ error: "Unauthorized" });
+    }
+    try {
+        // Use the Mongoose countDocuments method
+        const count = await User.countDocuments({});
+        res.json({ count: count });
+    } catch (error) {
+        console.error('User count error:', error);
+        res.status(500).json({ error: "Failed to fetch user count" });
+    }
+});
 
 
 // --- 6. PAYMENT AND DATA TRANSFER ROUTE (FINAL INTEGRATION) ---
@@ -267,3 +281,4 @@ app.post('/paystack/verify', isAuthenticated, async (req, res) => {
 app.listen(PORT, '0.0.0.0', () => {
     console.log(`Server running on port ${PORT}`);
 });
+
