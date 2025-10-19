@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+     <link rel="icon" type="image/x-icon" href="apple-touch-icon.png">
+    <title>Admin Dashboard</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="container">
+        <h1>Admin Order Dashboard</h1>
+        <p class="subtitle">View and manage all client orders.</p>
+        <div class="controls">
+            <input type="password" id="adminSecret" placeholder="Enter Admin Secret">
+            <button id="fetchOrdersBtn">Fetch All Orders</button>
+        </div>
+        <div id="status"></div>
+        <table>
+            <thead><tr><th>Order ID</th><th>Username</th><th>Date</th><th>Phone</th><th>Plan</th><th>Amount (GHS)</th><th>Status</th><th>Action</th></tr></thead>
+            <tbody id="ordersTableBody"></tbody>
+        </table>
+    </div>
+    <script>
+        const statusDiv = document.getElementById('status');
+        const tableBody = document.getElementById('ordersTableBody');
+        const adminSecretInput = document.getElementById('adminSecret');
+
+        // --- FUNCTION TO FETCH AND DISPLAY ORDERS ---
+        async function fetchOrders() {
+            const secret = adminSecretInput.value;
+            if (!secret) { statusDiv.textContent = 'Please enter the admin secret.'; statusDiv.style.color = 'red'; return; }
+            
+            statusDiv.textContent = 'Fetching all orders...';
+            tableBody.innerHTML = '';
+            try {
+                const response = await fetch(`/api/get-all-orders?secret=${secret}`);
+                if (!response.ok) throw new Error('Failed to fetch. Check secret or server logs.');
+                const { orders } = await response.json();
+                
+                if (!orders || !orders.length) { statusDiv.textContent = 'No orders found.'; return; }
+                
+                statusDiv.textContent = `Displaying ${orders.length} total orders.`;
+                statusDiv.style.color = 'green';
+
+                orders.forEach(order => {
+                    const row = tableBody.insertRow();
+                    const statusClass = `status-${order.status}`;
+                    const actionButton = order.status === 'pending_review' ? 
+                        `<button class="action-btn" data-id="${order.id}">Mark Sent</button>` : '';
+
+                    row.innerHTML = `
+                        <td>${order.id.substring(0, 8)}...</td>
+                        <td>${order.username}</td>
+                        <td>${new Date(order.created_at).toLocaleString('en-GB')}</td>
+                        <td>${order.phone_number}</td>
+                        <td>${order.data_plan}</td>
+                        <td>${order.amount.toFixed(2)}</td>
+                        <td><span class="status-span ${statusClass}">${order.status.replace('_', ' ')}</span></td>
+                        <td>${actionButton}</td>
+                    `;
+                });
+            } catch (error) {
+                statusDiv.textContent = error.message;
+                statusDiv.style.color = 'red';
+            }
+        }
+        
+        // --- FUNCTION TO HANDLE MARK SENT ACTION ---
+        async function markOrderSent(orderId, button) {
+            const secret = adminSecretInput.value;
+            if (!secret) { statusDiv.textContent = 'Admin secret missing.'; statusDiv.style.color = 'red'; return; }
+            
+            button.textContent = 'Processing...';
+            button.disabled = true;
+
+            try {
+                const response = await fetch('/api/admin/update-order', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ 
+                        orderId: orderId, 
+                        newStatus: 'data_sent', 
+                        adminSecret: secret 
+                    })
+                });
+
+                const result = await response.json();
+                if (response.ok) {
+                    statusDiv.textContent = result.message;
+                    statusDiv.style.color = 'green';
+                    // Re-fetch the orders to update the table immediately
+                    fetchOrders(); 
+                } else {
+                    throw new Error(result.error || result.message || 'Failed to update status.');
+                }
+
+            } catch (error) {
+                statusDiv.textContent = `Error updating order ${orderId}: ${error.message}`;
+                statusDiv.style.color = 'red';
+                button.textContent = 'Error';
+                button.disabled = false;
+            }
+        }
+
+        // --- EVENT LISTENERS ---
+        document.getElementById('fetchOrdersBtn').addEventListener('click', fetchOrders);
+        
+        // Use event delegation for buttons added dynamically
+        tableBody.addEventListener('click', (e) => {
+            if (e.target.classList.contains('action-btn')) {
+                const orderId = e.target.dataset.id;
+                markOrderSent(orderId, e.target);
+            }
+        });
+    </script>
+</body>
+</html>

@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+     <link rel="icon" type="image/x-icon" href="apple-touch-icon.png">
+    <title>Purchase Data</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <nav class="navbar">
+        <div class="nav-container">
+            <a href="/purchase" class="nav-brand">DataLink</a>
+            <div class="nav-menu">
+                <a href="/dashboard" class="nav-link">Dashboard</a>
+                <a href="/api/logout" class="nav-link nav-link-logout">Logout</a>
+            </div>
+        </div>
+    </nav>
+    <div class="container">
+        <h1>Buy Mobile Data</h1>
+        <p class="subtitle">Select your network and data plan to get started.</p>
+        <form id="paymentForm">
+            <div class="form-group"><label for="network">Select Network</label><select id="network" required><option value="MTN">MTN</option><option value="AirtelTigo">AirtelTigo</option><option value="Telecel">Telecel</option></select></div>
+            <div class="form-group"><label for="dataplan">Select Data Plan</label><select id="dataplan" required><option value="" data-amount="0">Loading plans...</option></select></div>
+            <div class="form-group"><label for="phone">Phone Number</label><input type="tel" id="phone" placeholder="e.g., 0244123456" required></div>
+            <div class="form-group"><label for="email">Email for Receipt</label><input type="email" id="email" placeholder="your.email@example.com" required></div>
+            <button type="submit" id="pay-button">Pay Now</button>
+        </form>
+        <div id="status"></div>
+    </div>
+
+    <script src="https://js.paystack.co/v1/inline.js"></script>
+    
+    <script>
+        const networkSelect = document.getElementById('network');
+        const dataplanSelect = document.getElementById('dataplan');
+        const paymentForm = document.getElementById('paymentForm');
+        const statusDiv = document.getElementById('status');
+        const payButton = document.getElementById('pay-button');
+        
+        // IMPORTANT: Replace this with your actual Paystack Public Key
+        const PAYSTACK_PUBLIC_KEY = 'pk_live_62dc43eeea153c81c216b75e3967f8a44ee94fc3'; 
+        
+        // --- PAYSTACK FEE CALCULATION ---
+        // This function calculates the amount we must charge the customer
+        function calculateTotalCharge(planPriceInPesewas) {
+            const TRANSACTION_FEE_RATE = 0.019;
+            const TRANSACTION_FEE_FLAT = 80; // 80 pesewas
+            const TRANSACTION_FEE_CAP = 2000; // Max fee of 20.00 GHS 
+
+            let calculatedFee = (planPriceInPesewas * TRANSACTION_FEE_RATE) + TRANSACTION_FEE_FLAT;
+            
+            if (calculatedFee > TRANSACTION_FEE_CAP) {
+                calculatedFee = TRANSACTION_FEE_CAP;
+            }
+            
+            // Return the total amount the customer must pay (price + fee)
+            return planPriceInPesewas + Math.round(calculatedFee);
+        }
+        
+        // --- UI UPDATE: ONLY SHOWS THE BASE PRICE ---
+        function updatePayButton(selectedOption) {
+            const priceInPesewas = parseInt(selectedOption.dataset.amount) || 0;
+            
+            if (priceInPesewas === 0) {
+                payButton.textContent = 'Pay Now';
+                payButton.disabled = true;
+                return;
+            }
+            
+            const sellingPriceGHS = (priceInPesewas / 100).toFixed(2);
+            
+            // ONLY SHOWS THE BASE SELLING PRICE ON THE BUTTON
+            payButton.textContent = `Pay GHS ${sellingPriceGHS}`;
+            payButton.disabled = false;
+        }
+
+
+        const fetchPlansForNetwork = (network) => {
+            dataplanSelect.innerHTML = '<option value="" data-amount="0">Loading plans...</option>';
+            payButton.disabled = true;
+
+            fetch(`/api/data-plans?network=${network}`)
+                .then(response => response.json())
+                .then(plans => {
+                    dataplanSelect.innerHTML = '<option value="" data-amount="0" selected disabled>Select a Plan...</option>';
+                    if (!plans.length) { dataplanSelect.innerHTML = '<option value="" data-amount="0">No plans available</option>'; return; }
+                    
+                    plans.forEach(p => {
+                        const opt = document.createElement('option');
+                        opt.value = p.id; 
+                        opt.dataset.amount = p.price; // Your selling price (with markup)
+                        opt.textContent = `${p.name} - GHS ${(p.price / 100).toFixed(2)}`;
+                        dataplanSelect.appendChild(opt);
+                    });
+                    // Initial update when plans are loaded
+                    updatePayButton(dataplanSelect.options[dataplanSelect.selectedIndex]);
+                })
+                .catch(() => { 
+                    dataplanSelect.innerHTML = '<option value="" data-amount="0">Could not load plans</option>'; 
+                });
+        };
+
+        networkSelect.addEventListener('change', () => fetchPlansForNetwork(networkSelect.value));
+        dataplanSelect.addEventListener('change', (e) => updatePayButton(e.target.options[e.target.selectedIndex]));
+        document.addEventListener('DOMContentLoaded', () => fetchPlansForNetwork(networkSelect.value));
+
+
+        paymentForm.addEventListener("submit", function(e) {
+            e.preventDefault();
+            
+            const selected = dataplanSelect.options[dataplanSelect.selectedIndex];
+            const priceInPesewas = parseInt(selected.dataset.amount);
+            
+            if (!selected || priceInPesewas === 0 || isNaN(priceInPesewas)) {
+                statusDiv.textContent = "Please select a valid data plan.";
+                statusDiv.style.color = "red";
+                return;
+            }
+            
+            // *** CRITICAL CHANGE: Calculate the final charge HERE ***
+            const totalAmountWithFees = calculateTotalCharge(priceInPesewas);
+            // The Paystack modal will now open and display this total amount, 
+            // including the fee, as the final charge.
+
+            payButton.disabled = true;
+            payButton.textContent = 'Opening Checkout...';
+
+
+            const paymentCallback = function(response) {
+                statusDiv.textContent = "Verifying payment, please wait...";
+                statusDiv.style.color = "orange";
+                
+                fetch('/paystack/verify', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ reference: response.reference }),
+                })
+                .then(verifyResponse => verifyResponse.json())
+                .then(data => {
+                    statusDiv.textContent = data.message;
+                    statusDiv.style.color = data.status === 'success' ? 'green' : (data.status === 'pending' ? 'orange' : 'red');
+                })
+                .catch(err => {
+                    statusDiv.textContent = "An error occurred during verification.";
+                    statusDiv.style.color = "red";
+                })
+                .finally(() => {
+                    payButton.disabled = false;
+                    updatePayButton(selected);
+                });
+            };
+            
+            PaystackPop.setup({
+                key: PAYSTACK_PUBLIC_KEY, 
+                email: document.getElementById('email').value,
+                amount: totalAmountWithFees, // ⬅️ THIS IS THE TOTAL CHARGE (Price + Fee)
+                currency: 'GHS',
+                ref: 'DL-' + Math.floor((Math.random() * 1000000000) + 1),
+                metadata: { 
+                    phone_number: document.getElementById('phone').value, 
+                    network: networkSelect.value, 
+                    data_plan: selected.value,
+                },
+                callback: paymentCallback,
+                onClose: function() { 
+                    statusDiv.textContent = "Transaction cancelled."; 
+                    statusDiv.style.color = "red"; 
+                    payButton.disabled = false;
+                    updatePayButton(selected);
+                }
+            }).openIframe();
+        });
+    </script>
+</body>
+</html>

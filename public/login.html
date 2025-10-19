@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+     <link rel="icon" type="image/x-icon" href="apple-touch-icon.png">
+    <title>Log In - DataLink</title>
+    <link rel="stylesheet" href="auth.css">
+</head>
+<body>
+    <div class="auth-container">
+        <h1>Welcome Back</h1>
+        <form id="loginForm">
+            <div class="form-group">
+                <label for="username">Username</label>
+                <input type="text" id="username" required>
+            </div>
+            <div class="form-group">
+                <label for="password">Password</label>
+                <input type="password" id="password" required>
+            </div>
+            <button type="submit">Log In</button>
+        </form>
+        <div id="status"></div>
+        <p class="auth-link">Don't have an account? <a href="signup.html">Sign Up</a></p>
+    </div>
+    <script>
+        document.getElementById('loginForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const statusDiv = document.getElementById('status');
+            const [username, password] = [document.getElementById('username').value, document.getElementById('password').value];
+            
+            // Disable button and show loading state
+            const button = e.target.querySelector('button');
+            button.disabled = true;
+            statusDiv.textContent = 'Logging in...';
+            statusDiv.style.color = 'yellow';
+            
+            try {
+                const response = await fetch('/api/login', {
+                    method: 'POST', headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ username, password })
+                });
+                
+                if (response.ok) {
+                    statusDiv.textContent = 'Success! Redirecting to purchase page...';
+                    statusDiv.style.color = 'lightgreen';
+                    // *** THE REDIRECTION FIX ***
+                    window.location.href = '/purchase';
+                } else {
+                    const result = await response.json();
+                    statusDiv.textContent = result.message || 'Login failed. Invalid credentials.';
+                    statusDiv.style.color = 'pink';
+                }
+            } catch(err) {
+                statusDiv.textContent = 'Network error. Could not connect to server.';
+                statusDiv.style.color = 'pink';
+            } finally {
+                button.disabled = false;
+                button.textContent = 'Log In';
+            }
+        });
+    </script>
+</body>
+</html>
