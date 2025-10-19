@@ -3,73 +3,139 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Purchase Data</title>
-    <link rel="stylesheet" href="style.css">
+    <title>Purchase Data - DataLink</title>
+    <!-- Load Tailwind CSS for modern styling -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        /* Custom styles to prevent layout shifts and ensure full screen experience */
+        :root { --primary: #009879; --secondary: #007a63; }
+        .bg-primary { background-color: var(--primary); }
+        .text-primary { color: var(--primary); }
+        .border-primary { border-color: var(--primary); }
+        .hover\:bg-secondary:hover { background-color: var(--secondary); }
+        .network-tab.active { background-color: white; color: var(--primary); border-bottom: 2px solid var(--primary); }
+        .network-tab.active svg { fill: var(--primary); }
+        .network-tab:not(.active):hover { background-color: rgba(255, 255, 255, 0.1); }
+    </style>
 </head>
-<body>
-    <nav class="navbar">
-        <div class="nav-container">
-            <a href="/purchase" class="nav-brand">DataLink</a>
-            <div class="nav-menu">
-                <a href="/dashboard" class="nav-link">Dashboard</a>
-                <a href="/api/logout" class="nav-link nav-link-logout">Logout</a>
+<body class="bg-gray-100 min-h-screen font-sans">
+
+    <!-- Navbar -->
+    <nav class="bg-white shadow-md">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex justify-between items-center h-16">
+            <a href="/purchase" class="text-xl font-bold text-primary">DataLink</a>
+            <div class="flex space-x-4">
+                <a href="/dashboard" class="text-gray-600 hover:text-primary transition">Dashboard</a>
+                <a href="/api/logout" class="text-red-500 hover:text-red-700 transition">Logout</a>
             </div>
         </div>
     </nav>
-    <div class="container">
-        <h1>Buy Mobile Data</h1>
-        <p class="subtitle">Select your network and data plan to get started.</p>
-        <form id="paymentForm">
-            <div class="form-group"><label for="network">Select Network</label><select id="network" required><option value="MTN">MTN</option><option value="AirtelTigo">AirtelTigo</option><option value="Telecel">Telecel</option></select></div>
-            <div class="form-group"><label for="dataplan">Select Data Plan</label><select id="dataplan" required><option value="" data-amount="0">Loading plans...</option></select></div>
-            <!-- Phone number input with 10-digit validation -->
-            <div class="form-group">
-                <label for="phone">Phone Number (10 digits starting with 0)</label>
-                <input type="tel" id="phone" pattern="0[0-9]{9}" maxlength="10" placeholder="e.g., 0501234567" required>
-            </div>
-            <div class="form-group"><label for="email">Email for Receipt</label><input type="email" id="email" placeholder="your.email@example.com" required></div>
-            <button type="submit" id="pay-button">Pay Now</button>
-        </form>
-        <div id="status"></div>
+    
+    <!-- Main Content Container -->
+    <div class="container mx-auto p-4 max-w-xl">
+        <div class="bg-white p-6 md:p-8 rounded-xl shadow-lg mt-6">
+            <h1 class="text-3xl font-extrabold text-center text-gray-800 mb-2">Buy Mobile Data</h1>
+            <p class="text-center text-gray-500 mb-6">Select your network and plan to get started.</p>
+
+            <form id="paymentForm">
+                <!-- Network Selection Tabs -->
+                <div class="mb-6 rounded-lg overflow-hidden border border-gray-200">
+                    <div id="network-tabs" class="grid grid-cols-3 text-white bg-primary font-semibold text-center text-sm shadow-inner">
+                        <!-- Tab structure: network-name-for-ui, network-value-for-backend, SVG-Path -->
+                        <div class="network-tab p-3 cursor-pointer" data-network="MTN" data-key="YELLO">
+                            <svg class="w-6 h-6 mx-auto mb-1 fill-white" viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 16H8V8h3v10zm5 0h-3V8h3v10z"/></svg>
+                            MTN
+                        </div>
+                        <div class="network-tab p-3 cursor-pointer" data-network="AirtelTigo" data-key="AT_PREMIUM">
+                            <svg class="w-6 h-6 mx-auto mb-1 fill-white" viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm5 10l-5 5-5-5h10z"/></svg>
+                            AirtelTigo
+                        </div>
+                        <div class="network-tab p-3 cursor-pointer" data-network="Telecel" data-key="TELECEL">
+                            <svg class="w-6 h-6 mx-auto mb-1 fill-white" viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8zm-1-13h2v6h-2zm0 8h2v2h-2z"/></svg>
+                            Telecel
+                        </div>
+                    </div>
+                    <input type="hidden" id="network" name="network" value="MTN">
+                </div>
+                
+                <!-- Data Plan Selection -->
+                <div class="form-group mb-5">
+                    <label for="dataplan" class="block text-gray-700 font-medium mb-2">Select Data Plan</label>
+                    <select id="dataplan" required class="w-full p-3 border border-gray-300 rounded-lg focus:ring-primary focus:border-primary transition">
+                        <option value="" data-amount="0" selected disabled>Loading plans...</option>
+                    </select>
+                </div>
+                
+                <!-- Guidance Note -->
+                <div class="bg-yellow-50 border border-yellow-200 text-yellow-800 p-3 rounded-lg mb-4 text-sm shadow-inner">
+                    <p class="font-semibold mb-1">Important:</p>
+                    <ul class="list-disc list-inside space-y-1">
+                        <li>Ensure the **10-digit phone number starts with 0**.</li>
+                        <li>Payment is instant. Data delivery usually takes 1-5 minutes.</li>
+                    </ul>
+                </div>
+
+                <!-- Phone Number -->
+                <div class="form-group mb-5">
+                    <label for="phone" class="block text-gray-700 font-medium mb-2">Recipient Phone Number</label>
+                    <input type="tel" id="phone" pattern="0[0-9]{9}" maxlength="10" placeholder="e.g., 0501234567" required class="w-full p-3 border border-gray-300 rounded-lg focus:ring-primary focus:border-primary transition">
+                </div>
+                
+                <!-- Email for Receipt -->
+                <div class="form-group mb-6">
+                    <label for="email" class="block text-gray-700 font-medium mb-2">Email for Receipt</label>
+                    <input type="email" id="email" placeholder="your.email@example.com" required class="w-full p-3 border border-gray-300 rounded-lg focus:ring-primary focus:border-primary transition">
+                </div>
+
+                <!-- Pay Button -->
+                <button type="submit" id="pay-button" class="w-full py-3 bg-primary text-white text-lg font-bold rounded-lg shadow-md transition hover:bg-secondary disabled:opacity-50">
+                    Pay Now
+                </button>
+            </form>
+            
+            <div id="status" class="text-center mt-4 font-semibold min-h-[20px]"></div>
+        </div>
     </div>
 
+    <!-- Paystack SDK -->
     <script src="https://js.paystack.co/v1/inline.js"></script>
     
+    <!-- JavaScript Logic -->
     <script>
-        const networkSelect = document.getElementById('network');
+        const networkTabs = document.getElementById('network-tabs');
+        const networkInput = document.getElementById('network');
         const dataplanSelect = document.getElementById('dataplan');
         const paymentForm = document.getElementById('paymentForm');
         const statusDiv = document.getElementById('status');
         const payButton = document.getElementById('pay-button');
         const phoneInput = document.getElementById('phone'); 
         
-        // IMPORTANT: Replace this with your actual Paystack Public Key
         const PAYSTACK_PUBLIC_KEY = 'pk_test_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxx'; 
         
-        // --- PAYSTACK FEE CALCULATION (Modified to pass 1.9% fee to customer) ---
+        // --- 1. PAYSTACK FEE CALCULATION (Absorbs Flat Fee) ---
         function calculateTotalCharge(planPriceInPesewas) {
-            // Business absorbs the GHS 0.80 flat fee. Customer pays only the 1.9% variable fee.
             const TRANSACTION_FEE_RATE = 0.019;
             const TRANSACTION_FEE_FLAT = 80; 
             const TRANSACTION_FEE_CAP = 2000; 
 
-            // 1. Calculate the fee AS IF the business were paying the full amount
-            let feeForCapCheck = (planPriceInPesewas * TRANSACTION_FEE_RATE) + TRANSACTION_FEE_FLAT;
+            // Calculate the total fee Paystack charges
+            let totalFee = (planPriceInPesewas * TRANSACTION_FEE_RATE) + TRANSACTION_FEE_FLAT;
             
-            // 2. Apply Cap Check
-            let totalFee = feeForCapCheck > TRANSACTION_FEE_CAP ? TRANSACTION_FEE_CAP : feeForCapCheck;
+            // Apply Cap Check
+            totalFee = totalFee > TRANSACTION_FEE_CAP ? TRANSACTION_FEE_CAP : totalFee;
             
-            // 3. Calculate the Net Fee to pass to the customer (Total Fee - Absorbed Flat Fee)
-            // Note: Math.max(0, ...) ensures the customer's fee is never negative.
+            // Calculate Net Fee to pass to the customer (Total Fee - Absorbed Flat Fee)
             let netFeeToPass = Math.max(0, totalFee - TRANSACTION_FEE_FLAT); 
 
-            // 4. Calculate the total charged to the customer
+            // Total amount customer pays = Selling Price + Net Fee
             const totalAmountCharged = planPriceInPesewas + Math.round(netFeeToPass);
             
             return totalAmountCharged;
         }
         
-        // --- UI UPDATE: ONLY SHOWS THE BASE PRICE ---
+        // --- 2. UI UPDATE AND DATA FETCH ---
+        
+        // Updates the text of the Pay Button to reflect the current selling price
         function updatePayButton(selectedOption) {
             const priceInPesewas = parseInt(selectedOption.dataset.amount) || 0;
             
@@ -85,9 +151,9 @@
             payButton.disabled = false;
         }
 
-
+        // Fetches plans based on the selected network
         const fetchPlansForNetwork = (network) => {
-            dataplanSelect.innerHTML = '<option value="" data-amount="0">Loading plans...</option>';
+            dataplanSelect.innerHTML = '<option value="" data-amount="0" selected disabled>Loading plans...</option>';
             payButton.disabled = true;
 
             fetch(`/api/data-plans?network=${network}`)
@@ -109,12 +175,47 @@
                     dataplanSelect.innerHTML = '<option value="" data-amount="0">Could not load plans</option>'; 
                 });
         };
-
-        networkSelect.addEventListener('change', () => fetchPlansForNetwork(networkSelect.value));
+        
+        // --- 3. EVENT LISTENERS ---
+        
+        // Tab Switching Logic
+        networkTabs.addEventListener('click', (e) => {
+            let target = e.target.closest('.network-tab');
+            if (target) {
+                // Remove 'active' class from all tabs
+                document.querySelectorAll('.network-tab').forEach(tab => {
+                    tab.classList.remove('active');
+                    tab.querySelector('svg').classList.remove('fill-primary');
+                    tab.querySelector('svg').classList.add('fill-white');
+                });
+                
+                // Add 'active' class to the clicked tab
+                target.classList.add('active');
+                target.querySelector('svg').classList.remove('fill-white');
+                target.querySelector('svg').classList.add('fill-primary');
+                
+                const network = target.dataset.network;
+                networkInput.value = network; // Update the hidden input
+                fetchPlansForNetwork(network); // Fetch plans for the new network
+            }
+        });
+        
+        // Initial setup on load
+        document.addEventListener('DOMContentLoaded', () => {
+            // Set MTN as active by default
+            const defaultTab = document.querySelector('.network-tab[data-network="MTN"]');
+            defaultTab.classList.add('active');
+            defaultTab.querySelector('svg').classList.remove('fill-white');
+            defaultTab.querySelector('svg').classList.add('fill-primary');
+            networkInput.value = 'MTN';
+            fetchPlansForNetwork('MTN');
+        });
+        
+        // Plan selection update
         dataplanSelect.addEventListener('change', (e) => updatePayButton(e.target.options[e.target.selectedIndex]));
-        document.addEventListener('DOMContentLoaded', () => fetchPlansForNetwork(networkSelect.value));
 
 
+        // Form Submission (Payment)
         paymentForm.addEventListener("submit", function(e) {
             e.preventDefault();
             
@@ -135,6 +236,7 @@
                 return;
             }
             
+            // Calculate the amount the customer pays (Selling Price + Net Fee)
             const totalAmountWithFees = calculateTotalCharge(priceInPesewas);
 
             payButton.disabled = true;
@@ -173,7 +275,7 @@
                 ref: 'DL-' + Math.floor((Math.random() * 1000000000) + 1),
                 metadata: { 
                     phone_number: phoneInput.value, 
-                    network: networkSelect.value, 
+                    network: networkInput.value, // Use the value from the hidden input
                     data_plan: selected.value,
                 },
                 callback: paymentCallback,
@@ -186,3 +288,5 @@
             }).openIframe();
         });
     </script>
+</body>
+</html>
