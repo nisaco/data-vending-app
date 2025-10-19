@@ -7,17 +7,10 @@
     <!-- Load Tailwind CSS for modern styling -->
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
-        /* Custom styles to prevent layout shifts and ensure full screen experience */
-        :root { --primary: #009879; --secondary: #007a63; }
-        .bg-primary { background-color: var(--primary); }
+        /* Custom styles to ensure full screen experience and maintain primary color */
+        :root { --primary: #009879; }
         .text-primary { color: var(--primary); }
         .border-primary { border-color: var(--primary); }
-        .hover\:bg-secondary:hover { background-color: var(--secondary); }
-        
-        /* Custom Network Branding Colors (Based on Public Logos) */
-        .brand-mtn { background-color: #ffcc00; color: #0033a0; }
-        .brand-telecel { background-color: #e50000; color: white; }
-        .brand-airteltigo { background-color: #ff3333; color: #000099; }
         
         /* Active Tab Styling */
         .network-tab.active { 
@@ -55,19 +48,19 @@
                 <!-- Network Selection Tabs -->
                 <label class="block text-gray-700 font-semibold mb-3">Choose Network</label>
                 <div id="network-tabs" class="grid grid-cols-3 gap-3 mb-6">
-                    <!-- MTN -->
-                    <div class="network-tab p-4 cursor-pointer brand-mtn shadow-md text-center text-sm font-bold border-2 border-primary" data-network="MTN">
-                        <svg class="w-8 h-8 mx-auto mb-1" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><circle cx="12" cy="12" r="10" fill="#0033a0"/><path d="M10 8l4 4-4 4H8l4-4-4-4h2z" fill="#ffcc00"/></svg>
+                    <!-- MTN LOGO INTEGRATION -->
+                    <div class="network-tab p-4 cursor-pointer bg-gray-50 shadow-md text-center text-sm font-bold border-2 border-primary" data-network="MTN">
+                        <img src="logos/mtn_logo.png" alt="MTN Logo" class="w-10 h-10 mx-auto mb-1 object-contain">
                         MTN
                     </div>
-                    <!-- AirtelTigo -->
-                    <div class="network-tab p-4 cursor-pointer brand-airteltigo shadow-md text-center text-sm font-bold border-2 border-transparent" data-network="AirtelTigo">
-                        <svg class="w-8 h-8 mx-auto mb-1" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><rect x="4" y="4" width="16" height="16" rx="4" fill="#000099"/><path d="M10 8h4v8h-4V8z" fill="#ff3333"/></svg>
+                    <!-- AirtelTigo LOGO INTEGRATION -->
+                    <div class="network-tab p-4 cursor-pointer bg-gray-50 shadow-md text-center text-sm font-bold border-2 border-transparent" data-network="AirtelTigo">
+                        <img src="logos/at_logo.png" alt="AirtelTigo Logo" class="w-10 h-10 mx-auto mb-1 object-contain">
                         AirtelTigo
                     </div>
-                    <!-- Telecel -->
-                    <div class="network-tab p-4 cursor-pointer brand-telecel shadow-md text-center text-sm font-bold border-2 border-transparent" data-network="Telecel">
-                        <svg class="w-8 h-8 mx-auto mb-1" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><rect x="2" y="2" width="20" height="20" rx="10" fill="#e50000"/><path d="M12 5v14m-4-7h8" stroke="white" stroke-width="2.5"/></svg>
+                    <!-- Telecel LOGO INTEGRATION -->
+                    <div class="network-tab p-4 cursor-pointer bg-gray-50 shadow-md text-center text-sm font-bold border-2 border-transparent" data-network="Telecel">
+                        <img src="logos/telecel_logo.png" alt="Telecel Logo" class="w-10 h-10 mx-auto mb-1 object-contain">
                         Telecel
                     </div>
                     <input type="hidden" id="network" name="network" value="MTN">
@@ -127,7 +120,7 @@
         
         const PAYSTACK_PUBLIC_KEY = 'pk_test_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxx'; 
         
-        // --- 1. PAYSTACK FEE CALCULATION (Absorbs Flat Fee) ---
+        // --- PAYSTACK FEE CALCULATION (Absorbs Flat Fee) ---
         function calculateTotalCharge(planPriceInPesewas) {
             const TRANSACTION_FEE_RATE = 0.019;
             const TRANSACTION_FEE_FLAT = 80; 
@@ -138,7 +131,6 @@
             totalFee = totalFee > TRANSACTION_FEE_CAP ? TRANSACTION_FEE_CAP : totalFee;
             
             // 2. Calculate Net Fee to pass to the customer (Total Fee - Absorbed Flat Fee)
-            // This is the variable 1.9% fee the customer will pay.
             let netFeeToPass = Math.max(0, totalFee - TRANSACTION_FEE_FLAT); 
 
             // 3. Total amount customer pays = Selling Price + Net Fee
@@ -147,7 +139,7 @@
             return totalAmountCharged;
         }
         
-        // --- 2. UI UPDATE AND DATA FETCH ---
+        // --- UI UPDATE AND DATA FETCH ---
         
         function updatePayButton(selectedOption) {
             const priceInPesewas = parseInt(selectedOption.dataset.amount) || 0;
