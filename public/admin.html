@@ -11,9 +11,11 @@
         .bg-primary { background-color: var(--primary); }
         
         /* Table Status Colors */
-        .status-data_sent { background-color: #10b981; } /* Emerald Green */
-        .status-pending_review { background-color: #f59e0b; } /* Amber Orange */
-        .status-payment_success { background-color: #3b82f6; } /* Blue */
+        .status-data_sent { background-color: #10b981; } 
+        .status-pending_review { background-color: #f59e0b; } 
+        .status-payment_success { background-color: #3b82f6; } 
+        .status-online { background-color: #10b981; } /* Online status */
+        .status-offline { background-color: #9ca3af; } /* Offline status */
         
         /* Tab Styling */
         .filter-tab {
@@ -31,7 +33,7 @@
         
         /* Button styling for actions */
         .action-btn {
-            background-color: #ef4444; /* Red */
+            background-color: #ef4444; 
             color: white;
             padding: 4px 10px;
             border-radius: 6px;
@@ -67,22 +69,57 @@
     <div class="container mx-auto p-4 max-w-7xl">
         <div class="bg-white p-6 md:p-8 rounded-2xl shadow-xl mt-8 border border-gray-100">
             
-            <h1 class="text-3xl font-extrabold text-center text-gray-800 mb-2">Admin Order Dashboard</h1>
-            <p class="text-center text-gray-500 mb-6">Monitor all transactions and manually resolve pending orders.</p>
+            <h1 class="text-3xl font-extrabold text-center text-gray-800 mb-2">Admin Control Panel</h1>
+            <p class="text-center text-gray-500 mb-6">Monitor users, track orders, and manually resolve issues.</p>
 
-            <!-- User Count Stat -->
-            <div id="user-count-display" class="stat-card mb-6 text-center hidden">
-                <p class="text-sm text-gray-600 font-medium">Total Registered Clients</p>
-                <p id="client-count" class="text-4xl font-extrabold text-primary"></p>
+            <!-- STATS BLOCK -->
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+                <!-- Total Clients -->
+                <div id="user-count-display" class="stat-card text-center hidden">
+                    <p class="text-sm text-gray-600 font-medium">Total Clients</p>
+                    <p id="client-count" class="text-3xl font-extrabold text-primary"></p>
+                </div>
+
+                <!-- Active Users List -->
+                <div class="stat-card md:col-span-2">
+                    <p class="text-sm text-gray-600 font-medium mb-2">Active Sessions (<span id="active-count">0</span>)</p>
+                    <div id="active-users-list" class="flex flex-wrap gap-2 text-xs text-white">
+                        <span class="text-gray-400">Fetch data to view active users.</span>
+                    </div>
+                </div>
             </div>
+            <!-- END STATS BLOCK -->
 
             <div class="flex flex-col sm:flex-row gap-3 mb-6 items-center justify-center">
                 <input type="password" id="adminSecret" placeholder="Enter Admin Secret" class="w-full sm:w-64 p-3 border border-gray-300 rounded-lg focus:ring-primary focus:border-primary">
                 <button id="fetchOrdersBtn" class="w-full sm:w-auto py-3 px-6 bg-primary text-white font-bold rounded-lg hover:bg-secondary transition">
-                    Fetch All Orders
+                    Fetch Dashboard Data
                 </button>
             </div>
             
+            <!-- USER MANAGEMENT TABLE -->
+            <h2 class="text-xl font-bold text-gray-800 mt-8 mb-4 border-b pb-2">Client User List</h2>
+            <div id="user-list-status" class="text-center font-medium mb-4 text-gray-700"></div>
+
+            <div class="overflow-x-auto rounded-xl border border-gray-200 shadow-inner mb-8">
+                <table class="w-full text-sm text-left text-gray-500">
+                    <thead class="text-xs text-white uppercase bg-gray-700">
+                        <tr>
+                            <th scope="col" class="py-3 px-6 rounded-tl-xl">Username</th>
+                            <th scope="col" class="py-3 px-6">Email</th>
+                            <th scope="col" class="py-3 px-6">Signed Up</th>
+                            <th scope="col" class="py-3 px-6 rounded-tr-xl">Status</th>
+                        </tr>
+                    </thead>
+                    <tbody id="userTableBody" class="bg-white divide-y divide-gray-100">
+                        <tr><td colspan="4" class="py-4 text-center text-gray-400">Click 'Fetch Dashboard Data' to load user list.</td></tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- ORDER MANAGEMENT TABLE -->
+            <h2 class="text-xl font-bold text-gray-800 mt-8 mb-4 border-b pb-2">Order History</h2>
+
             <!-- Network Filters -->
             <div id="network-filters" class="flex justify-center space-x-4 mb-6 border-b border-gray-200 text-gray-600">
                 <div class="filter-tab active" data-network="All">All Orders</div>
@@ -91,9 +128,8 @@
                 <div class="filter-tab" data-network="Telecel">Telecel</div>
             </div>
 
-            <div id="status" class="text-center font-medium mb-4 text-gray-700">Please enter secret to fetch orders.</div>
+            <div id="status" class="text-center font-medium mb-4 text-gray-700"></div>
             
-            <!-- Responsive Table Container -->
             <div class="overflow-x-auto rounded-xl border border-gray-200 shadow-inner">
                 <table class="w-full text-sm text-left text-gray-500">
                     <thead class="text-xs text-white uppercase bg-primary">
@@ -109,7 +145,6 @@
                         </tr>
                     </thead>
                     <tbody id="ordersTableBody" class="bg-white divide-y divide-gray-100">
-                        <!-- Order rows will be inserted here by JavaScript -->
                     </tbody>
                 </table>
             </div>
@@ -118,17 +153,51 @@
     </div>
     
     <script>
-        let adminOrders = []; // Global array to hold all fetched orders
+        let adminOrders = []; 
         const statusDiv = document.getElementById('status');
-        const tableBody = document.getElementById('ordersTableBody');
+        const ordersTableBody = document.getElementById('ordersTableBody');
+        const userTableBody = document.getElementById('userTableBody');
         const adminSecretInput = document.getElementById('adminSecret');
         const filterContainer = document.getElementById('network-filters');
         const userCountDisplay = document.getElementById('user-count-display');
         const clientCountElement = document.getElementById('client-count');
+        const activeCountElement = document.getElementById('active-count');
+        const userListStatus = document.getElementById('user-list-status');
 
-        // Function to render the table rows
+        
+        // --- RENDER FUNCTIONS ---
+        
+        function renderUserList(users) {
+            userTableBody.innerHTML = '';
+            userListStatus.textContent = '';
+
+            if (users.length === 0) {
+                userListStatus.textContent = 'No registered users found.';
+                return;
+            }
+
+            users.forEach(user => {
+                const row = userTableBody.insertRow();
+                const statusText = user.isOnline ? 'Online' : 'Offline';
+                const statusClass = user.isOnline ? 'status-online' : 'status-offline';
+
+                row.className = 'hover:bg-gray-50 transition duration-150';
+
+                row.innerHTML = `
+                    <td class="py-4 px-6 font-semibold text-gray-900">${user.username}</td>
+                    <td class="py-4 px-6">${user.email}</td>
+                    <td class="py-4 px-6">${new Date(user.signedUp).toLocaleDateString('en-GB')}</td>
+                    <td class="py-4 px-6">
+                        <span class="px-3 py-1 text-white text-xs font-bold uppercase rounded-full ${statusClass}">
+                            ${statusText}
+                        </span>
+                    </td>
+                `;
+            });
+        }
+
         function renderOrders(orders) {
-            tableBody.innerHTML = '';
+            ordersTableBody.innerHTML = '';
             if (orders.length === 0) {
                 statusDiv.textContent = "No orders found for this filter.";
                 statusDiv.style.color = 'black';
@@ -139,7 +208,7 @@
             statusDiv.style.color = 'green';
             
             orders.forEach(order => {
-                const row = tableBody.insertRow();
+                const row = ordersTableBody.insertRow();
                 const statusText = order.status.replace(/_/g, ' '); 
                 const statusClass = `status-${order.status}`;
                 
@@ -165,7 +234,6 @@
             });
         }
         
-        // Function to filter data based on tab click
         function filterAndRenderOrders(network) {
             let filtered = adminOrders;
             if (network !== 'All') {
@@ -174,23 +242,55 @@
             renderOrders(filtered);
         }
 
-        // --- FUNCTION TO FETCH USER COUNT ---
-        async function fetchUserCount(secret) {
+        // --- FETCH USER LIST AND STATUS ---
+        async function fetchUserListWithStatus(secret) {
+            userListStatus.textContent = 'Loading user list...';
             try {
-                const response = await fetch(`/api/admin/user-count?secret=${secret}`);
+                const response = await fetch(`/api/admin/all-users-status?secret=${secret}`);
                 if (response.ok) {
-                    const data = await response.json();
-                    clientCountElement.textContent = data.count;
+                    const { users } = await response.json();
+                    renderUserList(users);
+                    
+                    // Update the active user count in the stat card
+                    const activeCount = users.filter(u => u.isOnline).length;
+                    clientCountElement.textContent = users.length;
+                    activeCountElement.textContent = activeCount;
                     userCountDisplay.classList.remove('hidden');
                 } else {
-                    clientCountElement.textContent = 'N/A';
+                    userListStatus.textContent = 'Failed to load user data.';
                 }
             } catch (error) {
-                clientCountElement.textContent = 'Error';
+                userListStatus.textContent = `Error loading users: ${error.message}`;
+            }
+        }
+        
+        // --- FETCH ACTIVE SESSIONS LIST (for the small stat card) ---
+        async function fetchActiveUsers(secret) {
+            try {
+                const response = await fetch(`/api/admin/active-sessions?secret=${secret}`);
+                if (response.ok) {
+                    const { activeUsers } = await response.json();
+                    activeCountElement.textContent = activeUsers.length;
+                    
+                    const activeUsersHtml = activeUsers.map(user => {
+                        const loggedInTime = new Date(user.loggedInSince).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
+                        return `
+                            <span title="Logged in since ${loggedInTime}" class="bg-primary px-3 py-1 rounded-full shadow-sm text-xs font-semibold text-white">
+                                ${user.username}
+                            </span>
+                        `;
+                    }).join('');
+
+                    document.getElementById('active-users-list').innerHTML = activeUsersHtml || 
+                        '<span class="text-gray-500 text-xs italic">No users currently logged in.</span>';
+                } 
+            } catch (error) {
+                activeCountElement.textContent = 'Error';
             }
         }
 
-        // --- FUNCTION TO FETCH ALL ORDERS ---
+
+        // --- MAIN FETCH FUNCTION ---
         document.getElementById('fetchOrdersBtn').addEventListener('click', async () => {
             const secret = adminSecretInput.value;
             if (!secret) { 
@@ -199,15 +299,16 @@
                 return; 
             }
             
-            // Fetch the total number of users simultaneously
-            fetchUserCount(secret);
+            // Fetch STATS (User List, Active Count, Total Count)
+            fetchUserListWithStatus(secret);
+            fetchActiveUsers(secret); // Redundant fetch but updates the active user list faster.
 
-            statusDiv.textContent = 'Fetching all orders...';
-            tableBody.innerHTML = '';
+            statusDiv.textContent = 'Fetching order history...';
+            ordersTableBody.innerHTML = '';
             
             try {
                 const response = await fetch(`/api/get-all-orders?secret=${secret}`);
-                if (!response.ok) throw new Error('Failed to fetch. Check secret or server logs.');
+                if (!response.ok) throw new Error('Failed to fetch orders. Check secret or server logs.');
                 
                 const data = await response.json();
                 adminOrders = data.orders || [];
@@ -225,7 +326,7 @@
             }
         });
         
-        // --- FUNCTION TO HANDLE MARK SENT ACTION ---
+        // --- FUNCTION TO HANDLE MARK SENT ACTION (Remains the same) ---
         async function markOrderSent(orderId, button) {
             const secret = adminSecretInput.value;
             if (!secret) { statusDiv.textContent = 'Admin secret missing.'; statusDiv.style.color = 'red'; return; }
@@ -246,7 +347,7 @@
 
                 const result = await response.json();
                 if (response.ok) {
-                    // Update the local array status (avoids refetching all data)
+                    // Update the local array status 
                     const index = adminOrders.findIndex(order => order.id === orderId);
                     if (index !== -1) {
                         adminOrders[index].status = 'data_sent';
@@ -254,7 +355,6 @@
                     statusDiv.textContent = result.message;
                     statusDiv.style.color = 'green';
                     
-                    // Re-render the table with the updated data
                     const activeNetwork = filterContainer.querySelector('.filter-tab.active').dataset.network;
                     filterAndRenderOrders(activeNetwork);
                 } else {
@@ -272,7 +372,7 @@
         // --- EVENT LISTENERS ---
         
         // Use event delegation for the 'Mark Sent' buttons
-        tableBody.addEventListener('click', (e) => {
+        ordersTableBody.addEventListener('click', (e) => {
             if (e.target.classList.contains('action-btn')) {
                 const orderId = e.target.dataset.id;
                 markOrderSent(orderId, e.target);
