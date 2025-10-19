@@ -7,6 +7,7 @@ const bcrypt = require('bcrypt');
 const sgMail = require('@sendgrid/mail');
 const axios = require('axios');
 const { User, Order } = require('./database.js'); 
+const mongoose = require('mongoose'); // Import Mongoose here to access the database connection
 
 const app = express();
 const PORT = process.env.PORT || 10000;
@@ -95,20 +96,19 @@ app.get('/purchase', isAuthenticated, (req, res) => res.sendFile(path.join(__dir
 app.get('/dashboard', isAuthenticated, (req, res) => res.sendFile(path.join(__dirname, 'public', 'dashboard.html')));
 
 
-// --- 5. DYNAMIC PLAN PRICING ROUTE (Markup Applied) ---
+// --- 5. DATA API ROUTES ---
 app.get('/api/data-plans', (req, res) => {
     const costPlans = allPlans[req.query.network] || [];
     
-    // Apply profit margin: 20 PESEWAS (GHS 0.20) profit.
     const sellingPlans = costPlans.map(p => {
-        const FIXED_MARKUP = 20; // ⬅️ NEW PROFIT BUFFER: GHS 0.20
+        const FIXED_MARKUP = 20; 
         const rawSellingPrice = p.price + FIXED_MARKUP;
-        const sellingPrice = Math.ceil(rawSellingPrice / 5) * 5; // Rounds up to nearest multiple of 5
+        const sellingPrice = Math.ceil(rawSellingPrice / 5) * 5; 
         
         return {
             id: p.id, 
             name: p.name,
-            price: sellingPrice // This is the final selling price in pesewas
+            price: sellingPrice 
         };
     });
 
@@ -149,6 +149,63 @@ app.get('/api/get-all-orders', async (req, res) => {
     }
 });
 
+// --- NEW ADMIN ENDPOINT: FETCH ALL USERS + ONLINE STATUS ---
+app.get('/api/admin/all-users-status', async (req, res) => {
+    if (req.query.secret !== process.env.ADMIN_SECRET) return res.status(403).json({ error: "Unauthorized" });
+    
+    try {
+        // 1. Fetch all registered users
+        const registeredUsers = await User.find({}).select('username email createdAt').lean();
+
+        // 2. Fetch all active session documents
+        const sessionsCollection = mongoose.connection.db.collection('sessions');
+        const rawSessions = await sessionsCollection.find({}).toArray();
+
+        // Build a map of active user IDs for quick lookup
+        const activeUserIds = new Set();
+        rawSessions.forEach(sessionDoc => {
+            try {
+                const sessionData = JSON.parse(sessionDoc.session);
+                // Convert Mongoose ObjectId to string for comparison
+                if (sessionData.user && sessionData.user.id) {
+                    activeUserIds.add(sessionData.user.id.toString());
+                }
+            } catch (e) {
+                // Ignore corrupted sessions
+            }
+        });
+
+        // 3. Merge status data
+        const userListWithStatus = registeredUsers.map(user => ({
+            username: user.username,
+            email: user.email,
+            signedUp: user.createdAt,
+            // Check if user's ID exists in the active set
+            isOnline: activeUserIds.has(user._id.toString())
+        }));
+
+        res.json({ users: userListWithStatus });
+        
+    } catch (error) {
+        console.error('All users status error:', error);
+        res.status(500).json({ error: "Failed to fetch user list and status" });
+    }
+});
+
+
+// --- ADMIN ENDPOINT: FETCH USER COUNT (Simplified) ---
+app.get('/api/admin/user-count', async (req, res) => {
+    if (req.query.secret !== process.env.ADMIN_SECRET) {
+        return res.status(403).json({ error: "Unauthorized" });
+    }
+    try {
+        const count = await User.countDocuments({});
+        res.json({ count: count });
+    } catch (error) {
+        res.status(500).json({ error: "Failed to fetch user count" });
+    }
+});
+
 // --- ADMIN ENDPOINT: MANUAL STATUS UPDATE ---
 app.post('/api/admin/update-order', async (req, res) => {
     const { orderId, newStatus, adminSecret } = req.body;
@@ -164,20 +221,6 @@ app.post('/api/admin/update-order', async (req, res) => {
 
     } catch (error) {
         res.status(500).json({ error: "Failed to update order status." });
-    }
-});
-// ---(New User Count Endpoint) ---
-app.get('/api/admin/user-count', async (req, res) => {
-    if (req.query.secret !== process.env.ADMIN_SECRET) {
-        return res.status(403).json({ error: "Unauthorized" });
-    }
-    try {
-        // Use the Mongoose countDocuments method
-        const count = await User.countDocuments({});
-        res.json({ count: count });
-    } catch (error) {
-        console.error('User count error:', error);
-        res.status(500).json({ error: "Failed to fetch user count" });
     }
 });
 
@@ -262,7 +305,6 @@ app.post('/paystack/verify', isAuthenticated, async (req, res) => {
         }
 
     } catch (error) {
-        // Detailed error logging for fatal errors
         let errorMessage = 'An internal server error occurred during verification.';
         
         if (error.response && error.response.data && error.response.data.error) {
@@ -281,4 +323,3 @@ app.post('/paystack/verify', isAuthenticated, async (req, res) => {
 app.listen(PORT, '0.0.0.0', () => {
     console.log(`Server running on port ${PORT}`);
 });
-
