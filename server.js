@@ -42,7 +42,7 @@ const NETWORK_KEY_MAP = {
 
 // --- 3. MIDDLEWARE ---
 
-// 🛑 CRITICAL RENDER FIX: Trust the proxy (Render) to handle the secure connection.
+// CRITICAL RENDER FIX: Trust the proxy (Render) to handle the secure connection.
 app.set('trust proxy', 1); 
 
 const sessionSecret = process.env.SESSION_SECRET || 'fallback-secret-for-local-dev-only-12345';
@@ -102,7 +102,6 @@ app.get('/dashboard', isAuthenticated, (req, res) => res.sendFile(path.join(__di
 app.get('/api/data-plans', (req, res) => {
     const costPlans = allPlans[req.query.network] || [];
     
-    // Fixed 10 Pesewas Markup
     const sellingPlans = costPlans.map(p => {
         const FIXED_MARKUP = 10; 
         const rawSellingPrice = p.price + FIXED_MARKUP;
@@ -147,29 +146,8 @@ app.get('/api/get-all-orders', async (req, res) => {
         }));
 
         res.json({ orders: formattedOrders });
-    
-// --- In server.js, inside the /paystack/verify  ---
-// ...
-
     } catch (error) {
-        // --- CATCH BLOCK FOR VERIFICATION/TRANSACTION ERRORS ---
-        
-        let errorMessage = 'An internal server error occurred during verification.';
-        
-        // Check if the error came from Paystack (status codes 400s or 500s)
-        if (error.response && error.response.data && error.response.data.message) {
-            errorMessage = `Paystack/Reseller Error: ${error.response.data.message}`;
-            // Log the full response from the external API to your server logs
-            console.error('External API Error Details:', error.response.data);
-            
-        } else if (error.message) {
-            errorMessage = `Network Error: ${error.message}`;
-        }
-
-        // Log the severe error to your Render dashboard logs
-        console.error('Fatal Verification Failure:', error); 
-        
-        return res.status(500).json({ status: 'error', message: errorMessage });
+        res.status(500).json({ error: "Failed to fetch orders" });
     }
 });
 
@@ -200,6 +178,11 @@ app.post('/paystack/verify', isAuthenticated, async (req, res) => {
     let finalStatus = 'payment_success'; 
     
     try {
+        // 🛑 NEW DEBUG LOGS: CHECK IF KEYS ARE DEFINED 🛑
+        console.log(`Debug Check: Paystack Key Length: ${process.env.PAYSTACK_SECRET_KEY ? process.env.PAYSTACK_SECRET_KEY.length : '0'}`);
+        console.log(`Debug Check: Data API Key Length: ${process.env.DATA_API_SECRET ? process.env.DATA_API_SECRET.length : '0'}`);
+        // If either length is 0, the environment variable is missing in Render!
+
         // --- STEP 1: VERIFY PAYMENT WITH PAYSTACK ---
         const paystackUrl = `https://api.paystack.co/transaction/verify/${reference}`;
         const paystackResponse = await axios.get(paystackUrl, { 
@@ -238,10 +221,14 @@ app.post('/paystack/verify', isAuthenticated, async (req, res) => {
             if (transferResponse.data.success === true) {
                 finalStatus = 'data_sent';
             } else {
+                // Log failed API response content
+                console.error('Data API failed response:', transferResponse.data);
                 finalStatus = 'pending_review';
             }
 
         } catch (transferError) {
+            // Log network error details
+            console.error('Data API Network Error:', transferError.message);
             finalStatus = 'pending_review';
         }
 
@@ -266,7 +253,18 @@ app.post('/paystack/verify', isAuthenticated, async (req, res) => {
         }
 
     } catch (error) {
-        return res.status(500).json({ status: 'error', message: 'An internal server error occurred during transaction processing.' });
+        // 🛑 Detailed error logging for fatal errors
+        let errorMessage = 'An internal server error occurred during verification.';
+        
+        if (error.response && error.response.data && error.response.data.error) {
+            errorMessage = `External API Error: ${error.response.data.error}`;
+        } else if (error.message) {
+            errorMessage = `Network Error: ${error.message}`;
+        }
+        
+        console.error('Fatal Verification Failure:', error); 
+        
+        return res.status(500).json({ status: 'error', message: errorMessage });
     }
 });
 
@@ -274,4 +272,3 @@ app.post('/paystack/verify', isAuthenticated, async (req, res) => {
 app.listen(PORT, '0.0.0.0', () => {
     console.log(`Server running on port ${PORT}`);
 });
-
