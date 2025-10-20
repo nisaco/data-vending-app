@@ -1,9 +1,8 @@
-    <!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <link rel="icon" type="image/x-icon" href="apple-touch-icon.png">
     <title>Admin Dashboard - DataLink</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
@@ -19,12 +18,32 @@
         .status-offline { background-color: #9ca3af; } 
         
         /* Tab Styling */
-        .filter-tab { /* ... omitted for brevity ... */ }
-        .filter-tab.active { /* ... omitted for brevity ... */ }
+        .filter-tab {
+            transition: all 0.2s ease-in-out;
+            padding: 8px 16px;
+            border-bottom: 2px solid transparent;
+            cursor: pointer;
+            font-weight: 500;
+        }
+        .filter-tab.active {
+            color: var(--primary);
+            border-bottom: 2px solid var(--primary);
+            font-weight: 700;
+        }
         
         /* Button styling for actions */
-        .action-btn { /* ... omitted for brevity ... */ }
-        .action-btn:hover { /* ... omitted for brevity ... */ }
+        .action-btn {
+            background-color: #ef4444; 
+            color: white;
+            padding: 4px 10px;
+            border-radius: 6px;
+            font-weight: 600;
+            font-size: 0.75rem;
+            transition: background-color 0.2s;
+        }
+        .action-btn:hover {
+            background-color: #dc2626;
+        }
         /* Custom card for stats */
         .stat-card {
             background-color: #f7f7f7;
@@ -164,14 +183,117 @@
         const netProfitElement = document.getElementById('net-profit');
 
         
-        // --- RENDER FUNCTIONS (omitted for brevity, same as previous) ---
-        function renderUserList(users) { /* ... same as previous ... */ }
-        function renderOrders(orders) { /* ... same as previous ... */ }
-        function filterAndRenderOrders(network) { /* ... same as previous ... */ }
+        // --- RENDER FUNCTIONS ---
+        function renderUserList(users) {
+            userTableBody.innerHTML = '';
+            userListStatus.textContent = '';
 
+            if (users.length === 0) {
+                userListStatus.textContent = 'No registered users found.';
+                return;
+            }
 
+            users.forEach(user => {
+                const row = userTableBody.insertRow();
+                const statusText = user.isOnline ? 'Online' : 'Offline';
+                const statusClass = user.isOnline ? 'status-online' : 'status-offline';
+
+                row.className = 'hover:bg-gray-50 transition duration-150';
+
+                row.innerHTML = `
+                    <td class="py-4 px-6 font-semibold text-gray-900">${user.username}</td>
+                    <td class="py-4 px-6">${user.email}</td>
+                    <td class="py-4 px-6">${new Date(user.signedUp).toLocaleDateString('en-GB')}</td>
+                    <td class="py-4 px-6">
+                        <span class="px-3 py-1 text-white text-xs font-bold uppercase rounded-full ${statusClass}">
+                            ${statusText}
+                        </span>
+                    </td>
+                `;
+            });
+        }
+
+        function renderOrders(orders) {
+            ordersTableBody.innerHTML = '';
+            if (orders.length === 0) {
+                statusDiv.textContent = "No orders found for this filter.";
+                statusDiv.style.color = 'black';
+                return;
+            }
+
+            statusDiv.textContent = `Displaying ${orders.length} orders.`;
+            statusDiv.style.color = 'green';
+            
+            orders.forEach(order => {
+                const row = ordersTableBody.insertRow();
+                const statusText = order.status.replace(/_/g, ' '); 
+                const statusClass = `status-${order.status}`;
+                
+                const actionButton = order.status === 'pending_review' ? 
+                    `<button class="action-btn" data-id="${order.id}">Mark Sent</button>` : '';
+
+                row.className = 'hover:bg-gray-50 transition duration-150';
+
+                row.innerHTML = `
+                    <td class="py-4 px-6 font-mono text-xs">${order.id.substring(0, 8)}...</td>
+                    <td class="py-4 px-6 font-medium text-gray-900">${order.username}</td>
+                    <td class="py-4 px-6">${new Date(order.created_at).toLocaleString('en-GB')}</td>
+                    <td class="py-4 px-6">${order.phone_number}</td>
+                    <td class="py-4 px-6">${order.data_plan}</td>
+                    <td class="py-4 px-6 text-gray-800 font-semibold">${order.amount.toFixed(2)}</td>
+                    <td class="py-4 px-6">
+                        <span class="px-3 py-1 text-white text-xs font-bold uppercase rounded-full ${statusClass}">
+                            ${statusText}
+                        </span>
+                    </td>
+                    <td class="py-4 px-6">${actionButton}</td>
+                `;
+            });
+        }
+        
+        function filterAndRenderOrders(network) {
+            let filtered = adminOrders;
+            if (network !== 'All') {
+                filtered = adminOrders.filter(order => order.network === network);
+            }
+            renderOrders(filtered);
+        }
+
+        // --- FETCH USER LIST AND STATUS ---
+        async function fetchAllUsersAndRender(secret) {
+            try {
+                const response = await fetch(`/api/admin/all-users-status?secret=${secret}`);
+                if (!response.ok) throw new Error('Failed to fetch user list.');
+                
+                const { users } = await response.json();
+                renderUserList(users);
+                
+                const activeCount = users.filter(u => u.isOnline).length;
+                clientCountElement.textContent = users.length;
+                activeCountElement.textContent = activeCount;
+                userCountDisplay.classList.remove('hidden');
+
+                // Render active users in the small box
+                const activeUsersList = document.getElementById('active-users-list');
+                const activeUsersHtml = users.filter(u => u.isOnline).map(user => {
+                    const loggedInTime = new Date(user.signedUp).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
+                    return `
+                        <span title="Signed up ${new Date(user.signedUp).toLocaleDateString()}" class="bg-primary px-3 py-1 rounded-full shadow-sm text-xs font-semibold text-white">
+                            ${user.username}
+                        </span>
+                    `;
+                }).join('');
+
+                activeUsersList.innerHTML = activeUsersHtml || '<span class="text-gray-500 text-xs italic">None.</span>';
+                
+            } catch (error) {
+                userListStatus.textContent = `Error loading users: ${error.message}`;
+                activeCountElement.textContent = 'Err';
+            }
+        }
+        
         // --- FETCH PROFIT METRICS ---
-        async function fetchMetrics(secret) {
+        async function fetchMetricsAndRender(secret) {
             try {
                 const response = await fetch(`/api/admin/metrics?secret=${secret}`);
                 if (response.ok) {
@@ -183,7 +305,6 @@
                     totalRevenueElement.textContent = data.revenue;
                     netProfitElement.textContent = data.netProfit;
 
-                    // Color coding for profit (Red for loss, Green for profit)
                     netProfitElement.classList.remove('text-green-600', 'text-red-600');
                     if (parseFloat(data.netProfit) >= 0) {
                         netProfitElement.classList.add('text-green-600');
@@ -202,16 +323,6 @@
         }
 
 
-        // --- FETCH ACTIVE SESSIONS LIST (omitted for brevity, same as previous) ---
-        async function fetchActiveUsers(secret) {
-            // ... same as previous implementation ...
-        }
-        
-        // --- FETCH USER COUNT (omitted for brevity, same as previous) ---
-        async function fetchUserCount(secret) {
-            // ... same as previous implementation ...
-        }
-
         // --- MAIN FETCH FUNCTION ---
         document.getElementById('fetchOrdersBtn').addEventListener('click', async () => {
             const secret = adminSecretInput.value;
@@ -221,14 +332,14 @@
                 return; 
             }
             
-            // Fetch STATS
-            fetchMetrics(secret);
-            fetchUserListWithStatus(secret);
-            fetchUserCount(secret);
-            fetchActiveUsers(secret); 
+            // Fetch all critical data simultaneously
+            await Promise.all([
+                fetchAllUsersAndRender(secret),
+                fetchMetricsAndRender(secret)
+            ]);
 
             statusDiv.textContent = 'Fetching order history...';
-            ordersTableBody.innerHTML = '';
+            ordersTableBody.innerHTML = '<tr><td colspan="8" class="py-4 text-center text-gray-400">Loading orders...</td></tr>';
             
             try {
                 const response = await fetch(`/api/get-all-orders?secret=${secret}`);
@@ -253,12 +364,22 @@
         // --- FUNCTION TO HANDLE MARK SENT ACTION (omitted for brevity, same as previous) ---
         async function markOrderSent(orderId, button) { /* ... same as previous ... */ }
 
-        // --- EVENT LISTENERS (omitted for brevity, same as previous) ---
-        ordersTableBody.addEventListener('click', (e) => { /* ... same as previous ... */ });
-        filterContainer.addEventListener('click', (e) => { /* ... same as previous ... */ });
+        // --- EVENT LISTENERS ---
+        ordersTableBody.addEventListener('click', (e) => {
+            if (e.target.classList.contains('action-btn')) {
+                const orderId = e.target.dataset.id;
+                markOrderSent(orderId, e.target);
+            }
+        });
         
-        // ... (remaining helper functions needed by the main script) ...
-
+        filterContainer.addEventListener('click', (e) => {
+            const target = e.target.closest('.filter-tab');
+            if (target) {
+                document.querySelectorAll('.filter-tab').forEach(tab => tab.classList.remove('active'));
+                target.classList.add('active');
+                filterAndRenderOrders(target.dataset.network);
+            }
+        });
     </script>
 </body>
 </html>
