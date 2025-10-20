@@ -8,15 +8,11 @@
     <!-- Load Tailwind CSS for modern styling -->
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
-        /* Custom styles to ensure full screen experience and maintain primary color */
-        :root { 
-            --primary: #009879; 
-            --safe-button: #006400; /* Darker, high-contrast button color */
-        }
+        :root { --primary: #009879; }
         .text-primary { color: var(--primary); }
         .border-primary { border-color: var(--primary); }
-        .bg-safe-button { background-color: var(--safe-button); }
-        .hover\:bg-safe-button-darker:hover { background-color: #004d00; } /* Slightly darker hover state */
+        .bg-safe-button { background-color: #006400; }
+        .hover\:bg-safe-button-darker:hover { background-color: #004d00; } 
         
         /* Active Tab Styling */
         .network-tab.active { 
@@ -27,6 +23,16 @@
             transition: all 0.2s ease-in-out;
             border-radius: 0.75rem; 
             border: 2px solid transparent;
+        }
+        /* Pay Option Styling */
+        .pay-option {
+            cursor: pointer;
+            transition: all 0.2s;
+            border-radius: 0.75rem;
+        }
+        .pay-option.active {
+            border: 3px solid #009879;
+            box-shadow: 0 4px 6px rgba(0, 152, 121, 0.2);
         }
     </style>
 </head>
@@ -100,8 +106,26 @@
                     <label for="email" class="block text-gray-700 font-medium mb-2">Email for Receipt</label>
                     <input type="email" id="email" placeholder="your.email@example.com" required class="w-full p-3 border border-gray-300 rounded-lg focus:ring-primary focus:border-primary transition">
                 </div>
+                
+                <!-- Payment Method Selection -->
+                <label class="block text-gray-700 font-semibold mb-3">Choose Payment Method</label>
+                <div id="payment-methods" class="grid grid-cols-2 gap-4 mb-6">
+                    <!-- Wallet Option -->
+                    <div class="pay-option p-4 bg-gray-50 shadow-lg text-center active" data-method="wallet">
+                        <p class="font-bold text-lg text-gray-800">Wallet Balance</p>
+                        <p class="text-primary font-extrabold text-2xl" id="wallet-balance-display">GHS 0.00</p>
+                        <p class="text-xs text-gray-500">Instant & Fee-Free</p>
+                    </div>
+                    <!-- Paystack Option -->
+                    <div class="pay-option p-4 bg-gray-50 shadow-lg text-center" data-method="paystack">
+                        <p class="font-bold text-lg text-gray-800">Mobile Money / Card</p>
+                        <p class="text-red-500 font-extrabold text-xl">via Paystack</p>
+                        <p class="text-xs text-gray-500">External Fees Apply</p>
+                    </div>
+                </div>
 
-                <!-- Pay Button (NEW HIGH-CONTRAST COLOR) -->
+
+                <!-- Pay Button -->
                 <button type="submit" id="pay-button" class="w-full py-3 bg-safe-button text-white text-lg font-bold rounded-lg shadow-xl transition hover:bg-safe-button-darker disabled:opacity-50">
                     Pay Now
                 </button>
@@ -123,6 +147,10 @@
         const statusDiv = document.getElementById('status');
         const payButton = document.getElementById('pay-button');
         const phoneInput = document.getElementById('phone'); 
+        const walletBalanceDisplay = document.getElementById('wallet-balance-display');
+        const paymentMethodsContainer = document.getElementById('payment-methods');
+
+        let userWalletBalance = 0; // Global variable to hold user's balance
         
         const PAYSTACK_PUBLIC_KEY = 'pk_test_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxx'; 
         
@@ -136,16 +164,15 @@
             totalFee = totalFee > TRANSACTION_FEE_CAP ? TRANSACTION_FEE_CAP : totalFee;
             
             let netFeeToPass = Math.max(0, totalFee - TRANSACTION_FEE_FLAT); 
-
             const totalAmountCharged = planPriceInPesewas + Math.round(netFeeToPass);
             
             return totalAmountCharged;
         }
         
         // --- UI UPDATE AND DATA FETCH ---
-        
         function updatePayButton(selectedOption) {
             const priceInPesewas = parseInt(selectedOption.dataset.amount) || 0;
+            const selectedMethod = paymentMethodsContainer.querySelector('.pay-option.active').dataset.method;
             
             if (priceInPesewas === 0) {
                 payButton.textContent = 'Pay Now';
@@ -155,8 +182,20 @@
             
             const sellingPriceGHS = (priceInPesewas / 100).toFixed(2);
             
-            payButton.textContent = `Pay GHS ${sellingPriceGHS}`;
-            payButton.disabled = false;
+            // Logic for Wallet Button Status
+            if (selectedMethod === 'wallet') {
+                if (priceInPesewas > userWalletBalance) {
+                    payButton.textContent = `Insufficient Funds (GHS ${sellingPriceGHS})`;
+                    payButton.disabled = true;
+                } else {
+                    payButton.textContent = `Pay GHS ${sellingPriceGHS} with Wallet`;
+                    payButton.disabled = false;
+                }
+            } else {
+                // Paystack button always shows the base price
+                payButton.textContent = `Pay GHS ${sellingPriceGHS}`;
+                payButton.disabled = false;
+            }
         }
 
         // Fetches plans based on the selected network
@@ -183,85 +222,68 @@
                     dataplanSelect.innerHTML = '<option value="" data-amount="0">Could not load plans</option>'; 
                 });
         };
-        
-        // --- 3. EVENT LISTENERS ---
-        
-        // Tab Switching Logic
-        networkTabs.addEventListener('click', (e) => {
-            let target = e.target.closest('.network-tab');
-            if (target) {
-                // Clear active classes and borders
-                document.querySelectorAll('.network-tab').forEach(tab => {
-                    tab.classList.remove('active', 'border-primary');
-                    tab.classList.add('border-transparent');
-                });
-                
-                // Add active class and border to the clicked tab
-                target.classList.add('active', 'border-primary');
-                target.classList.remove('border-transparent');
 
-                const network = target.dataset.network;
-                networkInput.value = network; // Update the hidden input
-                fetchPlansForNetwork(network); // Fetch plans for the new network
+        // Fetches user's current wallet balance
+        async function fetchUserInfo() {
+            try {
+                const response = await fetch('/api/user-info');
+                if (response.ok) {
+                    const data = await response.json();
+                    userWalletBalance = data.walletBalance;
+                    walletBalanceDisplay.textContent = `GHS ${(userWalletBalance / 100).toFixed(2)}`;
+                } else {
+                    walletBalanceDisplay.textContent = 'GHS 0.00';
+                }
+            } catch (error) {
+                walletBalanceDisplay.textContent = 'GHS Err';
             }
-        });
+        }
         
-        // Initial setup on load
-        document.addEventListener('DOMContentLoaded', () => {
-            // Set MTN as active by default
-            const defaultTab = document.querySelector('.network-tab[data-network="MTN"]');
-            if (defaultTab) {
-                defaultTab.classList.add('active', 'border-primary');
-                defaultTab.classList.remove('border-transparent');
-                networkInput.value = 'MTN';
-                fetchPlansForNetwork('MTN');
-            }
-        });
-        
-        // Plan selection update
-        dataplanSelect.addEventListener('change', (e) => updatePayButton(e.target.options[e.target.selectedIndex]));
+        // --- 3. PURCHASE LOGIC ---
 
-
-        // Form Submission (Payment)
-        paymentForm.addEventListener("submit", function(e) {
-            e.preventDefault();
+        // Handles Paystack Top-Up or Payment
+        const handlePaystackTransaction = (transactionType) => {
+            const isTopup = transactionType === 'topup';
             
             const selected = dataplanSelect.options[dataplanSelect.selectedIndex];
             const priceInPesewas = parseInt(selected.dataset.amount);
             
-            // 🛑 CLIENT-SIDE VALIDATION CHECK 🛑
-            if (!phoneInput.checkValidity()) {
-                statusDiv.textContent = "Please enter a valid 10-digit phone number starting with 0.";
-                statusDiv.style.color = "red";
-                phoneInput.focus();
-                return;
-            }
-
-            if (!selected || priceInPesewas === 0 || isNaN(priceInPesewas)) {
-                statusDiv.textContent = "Please select a valid data plan.";
-                statusDiv.style.color = "red";
-                return;
-            }
+            // Amount for Paystack: Total Charge for purchase, or user input for topup
+            let amountToCharge = isTopup ? priceInPesewas : calculateTotalCharge(priceInPesewas);
             
-            const totalAmountWithFees = calculateTotalCharge(priceInPesewas);
+            // Placeholder: For a real top-up, you would typically ask the user for the amount
+            // For now, let's use a fixed GHS 50 topup amount in this example
+            if(isTopup) amountToCharge = 5000; 
 
             payButton.disabled = true;
-            payButton.textContent = 'Opening Checkout...';
-
+            payButton.textContent = 'Initiating Checkout...';
+            
+            const transactionUrl = isTopup ? '/api/topup' : '/paystack/verify';
 
             const paymentCallback = function(response) {
                 statusDiv.textContent = "Verifying payment, please wait...";
                 statusDiv.style.color = "orange";
                 
-                fetch('/paystack/verify', {
+                fetch(transactionUrl, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ reference: response.reference }),
+                    body: JSON.stringify({ 
+                        reference: response.reference, 
+                        // Send amount for topup verification logic
+                        amount: amountToCharge / 100
+                    }),
                 })
                 .then(verifyResponse => verifyResponse.json())
                 .then(data => {
                     statusDiv.textContent = data.message;
                     statusDiv.style.color = data.status === 'success' ? 'green' : (data.status === 'pending' ? 'orange' : 'red');
+                    
+                    // Update balance after topup
+                    if (data.newBalance !== undefined) {
+                        userWalletBalance = data.newBalance;
+                        walletBalanceDisplay.textContent = `GHS ${(userWalletBalance / 100).toFixed(2)}`;
+                    }
+
                 })
                 .catch(err => {
                     statusDiv.textContent = "An error occurred during verification.";
@@ -276,7 +298,7 @@
             PaystackPop.setup({
                 key: PAYSTACK_PUBLIC_KEY, 
                 email: document.getElementById('email').value,
-                amount: totalAmountWithFees, 
+                amount: amountToCharge, 
                 currency: 'GHS',
                 ref: 'DL-' + Math.floor((Math.random() * 1000000000) + 1),
                 metadata: { 
@@ -292,8 +314,121 @@
                     updatePayButton(selected);
                 }
             }).openIframe();
+        }
+        
+        // Handles Wallet Payment
+        const handleWalletPurchase = async () => {
+            const selected = dataplanSelect.options[dataplanSelect.selectedIndex];
+            const priceInPesewas = parseInt(selected.dataset.amount);
+            
+            payButton.disabled = true;
+            payButton.textContent = 'Processing Wallet Payment...';
+
+            try {
+                const response = await fetch('/api/wallet-purchase', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        network: networkInput.value,
+                        dataPlan: selected.value,
+                        phone_number: phoneInput.value,
+                        amountInPesewas: priceInPesewas
+                    })
+                });
+
+                const data = await response.json();
+
+                statusDiv.textContent = data.message;
+                statusDiv.style.color = data.status === 'success' ? 'green' : (data.status === 'pending' ? 'orange' : 'red');
+
+                // Update wallet balance after success/failure
+                const updatedUserResponse = await fetch('/api/user-info');
+                if (updatedUserResponse.ok) {
+                    const userData = await updatedUserResponse.json();
+                    userWalletBalance = userData.walletBalance;
+                    walletBalanceDisplay.textContent = `GHS ${(userWalletBalance / 100).toFixed(2)}`;
+                }
+                
+            } catch (err) {
+                statusDiv.textContent = "An unknown error occurred during wallet transaction.";
+                statusDiv.style.color = "red";
+            } finally {
+                payButton.disabled = false;
+                updatePayButton(selected);
+            }
+        };
+
+        // --- 4. EVENT LISTENERS ---
+        
+        networkTabs.addEventListener('click', (e) => {
+            let target = e.target.closest('.network-tab');
+            if (target) {
+                document.querySelectorAll('.network-tab').forEach(tab => {
+                    tab.classList.remove('active', 'border-primary');
+                    tab.classList.add('border-transparent');
+                });
+                
+                target.classList.add('active', 'border-primary');
+                target.classList.remove('border-transparent');
+
+                const network = target.dataset.network;
+                networkInput.value = network; 
+                fetchPlansForNetwork(network); 
+            }
+        });
+        
+        paymentMethodsContainer.addEventListener('click', (e) => {
+            let target = e.target.closest('.pay-option');
+            if (target) {
+                document.querySelectorAll('.pay-option').forEach(option => option.classList.remove('active'));
+                target.classList.add('active');
+                
+                const selected = dataplanSelect.options[dataplanSelect.selectedIndex];
+                if (selected) updatePayButton(selected);
+            }
+        });
+
+        document.addEventListener('DOMContentLoaded', () => {
+            fetchUserInfo(); // Fetch user balance on load
+            
+            const defaultTab = document.querySelector('.network-tab[data-network="MTN"]');
+            if (defaultTab) {
+                defaultTab.classList.add('active', 'border-primary');
+                defaultTab.classList.remove('border-transparent');
+                networkInput.value = 'MTN';
+                fetchPlansForNetwork('MTN');
+            }
+        });
+        
+        dataplanSelect.addEventListener('change', (e) => updatePayButton(e.target.options[e.target.selectedIndex]));
+
+
+        // Form Submission determines which handler to call
+        paymentForm.addEventListener("submit", function(e) {
+            e.preventDefault();
+            
+            const selected = dataplanSelect.options[dataplanSelect.selectedIndex];
+            const priceInPesewas = parseInt(selected.dataset.amount);
+            const selectedMethod = paymentMethodsContainer.querySelector('.pay-option.active').dataset.method;
+            
+            if (!phoneInput.checkValidity()) {
+                statusDiv.textContent = "Please enter a valid 10-digit phone number starting with 0.";
+                statusDiv.style.color = "red";
+                phoneInput.focus();
+                return;
+            }
+
+            if (!selected || priceInPesewas === 0 || isNaN(priceInPesewas)) {
+                statusDiv.textContent = "Please select a valid data plan.";
+                statusDiv.style.color = "red";
+                return;
+            }
+            
+            if (selectedMethod === 'paystack') {
+                const totalAmountWithFees = calculateTotalCharge(priceInPesewas);
+                handlePaystackTransaction('purchase', totalAmountWithFees);
+            } else if (selectedMethod === 'wallet') {
+                handleWalletPurchase();
+            }
         });
     </script>
-</body>
-</html>
-
