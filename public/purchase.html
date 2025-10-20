@@ -3,15 +3,19 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <link rel="icon" type="image/x-icon" href="apple-touch-icon.png">
     <title>Purchase Data - DataLink</title>
     <!-- Load Tailwind CSS for modern styling -->
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         /* Custom styles to ensure full screen experience and maintain primary color */
-        :root { --primary: #009879; }
+        :root { 
+            --primary: #009879; 
+            --safe-button: #006400; /* Darker, high-contrast button color */
+        }
         .text-primary { color: var(--primary); }
         .border-primary { border-color: var(--primary); }
+        .bg-safe-button { background-color: var(--safe-button); }
+        .hover\:bg-safe-button-darker:hover { background-color: #004d00; } /* Slightly darker hover state */
         
         /* Active Tab Styling */
         .network-tab.active { 
@@ -20,7 +24,7 @@
         }
         .network-tab {
             transition: all 0.2s ease-in-out;
-            border-radius: 0.75rem; /* rounded-lg */
+            border-radius: 0.75rem; 
             border: 2px solid transparent;
         }
     </style>
@@ -49,17 +53,17 @@
                 <!-- Network Selection Tabs -->
                 <label class="block text-gray-700 font-semibold mb-3">Choose Network</label>
                 <div id="network-tabs" class="grid grid-cols-3 gap-3 mb-6">
-                    <!-- MTN LOGO INTEGRATION -->
+                    <!-- MTN -->
                     <div class="network-tab p-4 cursor-pointer bg-gray-50 shadow-md text-center text-sm font-bold border-2 border-primary" data-network="MTN">
                         <img src="logos/mtn_logo.png" alt="MTN Logo" class="w-10 h-10 mx-auto mb-1 object-contain">
                         MTN
                     </div>
-                    <!-- AirtelTigo LOGO INTEGRATION -->
+                    <!-- AirtelTigo -->
                     <div class="network-tab p-4 cursor-pointer bg-gray-50 shadow-md text-center text-sm font-bold border-2 border-transparent" data-network="AirtelTigo">
                         <img src="logos/at_logo.png" alt="AirtelTigo Logo" class="w-10 h-10 mx-auto mb-1 object-contain">
                         AirtelTigo
                     </div>
-                    <!-- Telecel LOGO INTEGRATION -->
+                    <!-- Telecel -->
                     <div class="network-tab p-4 cursor-pointer bg-gray-50 shadow-md text-center text-sm font-bold border-2 border-transparent" data-network="Telecel">
                         <img src="logos/telecel_logo.png" alt="Telecel Logo" class="w-10 h-10 mx-auto mb-1 object-contain">
                         Telecel
@@ -81,15 +85,13 @@
                     <ul class="list-disc list-inside space-y-1">
                         <li>Ensure the **10-digit phone number starts with 0**.</li>
                         <li>Delivery is often **instant**, but allow up to 30 mins for manual review.</li>
-                        <li>Confirm receipient number.</li>
-                        <li>NB: Transactions are not refundable.</li>
                     </ul>
                 </div>
 
                 <!-- Phone Number -->
                 <div class="form-group mb-5">
                     <label for="phone" class="block text-gray-700 font-medium mb-2">Recipient Phone Number</label>
-                    <input type="tel" id="phone" pattern="0[0-9]{9}" maxlength="10" placeholder="e.g., 0500000000" required class="w-full p-3 border border-gray-300 rounded-lg focus:ring-primary focus:border-primary transition">
+                    <input type="tel" id="phone" pattern="0[0-9]{9}" maxlength="10" placeholder="e.g., 0501234567" required class="w-full p-3 border border-gray-300 rounded-lg focus:ring-primary focus:border-primary transition">
                 </div>
                 
                 <!-- Email for Receipt -->
@@ -98,8 +100,8 @@
                     <input type="email" id="email" placeholder="your.email@example.com" required class="w-full p-3 border border-gray-300 rounded-lg focus:ring-primary focus:border-primary transition">
                 </div>
 
-                <!-- Pay Button -->
-                <button type="submit" id="pay-button" class="w-full py-3 bg-primary text-white text-lg font-bold rounded-lg shadow-xl transition hover:bg-secondary disabled:opacity-50">
+                <!-- Pay Button (NEW HIGH-CONTRAST COLOR) -->
+                <button type="submit" id="pay-button" class="w-full py-3 bg-safe-button text-white text-lg font-bold rounded-lg shadow-xl transition hover:bg-safe-button-darker disabled:opacity-50">
                     Pay Now
                 </button>
             </form>
@@ -112,183 +114,184 @@
     <script src="https://js.paystack.co/v1/inline.js"></script>
     
     <!-- JavaScript Logic -->
-   <script>
-    const networkTabs = document.getElementById('network-tabs');
-    const networkInput = document.getElementById('network');
-    const dataplanSelect = document.getElementById('dataplan');
-    const paymentForm = document.getElementById('paymentForm');
-    const statusDiv = document.getElementById('status');
-    const payButton = document.getElementById('pay-button');
-    const phoneInput = document.getElementById('phone'); 
-    
-    // 🛑 CRITICAL: REPLACE THIS VALUE WITH YOUR ACTUAL PAYSTACK PUBLIC KEY!
-    const PAYSTACK_PUBLIC_KEY = 'pk_live_62dc43eeea153c81c216b75e3967f8a44ee94fc3'; 
-    
-    // --- PAYSTACK FEE CALCULATION (Absorbs Flat Fee) ---
-    function calculateTotalCharge(planPriceInPesewas) {
-        const TRANSACTION_FEE_RATE = 0.019;
-        const TRANSACTION_FEE_FLAT = 80; 
-        const TRANSACTION_FEE_CAP = 2000; 
+    <script>
+        const networkTabs = document.getElementById('network-tabs');
+        const networkInput = document.getElementById('network');
+        const dataplanSelect = document.getElementById('dataplan');
+        const paymentForm = document.getElementById('paymentForm');
+        const statusDiv = document.getElementById('status');
+        const payButton = document.getElementById('pay-button');
+        const phoneInput = document.getElementById('phone'); 
+        
+        const PAYSTACK_PUBLIC_KEY = 'pk_test_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxx'; 
+        
+        // --- PAYSTACK FEE CALCULATION (Absorbs Flat Fee) ---
+        function calculateTotalCharge(planPriceInPesewas) {
+            const TRANSACTION_FEE_RATE = 0.019;
+            const TRANSACTION_FEE_FLAT = 80; 
+            const TRANSACTION_FEE_CAP = 2000; 
 
-        let totalFee = (planPriceInPesewas * TRANSACTION_FEE_RATE) + TRANSACTION_FEE_FLAT;
-        totalFee = totalFee > TRANSACTION_FEE_CAP ? TRANSACTION_FEE_CAP : totalFee;
-        
-        let netFeeToPass = Math.max(0, totalFee - TRANSACTION_FEE_FLAT); 
+            let totalFee = (planPriceInPesewas * TRANSACTION_FEE_RATE) + TRANSACTION_FEE_FLAT;
+            totalFee = totalFee > TRANSACTION_FEE_CAP ? TRANSACTION_FEE_CAP : totalFee;
+            
+            let netFeeToPass = Math.max(0, totalFee - TRANSACTION_FEE_FLAT); 
 
-        const totalAmountCharged = planPriceInPesewas + Math.round(netFeeToPass);
+            const totalAmountCharged = planPriceInPesewas + Math.round(netFeeToPass);
+            
+            return totalAmountCharged;
+        }
         
-        return totalAmountCharged;
-    }
-    
-    // --- UI UPDATE: ONLY SHOWS THE BASE PRICE ---
-    function updatePayButton(selectedOption) {
-        const priceInPesewas = parseInt(selectedOption.dataset.amount) || 0;
+        // --- UI UPDATE AND DATA FETCH ---
         
-        if (priceInPesewas === 0) {
-            payButton.textContent = 'Pay Now';
+        function updatePayButton(selectedOption) {
+            const priceInPesewas = parseInt(selectedOption.dataset.amount) || 0;
+            
+            if (priceInPesewas === 0) {
+                payButton.textContent = 'Pay Now';
+                payButton.disabled = true;
+                return;
+            }
+            
+            const sellingPriceGHS = (priceInPesewas / 100).toFixed(2);
+            
+            payButton.textContent = `Pay GHS ${sellingPriceGHS}`;
+            payButton.disabled = false;
+        }
+
+        // Fetches plans based on the selected network
+        const fetchPlansForNetwork = (network) => {
+            dataplanSelect.innerHTML = '<option value="" data-amount="0" selected disabled>Loading plans...</option>';
             payButton.disabled = true;
-            return;
-        }
-        
-        const sellingPriceGHS = (priceInPesewas / 100).toFixed(2);
-        
-        // UI FIX: Ensure text is visible
-        payButton.textContent = `Pay GHS ${sellingPriceGHS}`;
-        payButton.classList.add('text-white'); // Reinforce the text color
-        payButton.disabled = false;
-    }
 
-    // Fetches plans based on the selected network
-    const fetchPlansForNetwork = (network) => {
-        dataplanSelect.innerHTML = '<option value="" data-amount="0" selected disabled>Loading plans...</option>';
-        payButton.disabled = true;
-
-        fetch(`/api/data-plans?network=${network}`)
-            .then(response => response.json())
-            .then(plans => {
-                dataplanSelect.innerHTML = '<option value="" data-amount="0" selected disabled>Select a Plan...</option>';
-                if (!plans.length) { dataplanSelect.innerHTML = '<option value="" data-amount="0">No plans available</option>'; return; }
-                
-                plans.forEach(p => {
-                    const opt = document.createElement('option');
-                    opt.value = p.id; 
-                    opt.dataset.amount = p.price; 
-                    opt.textContent = `${p.name} - GHS ${(p.price / 100).toFixed(2)}`;
-                    dataplanSelect.appendChild(opt);
+            fetch(`/api/data-plans?network=${network}`)
+                .then(response => response.json())
+                .then(plans => {
+                    dataplanSelect.innerHTML = '<option value="" data-amount="0" selected disabled>Select a Plan...</option>';
+                    if (!plans.length) { dataplanSelect.innerHTML = '<option value="" data-amount="0">No plans available</option>'; return; }
+                    
+                    plans.forEach(p => {
+                        const opt = document.createElement('option');
+                        opt.value = p.id; 
+                        opt.dataset.amount = p.price; 
+                        opt.textContent = `${p.name} - GHS ${(p.price / 100).toFixed(2)}`;
+                        dataplanSelect.appendChild(opt);
+                    });
+                    updatePayButton(dataplanSelect.options[dataplanSelect.selectedIndex]);
+                })
+                .catch(() => { 
+                    dataplanSelect.innerHTML = '<option value="" data-amount="0">Could not load plans</option>'; 
                 });
-                updatePayButton(dataplanSelect.options[dataplanSelect.selectedIndex]);
-            })
-            .catch(() => { 
-                dataplanSelect.innerHTML = '<option value="" data-amount="0">Could not load plans</option>'; 
-            });
-    };
-    
-    // --- EVENT LISTENERS (UNCHANGED) ---
-    
-    // Tab Switching Logic
-    networkTabs.addEventListener('click', (e) => {
-        let target = e.target.closest('.network-tab');
-        if (target) {
-            document.querySelectorAll('.network-tab').forEach(tab => {
-                tab.classList.remove('active', 'border-primary');
-                tab.classList.add('border-transparent');
-            });
-            
-            target.classList.add('active', 'border-primary');
-            target.classList.remove('border-transparent');
-
-            const network = target.dataset.network;
-            networkInput.value = network; 
-            fetchPlansForNetwork(network);
-        }
-    });
-    
-    // Initial setup on load
-    document.addEventListener('DOMContentLoaded', () => {
-        const defaultTab = document.querySelector('.network-tab[data-network="MTN"]');
-        if (defaultTab) {
-            defaultTab.classList.add('active', 'border-primary');
-            defaultTab.classList.remove('border-transparent');
-            networkInput.value = 'MTN';
-            fetchPlansForNetwork('MTN');
-        }
-    });
-    
-    dataplanSelect.addEventListener('change', (e) => updatePayButton(e.target.options[e.target.selectedIndex]));
-
-
-    // Form Submission (Payment)
-    paymentForm.addEventListener("submit", function(e) {
-        e.preventDefault();
-        
-        const selected = dataplanSelect.options[dataplanSelect.selectedIndex];
-        const priceInPesewas = parseInt(selected.dataset.amount);
-        
-        if (!phoneInput.checkValidity()) {
-            statusDiv.textContent = "Please enter a valid 10-digit phone number starting with 0.";
-            statusDiv.style.color = "red";
-            phoneInput.focus();
-            return;
-        }
-
-        if (!selected || priceInPesewas === 0 || isNaN(priceInPesewas)) {
-            statusDiv.textContent = "Please select a valid data plan.";
-            statusDiv.style.color = "red";
-            return;
-        }
-        
-        const totalAmountWithFees = calculateTotalCharge(priceInPesewas);
-
-        payButton.disabled = true;
-        payButton.textContent = 'Opening Checkout...';
-
-
-        const paymentCallback = function(response) {
-            statusDiv.textContent = "Verifying payment, please wait...";
-            statusDiv.style.color = "orange";
-            
-            fetch('/paystack/verify', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ reference: response.reference }),
-            })
-            .then(verifyResponse => verifyResponse.json())
-            .then(data => {
-                statusDiv.textContent = data.message;
-                statusDiv.style.color = data.status === 'success' ? 'green' : (data.status === 'pending' ? 'orange' : 'red');
-            })
-            .catch(err => {
-                statusDiv.textContent = "An error occurred during verification.";
-                statusDiv.style.color = "red";
-            })
-            .finally(() => {
-                payButton.disabled = false;
-                updatePayButton(selected);
-            });
         };
         
-        PaystackPop.setup({
-            key: PAYSTACK_PUBLIC_KEY, 
-            email: document.getElementById('email').value,
-            amount: totalAmountWithFees, 
-            currency: 'GHS',
-            ref: 'DL-' + Math.floor((Math.random() * 1000000000) + 1),
-            metadata: { 
-                phone_number: phoneInput.value, 
-                network: networkInput.value, 
-                data_plan: selected.value,
-            },
-            callback: paymentCallback,
-            onClose: function() { 
-                statusDiv.textContent = "Transaction cancelled."; 
-                statusDiv.style.color = "red"; 
-                payButton.disabled = false;
-                updatePayButton(selected);
+        // --- 3. EVENT LISTENERS ---
+        
+        // Tab Switching Logic
+        networkTabs.addEventListener('click', (e) => {
+            let target = e.target.closest('.network-tab');
+            if (target) {
+                // Clear active classes and borders
+                document.querySelectorAll('.network-tab').forEach(tab => {
+                    tab.classList.remove('active', 'border-primary');
+                    tab.classList.add('border-transparent');
+                });
+                
+                // Add active class and border to the clicked tab
+                target.classList.add('active', 'border-primary');
+                target.classList.remove('border-transparent');
+
+                const network = target.dataset.network;
+                networkInput.value = network; // Update the hidden input
+                fetchPlansForNetwork(network); // Fetch plans for the new network
             }
-        }).openIframe();
-    });
-</script>
+        });
+        
+        // Initial setup on load
+        document.addEventListener('DOMContentLoaded', () => {
+            // Set MTN as active by default
+            const defaultTab = document.querySelector('.network-tab[data-network="MTN"]');
+            if (defaultTab) {
+                defaultTab.classList.add('active', 'border-primary');
+                defaultTab.classList.remove('border-transparent');
+                networkInput.value = 'MTN';
+                fetchPlansForNetwork('MTN');
+            }
+        });
+        
+        // Plan selection update
+        dataplanSelect.addEventListener('change', (e) => updatePayButton(e.target.options[e.target.selectedIndex]));
+
+
+        // Form Submission (Payment)
+        paymentForm.addEventListener("submit", function(e) {
+            e.preventDefault();
+            
+            const selected = dataplanSelect.options[dataplanSelect.selectedIndex];
+            const priceInPesewas = parseInt(selected.dataset.amount);
+            
+            // 🛑 CLIENT-SIDE VALIDATION CHECK 🛑
+            if (!phoneInput.checkValidity()) {
+                statusDiv.textContent = "Please enter a valid 10-digit phone number starting with 0.";
+                statusDiv.style.color = "red";
+                phoneInput.focus();
+                return;
+            }
+
+            if (!selected || priceInPesewas === 0 || isNaN(priceInPesewas)) {
+                statusDiv.textContent = "Please select a valid data plan.";
+                statusDiv.style.color = "red";
+                return;
+            }
+            
+            const totalAmountWithFees = calculateTotalCharge(priceInPesewas);
+
+            payButton.disabled = true;
+            payButton.textContent = 'Opening Checkout...';
+
+
+            const paymentCallback = function(response) {
+                statusDiv.textContent = "Verifying payment, please wait...";
+                statusDiv.style.color = "orange";
+                
+                fetch('/paystack/verify', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ reference: response.reference }),
+                })
+                .then(verifyResponse => verifyResponse.json())
+                .then(data => {
+                    statusDiv.textContent = data.message;
+                    statusDiv.style.color = data.status === 'success' ? 'green' : (data.status === 'pending' ? 'orange' : 'red');
+                })
+                .catch(err => {
+                    statusDiv.textContent = "An error occurred during verification.";
+                    statusDiv.style.color = "red";
+                })
+                .finally(() => {
+                    payButton.disabled = false;
+                    updatePayButton(selected);
+                });
+            };
+            
+            PaystackPop.setup({
+                key: PAYSTACK_PUBLIC_KEY, 
+                email: document.getElementById('email').value,
+                amount: totalAmountWithFees, 
+                currency: 'GHS',
+                ref: 'DL-' + Math.floor((Math.random() * 1000000000) + 1),
+                metadata: { 
+                    phone_number: phoneInput.value, 
+                    network: networkInput.value, 
+                    data_plan: selected.value,
+                },
+                callback: paymentCallback,
+                onClose: function() { 
+                    statusDiv.textContent = "Transaction cancelled."; 
+                    statusDiv.style.color = "red"; 
+                    payButton.disabled = false;
+                    updatePayButton(selected);
+                }
+            }).openIframe();
+        });
+    </script>
 </body>
 </html>
-
-
