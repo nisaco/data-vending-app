@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link rel="icon" type="image/x-icon" href="apple-touch-icon.png">
+
     <title>My Dashboard - DataLink</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
@@ -12,9 +13,9 @@
         .bg-primary { background-color: var(--primary); }
         
         /* Table Status Colors */
-        .status-data_sent { background-color: #10b981; } /* Emerald Green */
-        .status-pending_review { background-color: #f59e0b; } /* Amber Orange */
-        .status-payment_success { background-color: #3b82f6; } /* Blue */
+        .status-data_sent { background-color: #10b981; } 
+        .status-pending_review { background-color: #f59e0b; } 
+        .status-payment_success, .status-topup_successful { background-color: #3b82f6; } /* Blue */
         
         /* Tab Styling */
         .filter-tab {
@@ -48,10 +49,23 @@
     <div class="container mx-auto p-4 max-w-4xl">
         <div class="bg-white p-6 md:p-8 rounded-2xl shadow-xl mt-8 border border-gray-100">
             
-            <h1 class="text-3xl font-extrabold text-center text-gray-800 mb-2">My Order History</h1>
-            <p class="text-center text-gray-500 mb-6">Filter by network to quickly review your purchases.</p>
+            <h1 class="text-3xl font-extrabold text-center text-gray-800 mb-2">My Dashboard</h1>
+            <p class="text-center text-gray-500 mb-6">Review your wallet balance and transaction history.</p>
             
-            <!-- Network Filters -->
+            <!-- Wallet Balance Card -->
+            <div class="bg-primary text-white p-6 rounded-xl shadow-lg mb-8 flex justify-between items-center">
+                <div>
+                    <p class="text-lg font-medium">Your Current Balance</p>
+                    <p class="text-5xl font-extrabold mt-1" id="wallet-balance-dashboard">
+                        GHS 0.00
+                    </p>
+                </div>
+                <a href="/purchase" class="py-2 px-4 bg-white text-primary font-bold rounded-lg shadow-md transition hover:bg-gray-100">
+                    Buy Data Now
+                </a>
+            </div>
+
+            <!-- Order History Filters -->
             <div id="network-filters" class="flex justify-center space-x-4 mb-6 border-b border-gray-200 text-gray-600">
                 <div class="filter-tab active" data-network="All">All Orders</div>
                 <div class="filter-tab" data-network="MTN">MTN</div>
@@ -67,8 +81,8 @@
                     <thead class="text-xs text-white uppercase bg-primary">
                         <tr>
                             <th scope="col" class="py-3 px-6 rounded-tl-xl">Date</th>
-                            <th scope="col" class="py-3 px-6">Phone</th>
-                            <th scope="col" class="py-3 px-6">Plan</th>
+                            <th scope="col" class="py-3 px-6">Source</th>
+                            <th scope="col" class="py-3 px-6">Item/Plan</th>
                             <th scope="col" class="py-3 px-6">Amount (GHS)</th>
                             <th scope="col" class="py-3 px-6 rounded-tr-xl">Status</th>
                         </tr>
@@ -83,10 +97,27 @@
     </div>
     
     <script>
-        let userOrders = []; // Global array to hold all fetched orders
+        let userOrders = []; 
         const statusDiv = document.getElementById('status');
         const tableBody = document.getElementById('ordersTableBody');
         const filterContainer = document.getElementById('network-filters');
+        const balanceDisplay = document.getElementById('wallet-balance-dashboard');
+
+        // Fetches user's current wallet balance
+        async function fetchBalance() {
+            try {
+                const response = await fetch('/api/user-info');
+                if (response.ok) {
+                    const data = await response.json();
+                    balanceDisplay.textContent = `GHS ${(data.walletBalance / 100).toFixed(2)}`;
+                } else {
+                    balanceDisplay.textContent = 'GHS 0.00';
+                }
+            } catch (error) {
+                balanceDisplay.textContent = 'GHS Err';
+            }
+        }
+
 
         function renderOrders(orders) {
             tableBody.innerHTML = '';
@@ -96,20 +127,24 @@
                 return;
             }
 
-            statusDiv.textContent = ''; // Clear status if orders are present
+            statusDiv.textContent = ''; 
             
             orders.forEach(order => {
                 const row = tableBody.insertRow();
                 const statusText = order.status.replace(/_/g, ' '); 
                 const statusClass = `status-${order.status}`;
                 
+                // Determine source for table display
+                let source = order.paymentMethod === 'wallet' ? 'Wallet' : 'Paystack';
+                let item = order.dataPlan === 'WALLET TOP-UP' ? 'Wallet Top-up' : `${order.dataPlan} (${order.network})`;
+
                 row.className = 'hover:bg-gray-50 transition duration-150';
 
                 row.innerHTML = `
                     <td class="py-4 px-6">${new Date(order.created_at).toLocaleString('en-GB')}</td>
-                    <td class="py-4 px-6">${order.phone_number}</td>
-                    <td class="py-4 px-6">${order.data_plan}</td>
-                    <td class="py-4 px-6 font-semibold text-gray-800">${order.amount.toFixed(2)}</td>
+                    <td class="py-4 px-6 font-medium text-gray-800">${source}</td>
+                    <td class="py-4 px-6">${item}</td>
+                    <td class="py-4 px-6 font-semibold text-gray-800">GHS ${order.amount.toFixed(2)}</td>
                     <td class="py-4 px-6">
                         <span class="px-3 py-1 text-white text-xs font-bold uppercase rounded-full ${statusClass}">
                             ${statusText}
@@ -122,12 +157,14 @@
         function filterAndRenderOrders(network) {
             let filtered = userOrders;
             if (network !== 'All') {
-                filtered = userOrders.filter(order => order.network === network);
+                filtered = userOrders.filter(order => order.network === network || (network === 'Wallet' && order.dataPlan === 'WALLET TOP-UP'));
             }
             renderOrders(filtered);
         }
 
         document.addEventListener('DOMContentLoaded', async () => {
+            fetchBalance(); // Fetch initial balance
+            
             try {
                 const response = await fetch('/api/my-orders');
                 
@@ -138,13 +175,13 @@
                     return;
                 }
                 
-                if (!response.ok) throw new Error('Could not fetch orders. Please try logging in again.');
+                if (!response.ok) throw new Error('Could not fetch orders.');
                 
                 const data = await response.json();
                 userOrders = data.orders || [];
 
                 if (userOrders.length === 0) { 
-                    statusDiv.textContent = "You haven't made any purchases yet."; 
+                    statusDiv.textContent = "You haven't made any transactions yet."; 
                     statusDiv.style.color = 'black';
                     return; 
                 }
@@ -170,4 +207,3 @@
     </script>
 </body>
 </html>
-
