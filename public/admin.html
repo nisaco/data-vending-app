@@ -261,6 +261,7 @@
 
         // --- FETCH USER LIST AND STATUS ---
         async function fetchAllUsersAndRender(secret) {
+            userListStatus.textContent = 'Loading user list...';
             try {
                 const response = await fetch(`/api/admin/all-users-status?secret=${secret}`);
                 if (!response.ok) throw new Error('Failed to fetch user list.');
@@ -273,7 +274,6 @@
                 activeCountElement.textContent = activeCount;
                 userCountDisplay.classList.remove('hidden');
 
-                // Render active users in the small box
                 const activeUsersList = document.getElementById('active-users-list');
                 const activeUsersHtml = users.filter(u => u.isOnline).map(user => {
                     const loggedInTime = new Date(user.signedUp).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
@@ -324,7 +324,9 @@
 
 
         // --- MAIN FETCH FUNCTION ---
-        document.getElementById('fetchOrdersBtn').addEventListener('click', async () => {
+        const fetchOrdersBtn = document.getElementById('fetchOrdersBtn');
+
+        fetchOrdersBtn.addEventListener('click', async () => {
             const secret = adminSecretInput.value;
             if (!secret) { 
                 statusDiv.textContent = 'Please enter the admin secret.'; 
@@ -332,6 +334,11 @@
                 return; 
             }
             
+            // Set loading state on button
+            fetchOrdersBtn.disabled = true;
+            fetchOrdersBtn.textContent = 'Loading...';
+            statusDiv.textContent = 'Fetching all data sets...';
+
             // Fetch all critical data simultaneously
             await Promise.all([
                 fetchAllUsersAndRender(secret),
@@ -358,11 +365,14 @@
             } catch (error) {
                 statusDiv.textContent = `Error: ${error.message}`;
                 statusDiv.style.color = 'red';
+            } finally {
+                fetchOrdersBtn.disabled = false;
+                fetchOrdersBtn.textContent = 'Fetch Dashboard Data';
             }
         });
         
         // --- FUNCTION TO HANDLE MARK SENT ACTION (omitted for brevity, same as previous) ---
-        async function markOrderSent(orderId, button) { /* ... same as previous ... */ }
+        async function markOrderSent(orderId, button) { /* ... implementation ... */ }
 
         // --- EVENT LISTENERS ---
         ordersTableBody.addEventListener('click', (e) => {
