@@ -4,7 +4,7 @@ const path = require('path');
 const express = require('express');
 const session = require('express-session');
 const bcrypt = require('bcrypt');
-const sgMail = require('@sendgrid/mail');
+const sgMail = require('@sendgrid/mail'); // ⬅️ USED FOR EMAIL
 const axios = require('axios');
 const { User, Order } = require('./database.js'); 
 const mongoose = require('mongoose'); 
@@ -41,6 +41,41 @@ const NETWORK_KEY_MAP = {
     "Telecel": 'TELECEL',
 };
 
+// --- HELPER: SEND ADMIN ALERT EMAIL (NEW FUNCTIONALITY) ---
+async function sendAdminAlertEmail(order) {
+    if (!process.env.SENDGRID_API_KEY) {
+        console.error("SENDGRID_API_KEY not set. Cannot send alert email.");
+        return;
+    }
+    
+    sgMail.setApiKey(process.env.SENDGRID_API_KEY);
+    
+    const msg = {
+        to: 'YOUR_ADMIN_RECEIVING_EMAIL@example.com', // ⬅️ CRITICAL: Your email to receive alerts
+        from: 'YOUR_VERIFIED_SENDER_EMAIL@example.com', // ⬅️ CRITICAL: Your verified SendGrid sender email
+        subject: `🚨 MANUAL REVIEW REQUIRED: ${order.network} Data Transfer Failed`,
+        html: `
+            <h1>Urgent Action Required!</h1>
+            <p>A customer payment was successful, but the data bundle transfer failed automatically. Please fulfill this order manually through the Datahub Ghana dashboard.</p>
+            <hr>
+            <p><strong>Status:</strong> PENDING REVIEW</p>
+            <p><strong>Network:</strong> ${order.network}</p>
+            <p><strong>Plan:</strong> ${order.dataPlan}</p>
+            <p><strong>Phone:</strong> ${order.phoneNumber}</p>
+            <p><strong>Amount Paid:</strong> GHS ${order.amount.toFixed(2)}</p>
+            <p><strong>Reference:</strong> ${order.reference}</p>
+            <p><strong>Action:</strong> Go to the Admin Dashboard and click 'Mark Sent' after fulfilling manually.</p>
+        `,
+    };
+    try {
+        await sgMail.send(msg);
+        console.log(`Manual alert email sent for reference: ${order.reference}`);
+    } catch (error) {
+        console.error('Failed to send admin alert email:', error.response?.body || error);
+    }
+}
+
+
 // --- 3. MIDDLEWARE ---
 app.set('trust proxy', 1); 
 
@@ -55,7 +90,7 @@ app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
 
 
-// --- 4. AUTHENTICATION & PAGE ROUTES ---
+// --- 4. AUTHENTICATION & PAGE ROUTES (omitted for brevity, unchanged) ---
 const isAuthenticated = (req, res, next) => req.session.user ? next() : res.redirect('/login.html');
 
 app.get('/', (req, res) => res.sendFile(path.join(__dirname, 'public', 'index.html')));
@@ -96,7 +131,7 @@ app.get('/purchase', isAuthenticated, (req, res) => res.sendFile(path.join(__dir
 app.get('/dashboard', isAuthenticated, (req, res) => res.sendFile(path.join(__dirname, 'public', 'dashboard.html')));
 
 
-// --- 5. DATA API ROUTES ---
+// --- 5. DATA API ROUTES (omitted for brevity, unchanged) ---
 app.get('/api/data-plans', (req, res) => {
     const costPlans = allPlans[req.query.network] || [];
     
@@ -149,43 +184,34 @@ app.get('/api/get-all-orders', async (req, res) => {
     }
 });
 
-// --- NEW ADMIN ENDPOINT: FETCH ALL USERS + ONLINE STATUS (FIXED) ---
+// --- ADMIN ENDPOINT: FETCH ALL USERS + ONLINE STATUS (omitted for brevity, unchanged) ---
 app.get('/api/admin/all-users-status', async (req, res) => {
     if (req.query.secret !== process.env.ADMIN_SECRET) return res.status(403).json({ error: "Unauthorized" });
     
     try {
-        // 1. Fetch all registered users
         const registeredUsers = await User.find({}).select('username email createdAt').lean();
 
-        // 2. Fetch all active session documents
         const sessionsCollection = mongoose.connection.db.collection('sessions');
         const rawSessions = await sessionsCollection.find({}).toArray();
 
-        // Build a SET of active user IDs (as strings) for quick lookup
         const activeUserIds = new Set();
         rawSessions.forEach(sessionDoc => {
             try {
                 const sessionData = JSON.parse(sessionDoc.session);
                 if (sessionData.user && sessionData.user.id) {
-                    // 🛑 CRITICAL FIX: Strip any extra characters (like quotes) that might cause the mismatch
                     let sessionId = sessionData.user.id.toString().replace(/['"]+/g, '');
                     activeUserIds.add(sessionId);
                 }
-            } catch (e) {
-                // console.error("Error parsing session:", e); // Optional: Re-enable for debugging only
-            }
+            } catch (e) { }
         });
 
-        // 3. Merge status data
         const userListWithStatus = registeredUsers.map(user => {
-            // Convert the Mongoose user._id object to a string for comparison
             const userIdString = user._id.toString();
             
             return {
                 username: user.username,
                 email: user.email,
                 signedUp: user.createdAt,
-                // Check if the user's string ID exists in the active set
                 isOnline: activeUserIds.has(userIdString)
             };
         });
@@ -199,7 +225,7 @@ app.get('/api/admin/all-users-status', async (req, res) => {
 });
 
 
-// --- ADMIN ENDPOINT: FETCH USER COUNT (Simplified) ---
+// --- ADMIN ENDPOINT: FETCH USER COUNT (omitted for brevity, unchanged) ---
 app.get('/api/admin/user-count', async (req, res) => {
     if (req.query.secret !== process.env.ADMIN_SECRET) {
         return res.status(403).json({ error: "Unauthorized" });
@@ -212,7 +238,7 @@ app.get('/api/admin/user-count', async (req, res) => {
     }
 });
 
-// --- ADMIN ENDPOINT: MANUAL STATUS UPDATE ---
+// --- ADMIN ENDPOINT: MANUAL STATUS UPDATE (omitted for brevity, unchanged) ---
 app.post('/api/admin/update-order', async (req, res) => {
     const { orderId, newStatus, adminSecret } = req.body;
     
@@ -231,13 +257,14 @@ app.post('/api/admin/update-order', async (req, res) => {
 });
 
 
-// --- 6. PAYMENT AND DATA TRANSFER ROUTE (FINAL INTEGRATION) ---
+// --- 6. PAYMENT AND DATA TRANSFER ROUTE (WITH EMAIL ALERT) ---
 app.post('/paystack/verify', isAuthenticated, async (req, res) => {
     const { reference } = req.body;
     if (!reference) return res.status(400).json({ status: 'error', message: 'Reference is required.' });
 
     let finalStatus = 'payment_success'; 
-    
+    let orderDetails = null; // Will hold data to be saved/emailed
+
     try {
         // --- STEP 1: VERIFY PAYMENT WITH PAYSTACK ---
         const paystackUrl = `https://api.paystack.co/transaction/verify/${reference}`;
@@ -254,9 +281,19 @@ app.post('/paystack/verify', isAuthenticated, async (req, res) => {
         const amountInGHS = data.amount / 100;
         const userId = req.session.user.id;
         
+        // Prepare details for saving and emailing
+        orderDetails = {
+            userId: userId,
+            reference: reference,
+            phoneNumber: phone_number,
+            network: network,
+            dataPlan: data_plan,
+            amount: amountInGHS,
+            status: finalStatus
+        };
+        
         // --- STEP 2: TRANSFER DATA VIA RESELLER API (Datahub Ghana) ---
         const resellerApiUrl = 'https://console.ckgodsway.com/api/data-purchase';
-        
         const networkKey = NETWORK_KEY_MAP[network];
         
         const resellerPayload = {
@@ -287,15 +324,13 @@ app.post('/paystack/verify', isAuthenticated, async (req, res) => {
         }
 
         // --- STEP 3: SAVE FINAL ORDER STATUS TO MONGODB ---
-        await Order.create({
-            userId: userId,
-            reference: reference,
-            phoneNumber: phone_number,
-            network: network,
-            dataPlan: data_plan,
-            amount: amountInGHS,
-            status: finalStatus
-        });
+        orderDetails.status = finalStatus;
+        await Order.create(orderDetails);
+        
+        // --- STEP 4: SEND ALERT IF FAILED ---
+        if (finalStatus === 'pending_review') {
+            await sendAdminAlertEmail(orderDetails); // Send email notification immediately
+        }
 
         if (finalStatus === 'data_sent') {
             return res.json({ status: 'success', message: `Payment verified. Data transfer successful!` });
@@ -325,3 +360,4 @@ app.post('/paystack/verify', isAuthenticated, async (req, res) => {
 app.listen(PORT, '0.0.0.0', () => {
     console.log(`Server running on port ${PORT}`);
 });
+
