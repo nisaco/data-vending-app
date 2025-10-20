@@ -154,7 +154,12 @@ mongoose.connection.once('open', () => {
 
 
     // --- ADMIN & MANAGEMENT ROUTES ---
-    app.get('/api/get-all-orders', async (req, res) => { /* ... implementation ... */ });
+    app.get('/api/get-all-orders', async (req, res) => {
+    // 🛑 NEW DEBUG LOG: Check if secrets match 🛑
+    if (req.query.secret !== process.env.ADMIN_SECRET) {
+        console.error(`ADMIN ERROR: Failed attempt to fetch orders. Client secret: [${req.query.secret}]`);
+        return res.status(403).json({ error: "Unauthorized: Invalid Admin Secret" });
+    }
     app.get('/api/admin/metrics', async (req, res) => { /* ... implementation ... */ });
     app.get('/api/admin/all-users-status', async (req, res) => { /* ... implementation ... */ });
     app.get('/api/admin/user-count', async (req, res) => { /* ... implementation ... */ });
@@ -175,3 +180,4 @@ mongoose.connection.once('open', () => {
     // Start the cron job after the server is listening
     cron.schedule('*/5 * * * *', runPendingOrderCheck);
 });
+
