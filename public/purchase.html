@@ -3,7 +3,6 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <link rel="icon" type="image/x-icon" href="apple-touch-icon.png">
     <title>Purchase Data - DataLink</title>
     <!-- Load Tailwind CSS for modern styling -->
     <script src="https://cdn.tailwindcss.com"></script>
@@ -29,9 +28,10 @@
             cursor: pointer;
             transition: all 0.2s;
             border-radius: 0.75rem;
+            border: 3px solid transparent; /* Default transparent border */
         }
         .pay-option.active {
-            border: 3px solid #009879;
+            border: 3px solid #009879; /* Primary color border when active */
             box-shadow: 0 4px 6px rgba(0, 152, 121, 0.2);
         }
     </style>
@@ -232,9 +232,11 @@
                     userWalletBalance = data.walletBalance;
                     walletBalanceDisplay.textContent = `GHS ${(userWalletBalance / 100).toFixed(2)}`;
                 } else {
+                    userWalletBalance = 0;
                     walletBalanceDisplay.textContent = 'GHS 0.00';
                 }
             } catch (error) {
+                userWalletBalance = 0;
                 walletBalanceDisplay.textContent = 'GHS Err';
             }
         }
@@ -249,12 +251,8 @@
             const priceInPesewas = parseInt(selected.dataset.amount);
             
             // Amount for Paystack: Total Charge for purchase, or user input for topup
-            let amountToCharge = isTopup ? priceInPesewas : calculateTotalCharge(priceInPesewas);
+            let amountToCharge = isTopup ? 5000 : calculateTotalCharge(priceInPesewas); // Fixed GHS 50 topup for simplicity
             
-            // Placeholder: For a real top-up, you would typically ask the user for the amount
-            // For now, let's use a fixed GHS 50 topup amount in this example
-            if(isTopup) amountToCharge = 5000; 
-
             payButton.disabled = true;
             payButton.textContent = 'Initiating Checkout...';
             
@@ -269,8 +267,7 @@
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ 
                         reference: response.reference, 
-                        // Send amount for topup verification logic
-                        amount: amountToCharge / 100
+                        amount: amountToCharge / 100 // Send amount for topup verification logic
                     }),
                 })
                 .then(verifyResponse => verifyResponse.json())
@@ -278,7 +275,7 @@
                     statusDiv.textContent = data.message;
                     statusDiv.style.color = data.status === 'success' ? 'green' : (data.status === 'pending' ? 'orange' : 'red');
                     
-                    // Update balance after topup
+                    // Update balance after topup/purchase
                     if (data.newBalance !== undefined) {
                         userWalletBalance = data.newBalance;
                         walletBalanceDisplay.textContent = `GHS ${(userWalletBalance / 100).toFixed(2)}`;
@@ -342,12 +339,7 @@
                 statusDiv.style.color = data.status === 'success' ? 'green' : (data.status === 'pending' ? 'orange' : 'red');
 
                 // Update wallet balance after success/failure
-                const updatedUserResponse = await fetch('/api/user-info');
-                if (updatedUserResponse.ok) {
-                    const userData = await updatedUserResponse.json();
-                    userWalletBalance = userData.walletBalance;
-                    walletBalanceDisplay.textContent = `GHS ${(userWalletBalance / 100).toFixed(2)}`;
-                }
+                await fetchUserInfo();
                 
             } catch (err) {
                 statusDiv.textContent = "An unknown error occurred during wallet transaction.";
@@ -389,7 +381,7 @@
         });
 
         document.addEventListener('DOMContentLoaded', () => {
-            fetchUserInfo(); // Fetch user balance on load
+            fetchUserInfo(); 
             
             const defaultTab = document.querySelector('.network-tab[data-network="MTN"]');
             if (defaultTab) {
@@ -425,8 +417,7 @@
             }
             
             if (selectedMethod === 'paystack') {
-                const totalAmountWithFees = calculateTotalCharge(priceInPesewas);
-                handlePaystackTransaction('purchase', totalAmountWithFees);
+                handlePaystackTransaction('purchase');
             } else if (selectedMethod === 'wallet') {
                 handleWalletPurchase();
             }
