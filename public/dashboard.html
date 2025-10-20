@@ -13,7 +13,7 @@
         /* Table Status Colors */
         .status-data_sent { background-color: #10b981; } 
         .status-pending_review { background-color: #f59e0b; } 
-        .status-payment_success, .status-topup_successful { background-color: #3b82f6; } 
+        .status-payment_success, .status-topup_successful { background-color: #3b82f6; } /* Blue */
         
         /* Tab Styling */
         .filter-tab {
@@ -109,22 +109,30 @@
                 if (response.ok) {
                     const data = await response.json();
                     balanceDisplay.textContent = `GHS ${(data.walletBalance / 100).toFixed(2)}`;
-                } else {
-                    balanceDisplay.textContent = 'GHS 0.00';
+                    return data.username; // Return username/email for topup link functionality
+                } else if (response.status === 401) {
+                    statusDiv.textContent = 'Session expired. Redirecting to login...';
+                    statusDiv.style.color = 'red';
+                    setTimeout(() => window.location.href = '/login.html', 1000);
+                    return null;
                 }
             } catch (error) {
                 balanceDisplay.textContent = 'GHS Err';
+                return null;
             }
         }
 
         // Handles Paystack Top-Up
-        const handleTopup = () => {
+        const handleTopup = (userEmail) => {
             const PAYSTACK_PUBLIC_KEY = 'pk_test_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxx'; 
-            const TOPUP_AMOUNT_PESEWAS = 5000; // Fixed GHS 50 topup for simplicity
+            const TOPUP_AMOUNT_PESEWAS = 5000; // Fixed GHS 50 topup amount
             
-            // To properly handle this, we need a way to get the user's email 
-            // Since we don't have the user object here, we assume it's stored in session/is available.
-            const userEmail = "temp@user.com"; // Placeholder - Replace with user's email if possible
+            // Safety check
+            if (!userEmail) {
+                statusDiv.textContent = "Error: User session data is missing.";
+                statusDiv.style.color = "red";
+                return;
+            }
 
             topupLink.classList.add('opacity-50');
             topupLink.textContent = 'Processing...';
@@ -138,7 +146,7 @@
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ 
                         reference: response.reference, 
-                        amount: TOPUP_AMOUNT_PESEWAS / 100 // Send amount for verification
+                        amount: TOPUP_AMOUNT_PESEWAS / 100 
                     }),
                 })
                 .then(verifyResponse => verifyResponse.json())
@@ -147,8 +155,7 @@
                     statusDiv.style.color = data.status === 'success' ? 'green' : 'red';
                     
                     if (data.newBalance !== undefined) {
-                         fetchBalance(); // Refresh balance display
-                         // Wait 1 second and refresh the order history to show the top-up transaction
+                         fetchBalance(); 
                          setTimeout(() => fetchOrderHistory(), 1000); 
                     }
                 })
@@ -164,7 +171,7 @@
             
             PaystackPop.setup({
                 key: PAYSTACK_PUBLIC_KEY, 
-                email: userEmail, // Needs a real email!
+                email: userEmail, // Use the actual user's email address
                 amount: TOPUP_AMOUNT_PESEWAS, 
                 currency: 'GHS',
                 ref: 'DL-TOPUP-' + Math.floor((Math.random() * 1000000000) + 1),
@@ -196,7 +203,6 @@
                 let source = order.paymentMethod === 'wallet' ? 'Wallet' : 'Paystack';
                 let item = order.dataPlan === 'WALLET TOP-UP' ? 'Wallet Top-up' : `${order.dataPlan} (${order.network})`;
                 
-                // Highlight top-ups green
                 if (order.status === 'topup_successful') {
                      row.classList.add('bg-green-50'); 
                 }
@@ -220,7 +226,8 @@
         function filterAndRenderOrders(network) {
             let filtered = userOrders;
             if (network !== 'All') {
-                filtered = userOrders.filter(order => order.network === network || (network === 'Wallet' && order.dataPlan === 'WALLET TOP-UP'));
+                // Filter by network OR if the order is a wallet topup
+                filtered = userOrders.filter(order => order.network === network || order.dataPlan === 'WALLET TOP-UP');
             }
             renderOrders(filtered);
         }
@@ -247,8 +254,7 @@
                     return; 
                 }
                 
-                // Initial render: show 'All Orders'
-                filterAndRenderOrders('All');
+                filterAndRenderOrders(filterContainer.querySelector('.filter-tab.active').dataset.network);
 
             } catch (error) {
                 statusDiv.textContent = `Error: ${error.message}`;
@@ -257,8 +263,18 @@
         }
 
 
+        // --- INITIALIZATION ---
         document.addEventListener('DOMContentLoaded', async () => {
-            fetchBalance(); 
+            const userData = await fetchBalance();
+            if (userData) {
+                // Bind TopUp link to handler, passing user's email
+                topupLink.addEventListener('click', (e) => {
+                    e.preventDefault();
+                    // We assume the user's email is available in session data (or use a placeholder)
+                    const userEmail = userData.email || "placeholder@datavending.com"; 
+                    handleTopup(userEmail);
+                });
+            }
             fetchOrderHistory();
         });
 
@@ -270,12 +286,6 @@
                 target.classList.add('active');
                 filterAndRenderOrders(target.dataset.network);
             }
-        });
-        
-        // Link Top-Up button action
-        topupLink.addEventListener('click', (e) => {
-             e.preventDefault();
-             handleTopup();
         });
     </script>
 </body>
