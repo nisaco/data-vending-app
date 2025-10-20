@@ -3,8 +3,6 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <link rel="icon" type="image/x-icon" href="apple-touch-icon.png">
-
     <title>My Dashboard - DataLink</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
@@ -15,7 +13,7 @@
         /* Table Status Colors */
         .status-data_sent { background-color: #10b981; } 
         .status-pending_review { background-color: #f59e0b; } 
-        .status-payment_success, .status-topup_successful { background-color: #3b82f6; } /* Blue */
+        .status-payment_success, .status-topup_successful { background-color: #3b82f6; } 
         
         /* Tab Styling */
         .filter-tab {
@@ -55,13 +53,13 @@
             <!-- Wallet Balance Card -->
             <div class="bg-primary text-white p-6 rounded-xl shadow-lg mb-8 flex justify-between items-center">
                 <div>
-                    <p class="text-lg font-medium">Your Current Balance</p>
+                    <p class="text-lg font-medium">Your Current Wallet Balance</p>
                     <p class="text-5xl font-extrabold mt-1" id="wallet-balance-dashboard">
                         GHS 0.00
                     </p>
                 </div>
-                <a href="/purchase" class="py-2 px-4 bg-white text-primary font-bold rounded-lg shadow-md transition hover:bg-gray-100">
-                    Buy Data Now
+                <a href="#" id="topup-link" class="py-2 px-4 bg-white text-primary font-bold rounded-lg shadow-md transition hover:bg-gray-100">
+                    TopUp
                 </a>
             </div>
 
@@ -102,6 +100,7 @@
         const tableBody = document.getElementById('ordersTableBody');
         const filterContainer = document.getElementById('network-filters');
         const balanceDisplay = document.getElementById('wallet-balance-dashboard');
+        const topupLink = document.getElementById('topup-link');
 
         // Fetches user's current wallet balance
         async function fetchBalance() {
@@ -118,6 +117,66 @@
             }
         }
 
+        // Handles Paystack Top-Up
+        const handleTopup = () => {
+            const PAYSTACK_PUBLIC_KEY = 'pk_test_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxx'; 
+            const TOPUP_AMOUNT_PESEWAS = 5000; // Fixed GHS 50 topup for simplicity
+            
+            // To properly handle this, we need a way to get the user's email 
+            // Since we don't have the user object here, we assume it's stored in session/is available.
+            const userEmail = "temp@user.com"; // Placeholder - Replace with user's email if possible
+
+            topupLink.classList.add('opacity-50');
+            topupLink.textContent = 'Processing...';
+
+            const paymentCallback = function(response) {
+                statusDiv.textContent = "Verifying top-up, please wait...";
+                statusDiv.style.color = "orange";
+                
+                fetch('/api/topup', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ 
+                        reference: response.reference, 
+                        amount: TOPUP_AMOUNT_PESEWAS / 100 // Send amount for verification
+                    }),
+                })
+                .then(verifyResponse => verifyResponse.json())
+                .then(data => {
+                    statusDiv.textContent = data.message;
+                    statusDiv.style.color = data.status === 'success' ? 'green' : 'red';
+                    
+                    if (data.newBalance !== undefined) {
+                         fetchBalance(); // Refresh balance display
+                         // Wait 1 second and refresh the order history to show the top-up transaction
+                         setTimeout(() => fetchOrderHistory(), 1000); 
+                    }
+                })
+                .catch(err => {
+                    statusDiv.textContent = "Top-up verification failed.";
+                    statusDiv.style.color = "red";
+                })
+                .finally(() => {
+                    topupLink.classList.remove('opacity-50');
+                    topupLink.textContent = 'TopUp';
+                });
+            };
+            
+            PaystackPop.setup({
+                key: PAYSTACK_PUBLIC_KEY, 
+                email: userEmail, // Needs a real email!
+                amount: TOPUP_AMOUNT_PESEWAS, 
+                currency: 'GHS',
+                ref: 'DL-TOPUP-' + Math.floor((Math.random() * 1000000000) + 1),
+                callback: paymentCallback,
+                onClose: function() { 
+                    statusDiv.textContent = "Top-up cancelled."; 
+                    statusDiv.style.color = "red"; 
+                    topupLink.classList.remove('opacity-50');
+                    topupLink.textContent = 'TopUp';
+                }
+            }).openIframe();
+        };
 
         function renderOrders(orders) {
             tableBody.innerHTML = '';
@@ -134,11 +193,15 @@
                 const statusText = order.status.replace(/_/g, ' '); 
                 const statusClass = `status-${order.status}`;
                 
-                // Determine source for table display
                 let source = order.paymentMethod === 'wallet' ? 'Wallet' : 'Paystack';
                 let item = order.dataPlan === 'WALLET TOP-UP' ? 'Wallet Top-up' : `${order.dataPlan} (${order.network})`;
+                
+                // Highlight top-ups green
+                if (order.status === 'topup_successful') {
+                     row.classList.add('bg-green-50'); 
+                }
 
-                row.className = 'hover:bg-gray-50 transition duration-150';
+                row.className += ' hover:bg-gray-50 transition duration-150';
 
                 row.innerHTML = `
                     <td class="py-4 px-6">${new Date(order.created_at).toLocaleString('en-GB')}</td>
@@ -162,9 +225,7 @@
             renderOrders(filtered);
         }
 
-        document.addEventListener('DOMContentLoaded', async () => {
-            fetchBalance(); // Fetch initial balance
-            
+        async function fetchOrderHistory() {
             try {
                 const response = await fetch('/api/my-orders');
                 
@@ -193,6 +254,12 @@
                 statusDiv.textContent = `Error: ${error.message}`;
                 statusDiv.style.color = 'red';
             }
+        }
+
+
+        document.addEventListener('DOMContentLoaded', async () => {
+            fetchBalance(); 
+            fetchOrderHistory();
         });
 
         // Add event listener for filter tabs
@@ -203,6 +270,12 @@
                 target.classList.add('active');
                 filterAndRenderOrders(target.dataset.network);
             }
+        });
+        
+        // Link Top-Up button action
+        topupLink.addEventListener('click', (e) => {
+             e.preventDefault();
+             handleTopup();
         });
     </script>
 </body>
