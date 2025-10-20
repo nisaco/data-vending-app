@@ -7,8 +7,7 @@ const bcrypt = require('bcrypt');
 const sgMail = require('@sendgrid/mail');
 const axios = require('axios');
 const cron = require('node-cron');
-const { User, Order } = require('./database.js'); 
-const mongoose = require('mongoose'); 
+const { User, Order, mongoose } = require('./database.js'); // Import mongoose object
 
 const app = express();
 const PORT = process.env.PORT || 10000;
@@ -45,13 +44,45 @@ const NETWORK_KEY_MAP = {
 // --- HELPER: SEND ADMIN ALERT EMAIL (omitted for brevity, unchanged) ---
 async function sendAdminAlertEmail(order) { /* ... implementation ... */ }
 
-
 // --- 3. CORE AUTOMATION: STATUS CHECK SCHEDULER (omitted for brevity, unchanged) ---
 const CHECK_API_ENDPOINT = 'https://console.ckgodsway.com/api/order-status'; 
 
-async function runPendingOrderCheck() { /* ... implementation ... */ }
+async function runPendingOrderCheck() {
+    console.log('--- CRON: Checking for pending orders needing status update... ---');
 
-cron.schedule('*/5 * * * *', runPendingOrderCheck);
+    try {
+        const pendingOrders = await Order.find({ status: 'pending_review' }).limit(20); 
+
+        if (pendingOrders.length === 0) {
+            console.log('CRON: No orders currently pending review.');
+            return;
+        }
+
+        for (const order of pendingOrders) {
+            try {
+                const statusResponse = await axios.get(`${CHECK_API_ENDPOINT}?reference=${order.reference}`, {
+                    headers: { 'X-API-Key': process.env.DATA_API_SECRET }
+                });
+
+                const apiData = statusResponse.data;
+
+                if (apiData.success && apiData.data.status === 'SUCCESSFUL') {
+                    await Order.findByIdAndUpdate(order._id, { status: 'data_sent' });
+                    console.log(`CRON SUCCESS: Order ${order.reference} automatically marked 'data_sent'.`);
+
+                } else if (apiData.success && apiData.data.status === 'FAILED') {
+                    await Order.findByIdAndUpdate(order._id, { status: 'data_failed' });
+                    console.log(`CRON FAILURE: Order ${order.reference} marked 'data_failed'.`);
+                }
+            } catch (apiError) {
+                console.error(`CRON ERROR: Failed to check status for ${order.reference}.`, apiError.message);
+            }
+        }
+
+    } catch (dbError) {
+        console.error('CRON FATAL ERROR: Database read failed. Server is likely unstable.', dbError.message);
+    }
+}
 
 
 // --- 4. MIDDLEWARE ---
@@ -68,7 +99,7 @@ app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
 
 
-// --- 5. AUTHENTICATION & PAGE ROUTES ---
+// --- 5. AUTHENTICATION & PAGE ROUTES (omitted for brevity, largely unchanged) ---
 const isAuthenticated = (req, res, next) => req.session.user ? next() : res.redirect('/login.html');
 
 app.get('/', (req, res) => res.sendFile(path.join(__dirname, 'public', 'index.html')));
@@ -78,7 +109,6 @@ app.post('/api/signup', async (req, res) => {
     if (!username || !email || !password) return res.status(400).json({ message: 'All fields are required.' });
     try {
         const hashedPassword = await bcrypt.hash(password, 10);
-        // Set initial wallet balance to 0
         await User.create({ username, email, password: hashedPassword, walletBalance: 0 }); 
         res.status(201).json({ message: 'User created successfully! Please log in.' });
     } catch (error) { 
@@ -95,7 +125,6 @@ app.post('/api/login', async (req, res) => {
         if (!user || !await bcrypt.compare(password, user.password)) {
             return res.status(401).json({ message: 'Invalid credentials.' });
         }
-        // Store wallet balance in session
         req.session.user = { id: user._id, username: user.username, walletBalance: user.walletBalance }; 
         res.json({ message: 'Logged in successfully!' });
     } catch (error) {
@@ -115,7 +144,6 @@ app.get('/api/user-info', isAuthenticated, async (req, res) => {
             req.session.destroy(() => res.status(404).json({ error: 'User not found' }));
             return;
         }
-        // Update session balance just in case it changed since login
         req.session.user.walletBalance = user.walletBalance; 
         res.json({ username: user.username, walletBalance: user.walletBalance });
     } catch (error) {
@@ -129,7 +157,7 @@ app.get('/dashboard', isAuthenticated, (req, res) => res.sendFile(path.join(__di
 
 // --- 6. WALLET TOP-UP ROUTE ---
 app.post('/api/topup', isAuthenticated, async (req, res) => {
-    const { reference, amount } = req.body; // Amount is in GHS from Paystack
+    const { reference, amount } = req.body; 
     if (!reference || !amount) {
         return res.status(400).json({ status: 'error', message: 'Reference and amount are required.' });
     }
@@ -149,7 +177,7 @@ app.post('/api/topup', isAuthenticated, async (req, res) => {
             return res.status(400).json({ status: 'error', message: 'Payment verification failed.' });
         }
         
-        // Ensure amount is correct (security check)
+        // Security check
         if (data.amount !== topupAmountPesewas) {
             console.error(`Fraud Alert: Charged ${data.amount} but expected ${topupAmountPesewas}`);
             return res.status(400).json({ status: 'error', message: 'Amount mismatch detected.' });
@@ -158,14 +186,13 @@ app.post('/api/topup', isAuthenticated, async (req, res) => {
         // --- STEP 2: UPDATE USER WALLET BALANCE ---
         const updatedUser = await User.findByIdAndUpdate(
             userId,
-            { $inc: { walletBalance: topupAmountPesewas } }, // Atomically increment balance
+            { $inc: { walletBalance: topupAmountPesewas } },
             { new: true, runValidators: true }
         );
         
-        // Update session balance
         req.session.user.walletBalance = updatedUser.walletBalance; 
 
-        // Log the top-up as a successful order for tracking (with a special status)
+        // Log the top-up as a successful order for tracking
         await Order.create({
             userId: userId,
             reference: reference,
@@ -193,9 +220,9 @@ async function executeDataPurchase(userId, orderDetails, paymentMethod) {
     const { network, dataPlan, amount } = orderDetails;
     
     let finalStatus = 'payment_success'; 
-    const reference = `WL-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`; // New reference for wallet purchase
+    const reference = `${paymentMethod.toUpperCase()}-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
 
-    // --- STEP 1: TRANSFER DATA VIA RESELLER API (Datahub Ghana) ---
+    // --- STEP 1: TRANSFER DATA VIA RESELLER API ---
     const resellerApiUrl = 'https://console.ckgodsway.com/api/data-purchase';
     const networkKey = NETWORK_KEY_MAP[network];
     
@@ -254,7 +281,6 @@ app.post('/api/wallet-purchase', isAuthenticated, async (req, res) => {
     }
 
     try {
-        // Find user to check and update balance
         const user = await User.findById(userId);
         if (!user) return res.status(404).json({ message: 'User not found.' });
 
@@ -270,10 +296,9 @@ app.post('/api/wallet-purchase', isAuthenticated, async (req, res) => {
             { new: true, runValidators: true }
         );
         
-        // Update session balance
         req.session.user.walletBalance = debitResult.walletBalance;
 
-        // 3. Execute Data Purchase (Cost Price)
+        // 3. Execute Data Purchase
         const result = await executeDataPurchase(userId, {
             network,
             dataPlan,
@@ -346,7 +371,12 @@ app.post('/paystack/verify', isAuthenticated, async (req, res) => {
 
     } catch (error) {
         let errorMessage = 'An internal server error occurred during verification.';
-        // ... error handling ...
+        
+        if (error.response && error.response.data && error.response.data.error) {
+            errorMessage = `External API Error: ${error.response.data.error}`;
+        } else if (error.message) {
+            errorMessage = `Network Error: ${error.message}`;
+        }
         
         console.error('Fatal Verification Failure:', error); 
         
@@ -356,6 +386,9 @@ app.post('/paystack/verify', isAuthenticated, async (req, res) => {
 
 
 // --- 9. ADMIN/STATISTICS ROUTES (omitted for brevity, unchanged) ---
+app.get('/api/data-plans', (req, res) => { /* ... implementation ... */ });
+app.get('/api/my-orders', isAuthenticated, async (req, res) => { /* ... implementation ... */ });
+app.get('/api/get-all-orders', async (req, res) => { /* ... implementation ... */ });
 app.get('/api/admin/metrics', async (req, res) => { /* ... implementation ... */ });
 app.get('/api/admin/all-users-status', async (req, res) => { /* ... implementation ... */ });
 app.get('/api/admin/user-count', async (req, res) => { /* ... implementation ... */ });
@@ -363,6 +396,11 @@ app.post('/api/admin/update-order', async (req, res) => { /* ... implementation 
 
 
 // --- 10. SERVER START ---
-app.listen(PORT, '0.0.0.0', () => {
-    console.log(`Server running on port ${PORT}`);
+// Wait for Mongoose to connect before starting the server and the cron job
+mongoose.connection.once('open', () => {
+    app.listen(PORT, '0.0.0.0', () => {
+        console.log(`Server running on port ${PORT}`);
+    });
+    // Start the cron job after the server is listening
+    cron.schedule('*/5 * * * *', runPendingOrderCheck);
 });
