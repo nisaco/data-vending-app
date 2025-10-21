@@ -12,35 +12,49 @@ const { User, Order, mongoose } = require('./database.js');
 const app = express();
 const PORT = process.env.PORT || 10000;
 
-// --- 2. DATA (PLANS) AND MAPS ---
+// --- 2. DATA (PLANS) - STATIC COST PRICE AND ID SETUP (FINALIZED) ---
 const allPlans = {
     "MTN": [
-        { id: '1', name: '1GB', price: 460 }, 
-        { id: '2', name: '2GB', price: 979 }, 
-        { id: '3', name: '3GB', price: 1430 },
-        { id: '4', name: '4GB', price: 1820 },
+        { id: '1', name: '1GB', price: 490 },  
+        { id: '2', name: '2GB', price: 980 },  
+        { id: '3', name: '3GB', price: 1400 }, 
+        { id: '4', name: '4GB', price: 1820 }, 
         { id: '5', name: '5GB', price: 2300 }, 
-        { id: '6', name: '6GB', price: 2710 },
-        { id: '8', name: '8GB', price: 3600 },
-        { id: '10', name: '10GB', price: 4210 },
+        { id: '6', name: '6GB', price: 2700 }, 
+        { id: '8', name: '8GB', price: 3600 }, 
+        { id: '10', name: '10GB', price: 4200 },
         { id: '15', name: '15GB', price: 6300 },
-        { id: '20', name: '20GB', price: 8230 },
-        { id: '25', name: '25GB', price: 10180 },
-        { id: '30', name: '30GB', price: 12180 },
-        { id: '40', name: '40GB', price: 16180 },
-        { id: '50', name: '50GB', price: 19630 }
+        { id: '20', name: '20GB', price: 8200 },
+        { id: '25', name: '25GB', price: 10200 },
+        { id: '30', name: '30GB', price: 12200 },
+        { id: '40', name: '40GB', price: 16300 },
+        { id: '50', name: '50GB', price: 19700 }
     ],
     "AirtelTigo": [
-        { id: '1', name: '1GB', price: 370 }, 
-        { id: '2', name: '2GB', price: 750 }, 
-        { id: '5', name: '5GB', price: 1930 }, 
-        { id: '10', name: '10GB', price: 3600 }
+        { id: '1', name: '1GB', price: 370 },   
+        { id: '2', name: '2GB', price: 740 },   
+        { id: '3', name: '3GB', price: 1110 },  
+        { id: '4', name: '4GB', price: 1480 },  
+        { id: '5', name: '5GB', price: 1850 },  
+        { id: '6', name: '6GB', price: 2220 },  
+        { id: '7', name: '7GB', price: 2590 },  
+        { id: '8', name: '8GB', price: 2960 },  
+        { id: '9', name: '9GB', price: 3330 },  
+        { id: '10', name: '10GB', price: 3700 },
+        { id: '12', name: '12GB', price: 4440 },
+        { id: '15', name: '15GB', price: 5550 },
+        { id: '20', name: '20GB', price: 7400 }
     ],
     "Telecel": [
-        { id: '5', name: '5GB', price: 2120 }, 
-        { id: '10', name: '10GB', price: 4000 }, 
-        { id: '15', name: '15GB', price: 5700 }, 
-        { id: '20', name: '20GB', price: 7900 }
+        { id: '5', name: '5GB', price: 2000 },   
+        { id: '10', name: '10GB', price: 3800 }, 
+        { id: '15', name: '15GB', price: 5500 }, 
+        { id: '20', name: '20GB', price: 7300 }, 
+        { id: '25', name: '25GB', price: 9000 }, 
+        { id: '30', name: '30GB', price: 11000 },
+        { id: '40', name: '40GB', price: 14300 },
+        { id: '50', name: '50GB', price: 18000 },
+        { id: '100', name: '100GB', price: 35000}
     ]
 };
 
@@ -51,8 +65,7 @@ const NETWORK_KEY_MAP = {
 };
 
 
-// --- HELPER FUNCTIONS (Consolidated Logic) ---
-
+// --- HELPER FUNCTIONS ---
 function findBaseCost(network, capacityId) {
     const networkPlans = allPlans[network];
     if (!networkPlans) return 0;
@@ -61,7 +74,7 @@ function findBaseCost(network, capacityId) {
 }
 
 function calculatePaystackFee(chargedAmountInPesewas) {
-    const TRANSACTION_FEE_RATE = 0.019;
+    const TRANSACTION_FEE_RATE = 0.00205; // ⬅️ UPDATED: 0.205%
     const TRANSACTION_FEE_CAP = 2000;
     
     let amountToCalculateFeeOn = chargedAmountInPesewas;
@@ -71,133 +84,9 @@ function calculatePaystackFee(chargedAmountInPesewas) {
     return totalFeeChargedByPaystack;
 }
 
-async function sendAdminAlertEmail(order) {
-    if (!process.env.SENDGRID_API_KEY) {
-        console.error("SENDGRID_API_KEY not set. Cannot send alert email.");
-        return;
-    }
-    sgMail.setApiKey(process.env.SENDGRID_API_KEY);
-    const msg = {
-        to: 'jeffreypappoe@yahoo.com', 
-        from: 'jnkpappoe@gmail.com', 
-        subject: `🚨 MANUAL REVIEW REQUIRED: ${order.network} Data Transfer Failed`,
-        html: `
-            <h1>Urgent Action Required!</h1>
-            <p>A customer payment was successful, but the data bundle transfer failed automatically. Please fulfill this order manually through the Datahub Ghana dashboard.</p>
-            <hr>
-            <p><strong>Status:</strong> PENDING REVIEW</p>
-            <p><strong>Network:</strong> ${order.network}</p>
-            <p><strong>Plan:</strong> ${order.dataPlan}</p>
-            <p><strong>Phone:</strong> ${order.phoneNumber}</p>
-            <p><strong>Amount Paid:</strong> GHS ${order.amount.toFixed(2)}</p>
-            <p><strong>Reference:</strong> ${order.reference}</p>
-            <p><strong>Action:</strong> Go to the Admin Dashboard and click 'Mark Sent' after fulfilling manually.</p>
-        `,
-    };
-    try {
-        await sgMail.send(msg);
-        console.log(`Manual alert email sent for reference: ${order.reference}`);
-    } catch (error) {
-        console.error('Failed to send admin alert email:', error.response?.body || error);
-    }
-}
-
-async function executeDataPurchase(userId, orderDetails, paymentMethod) {
-    const { network, dataPlan, amount } = orderDetails;
-    
-    let finalStatus = 'payment_success'; 
-    const reference = `${paymentMethod.toUpperCase()}-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`; 
-
-    // --- STEP 1: TRANSFER DATA VIA RESELLER API ---
-    const resellerApiUrl = 'https://console.ckgodsway.com/api/data-purchase';
-    const networkKey = NETWORK_KEY_MAP[network];
-    
-    const resellerPayload = {
-        networkKey: networkKey,       
-        recipient: orderDetails.phoneNumber,      
-        capacity: dataPlan,          
-        reference: reference          
-    };
-    
-    try {
-        const transferResponse = await axios.post(resellerApiUrl, resellerPayload, {
-            headers: {
-                'Content-Type': 'application/json',
-                'X-API-Key': process.env.DATA_API_SECRET
-            }
-        });
-
-        if (transferResponse.data.success === true) {
-            finalStatus = 'data_sent';
-        } else {
-            console.error('Data API failed response:', transferResponse.data);
-            finalStatus = 'pending_review';
-        }
-
-    } catch (transferError) {
-        console.error('Data API Network Error:', transferError.message);
-        finalStatus = 'pending_review';
-    }
-
-    // --- STEP 2: SAVE FINAL ORDER STATUS TO MONGODB & SEND ALERT ---
-    await Order.create({
-        userId: userId,
-        reference: reference,
-        phoneNumber: orderDetails.phoneNumber,
-        network: network,
-        dataPlan: dataPlan,
-        amount: amount,
-        status: finalStatus,
-        paymentMethod: paymentMethod
-    });
-
-    if (finalStatus === 'pending_review') {
-        // NOTE: This call relies on OrderDetails having user/network info for the email content
-        // We skip awaiting the email so the response to the user is fast.
-        sendAdminAlertEmail(orderDetails); 
-    }
-
-    return { status: finalStatus, reference: reference };
-}
-
-// Run Pending Order Check (Cron Job Function)
-async function runPendingOrderCheck() {
-    console.log('--- CRON: Checking for pending orders needing status update... ---');
-    const CHECK_API_ENDPOINT = 'https://console.ckgodsway.com/api/order-status'; 
-
-    try {
-        const pendingOrders = await Order.find({ status: 'pending_review' }).limit(20); 
-
-        if (pendingOrders.length === 0) {
-            console.log('CRON: No orders currently pending review.');
-            return;
-        }
-
-        for (const order of pendingOrders) {
-            try {
-                const statusResponse = await axios.get(`${CHECK_API_ENDPOINT}?reference=${order.reference}`, {
-                    headers: { 'X-API-Key': process.env.DATA_API_SECRET }
-                });
-
-                const apiData = statusResponse.data;
-
-                if (apiData.success && apiData.data.status === 'SUCCESSFUL') {
-                    await Order.findByIdAndUpdate(order._id, { status: 'data_sent' });
-                    console.log(`CRON SUCCESS: Order ${order.reference} automatically marked 'data_sent'.`);
-
-                } else if (apiData.success && apiData.data.status === 'FAILED') {
-                    await Order.findByIdAndUpdate(order._id, { status: 'data_failed' });
-                    console.log(`CRON FAILURE: Order ${order.reference} marked 'data_failed'.`);
-                }
-            } catch (apiError) {
-                console.error(`CRON ERROR: Failed to check status for ${order.reference}.`, apiError.message);
-            }
-        }
-
-    } catch (dbError) {
-        console.error('CRON FATAL ERROR: Database read failed.', dbError.message);
-    }
-}
+async function sendAdminAlertEmail(order) { /* ... implementation ... */ }
+async function executeDataPurchase(userId, orderDetails, paymentMethod) { /* ... implementation ... */ }
+async function runPendingOrderCheck() { /* ... implementation ... */ }
 
 
 // --- 3. MIDDLEWARE ---
@@ -274,7 +163,7 @@ mongoose.connection.once('open', () => {
         const costPlans = allPlans[req.query.network] || [];
         
         const sellingPlans = costPlans.map(p => {
-            const FIXED_MARKUP = 20; 
+            const FIXED_MARKUP = 15; 
             const rawSellingPrice = p.price + FIXED_MARKUP;
             const sellingPrice = Math.ceil(rawSellingPrice / 5) * 5; 
             
@@ -296,271 +185,26 @@ mongoose.connection.once('open', () => {
 
 
     // --- WALLET & PAYMENT ROUTES ---
-    app.post('/api/topup', isAuthenticated, async (req, res) => {
-        const { reference, amount } = req.body; 
-        if (!reference || !amount) {
-            return res.status(400).json({ status: 'error', message: 'Reference and amount are required.' });
-        }
-        
-        let topupAmountPesewas = Math.round(amount * 100);
-        const userId = req.session.user.id;
-
-        try {
-            // --- STEP 1: VERIFY PAYMENT WITH PAYSTACK ---
-            const paystackUrl = `https://api.paystack.co/transaction/verify/${reference}`;
-            const paystackResponse = await axios.get(paystackUrl, { 
-                headers: { Authorization: `Bearer ${process.env.PAYSTACK_SECRET_KEY}` } 
-            });
-            const { status, data } = paystackResponse.data;
-
-            if (!status || data.status !== 'success') {
-                return res.status(400).json({ status: 'error', message: 'Payment verification failed.' });
-            }
-            
-            if (data.amount !== topupAmountPesewas) {
-                console.error(`Fraud Alert: Charged ${data.amount} but expected ${topupAmountPesewas}`);
-                return res.status(400).json({ status: 'error', message: 'Amount mismatch detected.' });
-            }
-            
-            // --- STEP 2: UPDATE USER WALLET BALANCE ---
-            const updatedUser = await User.findByIdAndUpdate(
-                userId,
-                { $inc: { walletBalance: topupAmountPesewas } },
-                { new: true, runValidators: true }
-            );
-            
-            req.session.user.walletBalance = updatedUser.walletBalance; 
-
-            // Log the top-up as a successful order for tracking
-            await Order.create({
-                userId: userId,
-                reference: reference,
-                amount: amount,
-                status: 'topup_successful',
-                paymentMethod: 'paystack',
-                dataPlan: 'WALLET TOP-UP'
-            });
-
-            res.json({ status: 'success', message: `Wallet topped up successfully!`, newBalance: updatedUser.walletBalance });
-
-        } catch (error) {
-            console.error('Topup Verification Error:', error);
-            res.status(500).json({ status: 'error', message: 'An internal server error occurred during top-up.' });
-        }
-    });
-
-    app.post('/api/wallet-purchase', isAuthenticated, async (req, res) => {
-        const { network, dataPlan, phone_number, amountInPesewas } = req.body;
-        const userId = req.session.user.id;
-        
-        if (!network || !dataPlan || !phone_number || !amountInPesewas) {
-            return res.status(400).json({ message: 'Missing required order details.' });
-        }
-
-        try {
-            const user = await User.findById(userId);
-            if (!user) return res.status(404).json({ message: 'User not found.' });
-
-            // 1. Check Balance
-            if (user.walletBalance < amountInPesewas) {
-                return res.status(400).json({ message: 'Insufficient wallet balance.' });
-            }
-
-            // 2. Debit Wallet (Atomically)
-            const debitResult = await User.findByIdAndUpdate(
-                userId,
-                { $inc: { walletBalance: -amountInPesewas } },
-                { new: true, runValidators: true }
-            );
-            
-            req.session.user.walletBalance = debitResult.walletBalance;
-
-            // 3. Execute Data Purchase
-            const result = await executeDataPurchase(userId, {
-                network,
-                dataPlan,
-                phoneNumber: phone_number,
-                amount: amountInPesewas / 100 // Store in GHS
-            }, 'wallet');
-            
-            if (result.status === 'data_sent') {
-                return res.json({ status: 'success', message: 'Data successfully sent from wallet!' });
-            } else {
-                return res.status(202).json({ 
-                    status: 'pending', 
-                    message: `Data purchase initiated. Status: ${result.status}. Check dashboard.` 
-                });
-            }
-
-        } catch (error) {
-            console.error('Wallet Purchase Error:', error);
-            res.status(500).json({ message: 'Server error during wallet purchase.' });
-        }
-    });
-
-    app.post('/paystack/verify', isAuthenticated, async (req, res) => {
-        const { reference } = req.body;
-        if (!reference) return res.status(400).json({ status: 'error', message: 'Reference is required.' });
-
-        let orderDetails = null; 
-        
-        try {
-            // --- STEP 1: VERIFY PAYMENT WITH PAYSTACK ---
-            const paystackUrl = `https://api.paystack.co/transaction/verify/${reference}`;
-            const paystackResponse = await axios.get(paystackUrl, { 
-                headers: { Authorization: `Bearer ${process.env.PAYSTACK_SECRET_KEY}` } 
-            });
-            const { status, data } = paystackResponse.data;
-
-            if (!status || data.status !== 'success') {
-                return res.status(400).json({ status: 'error', message: 'Payment verification failed.' });
-            }
-
-            const { phone_number, network, data_plan } = data.metadata; 
-            const amountInGHS = data.amount / 100;
-            const userId = req.session.user.id;
-            
-            orderDetails = {
-                userId: userId,
-                reference: reference,
-                phoneNumber: phone_number,
-                network: network,
-                dataPlan: data_plan,
-                amount: amountInGHS,
-                status: 'payment_success'
-            };
-            
-            // Execute the data transfer and save order 
-            const result = await executeDataPurchase(userId, orderDetails, 'paystack');
-
-            if (result.status === 'data_sent') {
-                return res.json({ status: 'success', message: `Payment verified. Data transfer successful!` });
-            } else {
-                return res.status(202).json({ 
-                    status: 'pending', 
-                    message: `Payment successful! Data transfer is pending manual review. Contact support with reference: ${reference}.` 
-                });
-            }
-
-        } catch (error) {
-            let errorMessage = 'An internal server error occurred during verification.';
-            
-            if (error.response && error.response.data && error.response.data.error) {
-                errorMessage = `External API Error: ${error.response.data.error}`;
-            } else if (error.message) {
-                errorMessage = `Network Error: ${error.message}`;
-            }
-            
-            console.error('Fatal Verification Failure:', error); 
-            
-            return res.status(500).json({ status: 'error', message: errorMessage });
-        }
-    });
+    app.post('/api/topup', isAuthenticated, async (req, res) => { /* ... implementation ... */ });
+    app.post('/api/wallet-purchase', isAuthenticated, async (req, res) => { /* ... implementation ... */ });
+    app.post('/paystack/verify', isAuthenticated, async (req, res) => { /* ... implementation ... */ });
 
 
     // --- ADMIN & MANAGEMENT ROUTES ---
-    app.get('/api/get-all-orders', async (req, res) => {
-        if (req.query.secret !== process.env.ADMIN_SECRET) {
-            console.error(`ADMIN ERROR: Failed attempt to fetch orders. Client secret (last 4 chars): [${req.query.secret.slice(-4)}]`);
-            return res.status(403).json({ error: "Unauthorized: Invalid Admin Secret" });
-        }
-        try {
-            const orders = await Order.find({})
-                                      .sort({ createdAt: -1 })
-                                      .populate('userId', 'username'); 
-            
-            const formattedOrders = orders.map(order => ({
-                id: order._id,
-                username: order.userId ? order.userId.username : 'Deleted User',
-                phone_number: order.phoneNumber,
-                network: order.network,
-                data_plan: order.dataPlan,
-                amount: order.amount,
-                status: order.status,
-                created_at: order.createdAt,
-            }));
-
-            res.json({ orders: formattedOrders });
-        } catch (error) {
-            res.status(500).json({ error: "Failed to fetch orders" });
-        }
-    });
-
-    app.get('/api/admin/all-users-status', async (req, res) => {
-        if (req.query.secret !== process.env.ADMIN_SECRET) return res.status(403).json({ error: "Unauthorized" });
-        
-        try {
-            const registeredUsers = await User.find({}).select('username email createdAt').lean();
-
-            const sessionsCollection = mongoose.connection.db.collection('sessions');
-            const rawSessions = await sessionsCollection.find({}).toArray();
-
-            const activeUserIds = new Set();
-            rawSessions.forEach(sessionDoc => {
-                try {
-                    const sessionData = JSON.parse(sessionDoc.session);
-                    if (sessionData.user && sessionData.user.id) {
-                        let sessionId = sessionData.user.id.toString().replace(/['"]+/g, '');
-                        activeUserIds.add(sessionId);
-                    }
-                } catch (e) { }
-            });
-
-            const userListWithStatus = registeredUsers.map(user => {
-                const userIdString = user._id.toString();
-                
-                return {
-                    username: user.username,
-                    email: user.email,
-                    signedUp: user.createdAt,
-                    isOnline: activeUserIds.has(userIdString)
-                };
-            });
-
-            res.json({ users: userListWithStatus });
-            
-        } catch (error) {
-            console.error('All users status error:', error);
-            res.status(500).json({ error: "Failed to fetch user list and status" });
-        }
-    });
-
-    app.get('/api/admin/user-count', async (req, res) => {
-        if (req.query.secret !== process.env.ADMIN_SECRET) {
-            return res.status(403).json({ error: "Unauthorized" });
-        }
-        try {
-            const count = await User.countDocuments({});
-            res.json({ count: count });
-        } catch (error) {
-            res.status(500).json({ error: "Failed to fetch user count" });
-        }
-    });
-
-    app.post('/api/admin/update-order', async (req, res) => {
-        if (req.body.adminSecret !== process.env.ADMIN_SECRET) return res.status(403).json({ error: "Unauthorized access." });
-        const { orderId, newStatus } = req.body;
-        
-        if (!orderId || !newStatus) return res.status(400).json({ error: "Order ID and new status are required." });
-
-        try {
-            const result = await Order.findByIdAndUpdate(orderId, { status: newStatus }, { new: true });
-            if (!result) return res.status(404).json({ message: "Order not found." });
-            
-            res.json({ status: 'success', message: `Order ${orderId} status updated to ${newStatus}.` });
-
-        } catch (error) {
-            res.status(500).json({ error: "Failed to update order status." });
-        }
-    });
+    app.get('/api/get-all-orders', async (req, res) => { /* ... implementation ... */ });
+    app.get('/api/admin/all-users-status', async (req, res) => { /* ... implementation ... */ });
+    app.get('/api/admin/user-count', async (req, res) => { /* ... implementation ... */ });
+    app.post('/api/admin/update-order', async (req, res) => { /* ... implementation ... */ });
+    app.get('/api/admin/metrics', async (req, res) => { /* ... implementation ... */ });
 
 
     // --- SERVE HTML FILES ---
     app.get('/', (req, res) => res.sendFile(path.join(__dirname, 'public', 'index.html')));
     app.get('/purchase', isAuthenticated, (req, res) => res.sendFile(path.join(__dirname, 'public', 'purchase.html')));
     app.get('/dashboard', isAuthenticated, (req, res) => res.sendFile(path.join(__dirname, 'public', 'dashboard.html')));
+    app.get('/admin.html', (req, res) => res.sendFile(path.join(__dirname, 'public', 'admin.html')));
 
-    
+
     // --- SERVER START ---
     app.listen(PORT, '0.0.0.0', () => {
         console.log(`Server is LIVE on port ${PORT}`);
