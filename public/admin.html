@@ -1,9 +1,9 @@
-<!DOCTYPE html>
+ <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <link rel="icon" type="image/x-icon" href="apple-touch-icon.png">
+    <link rel="icon" type="image/x-icon" href="apple-touch-icon.png">
     <title>Admin Dashboard - DataLink</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
@@ -82,16 +82,26 @@
                     <p id="client-count" class="text-3xl font-extrabold text-primary"></p>
                 </div>
                 
+                <!-- Total Revenue -->
+                <div id="revenue-display" class="stat-card text-center hidden">
+                    <p class="text-sm text-gray-600 font-medium">Total Revenue (GHS)</p>
+                    <p id="total-revenue" class="text-3xl font-extrabold text-gray-800"></p>
+                </div>
+
+                <!-- Total Profit -->
+                <div id="profit-display" class="stat-card text-center hidden">
+                    <p class="text-sm text-gray-600 font-medium">Net Profit (GHS)</p>
+                    <p id="net-profit" class="text-3xl font-extrabold text-green-600"></p>
+                </div>
+                
                 <!-- Active Sessions -->
-                <div class="stat-card md:col-span-2">
-                    <p class="text-sm text-gray-600 font-medium mb-2">Active Sessions (<span id="active-count">0</span>)</p>
+                <div class="stat-card">
+                    <p class="text-sm text-gray-600 font-medium mb-2">Active Sessions</p>
+                    <p id="active-count" class="text-3xl font-extrabold text-blue-600 mb-2">0</p>
                     <div id="active-users-list" class="flex flex-wrap gap-2 text-xs text-white">
                         <span class="text-gray-500 text-xs italic">Enter secret to view.</span>
                     </div>
                 </div>
-                
-                <!-- Space Holder for better layout on mobile -->
-                <div class="hidden md:block stat-card bg-white shadow-none"></div> 
 
             </div>
             <!-- END STATS BLOCK -->
@@ -164,7 +174,6 @@
         function safeDateFormatter(isoString) {
             if (!isoString) return 'N/A';
             try {
-                // Ensure the string is treated as UTC for consistent parsing
                 const date = new Date(isoString); 
                 return date.toLocaleString('en-GB', { 
                     year: 'numeric', month: 'short', day: 'numeric', 
@@ -186,15 +195,11 @@
         const activeUsersList = document.getElementById('active-users-list');
         const activeCountElement = document.getElementById('active-count');
         const userListStatus = document.getElementById('user-list-status');
+        const totalRevenueElement = document.getElementById('total-revenue');
+        const netProfitElement = document.getElementById('net-profit');
         const fetchOrdersBtn = document.getElementById('fetchOrdersBtn');
 
-        // Helper function to show generic loading state
-        function showLoading() {
-            userTableBody.innerHTML = '<tr><td colspan="4" class="py-4 text-center text-blue-500 font-medium">Loading user data...</td></tr>';
-            activeUsersList.innerHTML = '<span class="text-gray-500 text-xs italic">Loading...</span>';
-            ordersTableBody.innerHTML = '<tr><td colspan="8" class="py-4 text-center text-blue-500 font-medium">Loading orders...</td></tr>';
-        }
-
+        
         // --- RENDER FUNCTIONS ---
         function renderUserList(users) {
             userTableBody.innerHTML = '';
@@ -325,7 +330,7 @@
                     // console.log(`Metrics: Revenue: ${data.revenue}, Profit: ${data.netProfit}`); 
                 }
             } catch (error) {
-                console.error("Failed to load metrics (API may be disabled).");
+                console.error("Failed to load metrics.");
             }
         }
 
