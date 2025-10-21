@@ -267,20 +267,19 @@
             renderOrders(filtered);
         }
 
-        // --- FETCH USER MANAGEMENT DATA (Auto-Run) ---
+        // --- FETCH USER MANAGEMENT DATA (Sequential/Reliable) ---
         async function fetchUserManagementData(secret) {
-            if (!secret || secret.length < 10) {
-                userListStatus.textContent = 'Enter secret to load user data.';
-                return;
-            }
-            
-            showLoading();
-
+            userListStatus.textContent = 'Loading user data...';
             try {
-                // Fetch User List and Status
-                const userResponse = await fetch(`/api/admin/all-users-status?secret=${secret}`);
-                if (!userResponse.ok) throw new Error('Auth Failed: Invalid Admin Secret.');
-                const { users } = await userResponse.json();
+                const response = await fetch(`/api/admin/all-users-status?secret=${secret}`);
+                if (response.status === 403) {
+                    userListStatus.textContent = 'Authorization Failed. Check Admin Secret.';
+                    userListStatus.style.color = 'red';
+                    throw new Error("Authorization Failed.");
+                }
+                if (!response.ok) throw new Error('Failed to fetch user list.');
+                
+                const { users } = await response.json();
                 renderUserList(users);
                 
                 // Update Stat Cards
@@ -302,22 +301,20 @@
                 activeUsersList.innerHTML = activeUsersHtml || '<span class="text-gray-500 text-xs italic">None.</span>';
                 
             } catch (error) {
-                // If this fails, the secret is likely wrong. Clear and prompt.
-                userListStatus.textContent = 'Authorization Failed. Check Admin Secret.';
+                userListStatus.textContent = `Error loading users: ${error.message}`;
                 userListStatus.style.color = 'red';
-                userTableBody.innerHTML = '<tr><td colspan="4" class="py-4 text-center text-red-400">Authorization failed.</td></tr>';
                 clientCountElement.textContent = '0';
                 activeCountElement.textContent = '0';
             }
         }
-
-        // --- FETCH ORDERS AND METRICS (On Button Click) ---
-        async function fetchOrdersAndMetrics(secret) {
-            // Fetch Metrics
+        
+        // --- FETCH PROFIT METRICS ---
+        async function fetchMetricsAndRender(secret) {
             try {
-                const metricResponse = await fetch(`/api/admin/metrics?secret=${secret}`);
-                if (metricResponse.ok) {
-                    const data = await metricResponse.json();
+                const response = await fetch(`/api/admin/metrics?secret=${secret}`);
+                if (response.ok) {
+                    const data = await response.json();
+                    
                     document.getElementById('revenue-display').classList.remove('hidden');
                     document.getElementById('profit-display').classList.remove('hidden');
 
@@ -332,16 +329,40 @@
                     }
                 }
             } catch (error) {
-                // Fail silently, metrics may be unavailable but orders should load
-                console.error("Failed to load metrics.");
+                console.error("Failed to load metrics:", error);
             }
+        }
 
-            // Fetch Orders
+
+        // --- MAIN FETCH FUNCTION ---
+        const fetchOrdersBtn = document.getElementById('fetchOrdersBtn');
+
+        fetchOrdersBtn.addEventListener('click', async () => {
+            const secret = adminSecretInput.value.trim();
+            if (!secret) { 
+                statusDiv.textContent = 'Please enter the admin secret first.'; 
+                statusDiv.style.color = 'red'; 
+                return; 
+            }
+            
+            // Set loading state on button
+            fetchOrdersBtn.disabled = true;
+            fetchOrdersBtn.textContent = 'Loading...';
+            statusDiv.textContent = 'Fetching all data sets...';
+
+            // 1. Fetch User Data (Sequential: required for Auth/Stats)
+            await fetchUserManagementData(secret);
+
+            // 2. Fetch Metrics (Sequential)
+            await fetchMetricsAndRender(secret);
+            
+            // 3. Fetch Orders
             statusDiv.textContent = 'Fetching order history...';
+            showLoading(); // Show loading state for tables
+            
             try {
                 const response = await fetch(`/api/get-all-orders?secret=${secret}`);
                 
-                // If the security check in the auto-fetch failed, this will likely fail too.
                 if (response.status === 403) throw new Error('Authorization Failed. Check Admin Secret.');
                 if (!response.ok) throw new Error('Server error while fetching orders.');
                 
@@ -359,40 +380,16 @@
                 statusDiv.textContent = `Error: ${error.message}`;
                 statusDiv.style.color = 'red';
                 ordersTableBody.innerHTML = '<tr><td colspan="8" class="py-4 text-center text-red-400">Failed to load order history.</td></tr>';
+            } finally {
+                fetchOrdersBtn.disabled = false;
+                fetchOrdersBtn.textContent = 'Fetch Orders & Metrics';
             }
-        }
+        });
+        
+        // --- FUNCTION TO HANDLE MARK SENT ACTION (omitted for brevity) ---
+        async function markOrderSent(orderId, button) { /* ... implementation ... */ }
 
         // --- EVENT LISTENERS ---
-        
-        // 1. Auto-fetch User Stats on Key Input
-        adminSecretInput.addEventListener('input', () => {
-            const secret = adminSecretInput.value.trim();
-            if (secret.length > 0) {
-                fetchUserManagementData(secret);
-            }
-        });
-
-        // 2. Button Click to Fetch Orders/Metrics
-        fetchOrdersBtn.addEventListener('click', async () => {
-            const secret = adminSecretInput.value.trim();
-            if (!secret) {
-                statusDiv.textContent = 'Please enter the admin secret first.';
-                statusDiv.style.color = 'red';
-                return;
-            }
-            
-            fetchOrdersBtn.disabled = true;
-            fetchOrdersBtn.textContent = 'Loading...';
-            
-            await fetchOrdersAndMetrics(secret);
-            
-            fetchOrdersBtn.disabled = false;
-            fetchOrdersBtn.textContent = 'Fetch Orders & Metrics';
-        });
-        
-        // 3. Manual Action and Filter Clicks (omitted for brevity, unchanged)
-
-        // Use event delegation for the 'Mark Sent' buttons
         ordersTableBody.addEventListener('click', (e) => {
             if (e.target.classList.contains('action-btn')) {
                 const orderId = e.target.dataset.id;
