@@ -13,7 +13,7 @@
         /* Table Status Colors */
         .status-data_sent { background-color: #10b981; } 
         .status-pending_review { background-color: #f59e0b; } 
-        .status-payment_success, .status-topup_successful { background-color: #3b82f6; } /* Blue */
+        .status-payment_success, .status-topup_successful { background-color: #3b82f6; } 
         
         /* Tab Styling */
         .filter-tab {
@@ -28,10 +28,41 @@
             border-bottom: 2px solid var(--primary);
             font-weight: 700;
         }
+        /* Modal Backdrop */
+        .modal-backdrop {
+            background-color: rgba(0, 0, 0, 0.75);
+            z-index: 1000;
+        }
     </style>
 </head>
 <body class="bg-gray-50 min-h-screen font-sans">
     
+    <!-- Paystack SDK -->
+    <script src="https://js.paystack.co/v1/inline.js"></script>
+
+    <!-- TOP-UP MODAL (Hidden by Default) -->
+    <div id="topup-modal" class="hidden fixed inset-0 modal-backdrop flex items-center justify-center p-4">
+        <div class="bg-white p-6 rounded-xl shadow-2xl w-full max-w-sm">
+            <h2 class="text-xl font-bold text-gray-800 mb-4">Add Funds to Wallet</h2>
+            <p class="text-sm text-gray-600 mb-4">Enter the amount you wish to top up (Minimum GHS 4.00).</p>
+
+            <div class="mb-4">
+                <label for="topup-amount-input" class="block text-sm font-medium text-gray-700 mb-1">Top-Up Amount (GHS)</label>
+                <input type="number" id="topup-amount-input" min="4.00" step="0.01" placeholder="e.g., 10.00" required
+                       class="w-full p-3 border border-gray-300 rounded-lg focus:ring-primary focus:border-primary">
+                <p id="topup-error" class="text-xs text-red-500 mt-1 hidden">Minimum deposit is GHS 4.00.</p>
+            </div>
+
+            <div class="flex justify-end space-x-3">
+                <button type="button" id="cancel-topup" class="py-2 px-4 text-gray-600 rounded-lg hover:bg-gray-100">Cancel</button>
+                <button type="button" id="confirm-topup" class="py-2 px-4 bg-primary text-white rounded-lg hover:bg-secondary">
+                    Confirm & Pay
+                </button>
+            </div>
+        </div>
+    </div>
+
+
     <!-- Navbar -->
     <nav class="bg-white shadow-lg">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex justify-between items-center h-16">
@@ -58,9 +89,9 @@
                         GHS 0.00
                     </p>
                 </div>
-                <a href="#" id="topup-link" class="py-2 px-4 bg-white text-primary font-bold rounded-lg shadow-md transition hover:bg-gray-100">
+                <button id="open-topup-modal" class="py-2 px-4 bg-white text-primary font-bold rounded-lg shadow-md transition hover:bg-gray-100">
                     TopUp
-                </a>
+                </button>
             </div>
 
             <!-- Order History Filters -->
@@ -95,47 +126,62 @@
     </div>
     
     <script>
+        // CRITICAL FIX: Date formatter to prevent "Invalid Date" errors
+        function safeDateFormatter(isoString) {
+            if (!isoString) return 'N/A';
+            try {
+                const date = new Date(isoString); 
+                return date.toLocaleString('en-GB', { 
+                    year: 'numeric', month: 'short', day: 'numeric', 
+                    hour: '2-digit', minute: '2-digit' 
+                });
+            } catch (e) {
+                return 'Invalid Date';
+            }
+        }
+        
         let userOrders = []; 
+        let userEmail = "placeholder@datavending.com"; 
+
         const statusDiv = document.getElementById('status');
         const tableBody = document.getElementById('ordersTableBody');
         const filterContainer = document.getElementById('network-filters');
         const balanceDisplay = document.getElementById('wallet-balance-dashboard');
-        const topupLink = document.getElementById('topup-link');
+        const openTopupModalBtn = document.getElementById('open-topup-modal');
+        const modal = document.getElementById('topup-modal');
+        const cancelTopupBtn = document.getElementById('cancel-topup');
+        const confirmTopupBtn = document.getElementById('confirm-topup');
+        const topupAmountInput = document.getElementById('topup-amount-input');
+        const topupErrorDiv = document.getElementById('topup-error');
 
-        // Fetches user's current wallet balance
+        
+        const PAYSTACK_PUBLIC_KEY = 'pk_live_62dc43eeea153c81c216b75e3967f8a44ee94fc3'; 
+        const MINIMUM_TOPUP_GHS = 4.00;
+
+        // Fetches user's current wallet balance and email
         async function fetchBalance() {
             try {
                 const response = await fetch('/api/user-info');
                 if (response.ok) {
                     const data = await response.json();
                     balanceDisplay.textContent = `GHS ${(data.walletBalance / 100).toFixed(2)}`;
-                    return data.username; // Return username/email for topup link functionality
+                    userEmail = data.email; 
                 } else if (response.status === 401) {
                     statusDiv.textContent = 'Session expired. Redirecting to login...';
                     statusDiv.style.color = 'red';
                     setTimeout(() => window.location.href = '/login.html', 1000);
-                    return null;
                 }
             } catch (error) {
                 balanceDisplay.textContent = 'GHS Err';
-                return null;
             }
         }
 
-        // Handles Paystack Top-Up
-        const handleTopup = (userEmail) => {
-            const PAYSTACK_PUBLIC_KEY = 'pk_test_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxx'; 
-            const TOPUP_AMOUNT_PESEWAS = 5000; // Fixed GHS 50 topup amount
-            
-            // Safety check
-            if (!userEmail) {
-                statusDiv.textContent = "Error: User session data is missing.";
-                statusDiv.style.color = "red";
-                return;
-            }
+        // --- NEW TOP-UP HANDLER ---
+        const initiateTopup = (amountGHS) => {
+            const amountPesewas = Math.round(amountGHS * 100);
 
-            topupLink.classList.add('opacity-50');
-            topupLink.textContent = 'Processing...';
+            confirmTopupBtn.disabled = true;
+            confirmTopupBtn.textContent = 'Processing...';
 
             const paymentCallback = function(response) {
                 statusDiv.textContent = "Verifying top-up, please wait...";
@@ -146,7 +192,7 @@
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ 
                         reference: response.reference, 
-                        amount: TOPUP_AMOUNT_PESEWAS / 100 
+                        amount: amountGHS // Send GHS amount for verification
                     }),
                 })
                 .then(verifyResponse => verifyResponse.json())
@@ -164,27 +210,29 @@
                     statusDiv.style.color = "red";
                 })
                 .finally(() => {
-                    topupLink.classList.remove('opacity-50');
-                    topupLink.textContent = 'TopUp';
+                    // Reset modal state
+                    modal.classList.add('hidden');
+                    confirmTopupBtn.disabled = false;
+                    confirmTopupBtn.textContent = 'Confirm & Pay';
                 });
             };
             
             PaystackPop.setup({
                 key: PAYSTACK_PUBLIC_KEY, 
-                email: userEmail, // Use the actual user's email address
-                amount: TOPUP_AMOUNT_PESEWAS, 
+                email: userEmail, 
+                amount: amountPesewas, // Amount must be in kobo/pesewas
                 currency: 'GHS',
                 ref: 'DL-TOPUP-' + Math.floor((Math.random() * 1000000000) + 1),
                 callback: paymentCallback,
                 onClose: function() { 
                     statusDiv.textContent = "Top-up cancelled."; 
                     statusDiv.style.color = "red"; 
-                    topupLink.classList.remove('opacity-50');
-                    topupLink.textContent = 'TopUp';
+                    modal.classList.add('hidden');
                 }
             }).openIframe();
         };
 
+        // --- RENDER ORDER HISTORY ---
         function renderOrders(orders) {
             tableBody.innerHTML = '';
             if (orders.length === 0) {
@@ -202,15 +250,11 @@
                 
                 let source = order.paymentMethod === 'wallet' ? 'Wallet' : 'Paystack';
                 let item = order.dataPlan === 'WALLET TOP-UP' ? 'Wallet Top-up' : `${order.dataPlan} (${order.network})`;
-                
-                if (order.status === 'topup_successful') {
-                     row.classList.add('bg-green-50'); 
-                }
 
-                row.className += ' hover:bg-gray-50 transition duration-150';
+                row.className = 'hover:bg-gray-50 transition duration-150';
 
                 row.innerHTML = `
-                    <td class="py-4 px-6">${new Date(order.created_at).toLocaleString('en-GB')}</td>
+                    <td class="py-4 px-6">${safeDateFormatter(order.created_at)}</td>
                     <td class="py-4 px-6 font-medium text-gray-800">${source}</td>
                     <td class="py-4 px-6">${item}</td>
                     <td class="py-4 px-6 font-semibold text-gray-800">GHS ${order.amount.toFixed(2)}</td>
@@ -226,7 +270,6 @@
         function filterAndRenderOrders(network) {
             let filtered = userOrders;
             if (network !== 'All') {
-                // Filter by network OR if the order is a wallet topup
                 filtered = userOrders.filter(order => order.network === network || order.dataPlan === 'WALLET TOP-UP');
             }
             renderOrders(filtered);
@@ -263,29 +306,49 @@
         }
 
 
-        // --- INITIALIZATION ---
+        // --- INITIALIZATION AND EVENT LISTENERS ---
         document.addEventListener('DOMContentLoaded', async () => {
-            const userData = await fetchBalance();
-            if (userData) {
-                // Bind TopUp link to handler, passing user's email
-                topupLink.addEventListener('click', (e) => {
-                    e.preventDefault();
-                    // We assume the user's email is available in session data (or use a placeholder)
-                    const userEmail = userData.email || "placeholder@datavending.com"; 
-                    handleTopup(userEmail);
-                });
-            }
+            await fetchBalance(); 
             fetchOrderHistory();
-        });
 
-        // Add event listener for filter tabs
-        filterContainer.addEventListener('click', (e) => {
-            const target = e.target.closest('.filter-tab');
-            if (target) {
-                document.querySelectorAll('.filter-tab').forEach(tab => tab.classList.remove('active'));
-                target.classList.add('active');
-                filterAndRenderOrders(target.dataset.network);
-            }
+            // 1. Open Modal Button
+            openTopupModalBtn.addEventListener('click', (e) => {
+                e.preventDefault();
+                topupAmountInput.value = '';
+                topupErrorDiv.classList.add('hidden');
+                modal.classList.remove('hidden');
+            });
+            
+            // 2. Cancel Modal Button
+            cancelTopupBtn.addEventListener('click', () => {
+                modal.classList.add('hidden');
+            });
+            
+            // 3. Confirm & Pay Button (Inside Modal)
+            confirmTopupBtn.addEventListener('click', () => {
+                const amountGHS = parseFloat(topupAmountInput.value);
+                
+                // Input Validation Check
+                if (isNaN(amountGHS) || amountGHS < MINIMUM_TOPUP_GHS) {
+                    topupErrorDiv.classList.remove('hidden');
+                    return;
+                }
+                topupErrorDiv.classList.add('hidden');
+                
+                // Initiate Paystack transaction with variable amount
+                initiateTopup(amountGHS);
+            });
+
+
+            // Add event listener for filter tabs
+            filterContainer.addEventListener('click', (e) => {
+                const target = e.target.closest('.filter-tab');
+                if (target) {
+                    document.querySelectorAll('.filter-tab').forEach(tab => tab.classList.remove('active'));
+                    target.classList.add('active');
+                    filterAndRenderOrders(target.dataset.network);
+                }
+            });
         });
     </script>
 </body>
