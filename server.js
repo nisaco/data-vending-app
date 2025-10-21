@@ -68,8 +68,8 @@ async function sendAdminAlertEmail(order) {
     }
     sgMail.setApiKey(process.env.SENDGRID_API_KEY);
     const msg = {
-        to: 'YOUR_ADMIN_RECEIVING_EMAIL@example.com', 
-        from: 'YOUR_VERIFIED_SENDER_EMAIL@example.com', 
+        to: 'jeffreypappoe@yahoo.com', 
+        from: 'jnkpappoe@gmail.com', 
         subject: `🚨 MANUAL REVIEW REQUIRED: ${order.network} Data Transfer Failed`,
         html: `
             <h1>Urgent Action Required!</h1>
