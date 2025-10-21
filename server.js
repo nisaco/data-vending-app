@@ -15,10 +15,20 @@ const PORT = process.env.PORT || 10000;
 // --- 2. DATA (PLANS) AND MAPS ---
 const allPlans = {
     "MTN": [
-        { id: '1', name: '1GB', price: 450 }, 
-        { id: '2', name: '2GB', price: 930 }, 
+        { id: '1', name: '1GB', price: 460 }, 
+        { id: '2', name: '2GB', price: 978 }, 
+        { id: '3', name: '3GB', price: 1430 },
+        { id: '4', name: '4GB', price: 1820 },
         { id: '5', name: '5GB', price: 2300 }, 
-        { id: '10', name: '10GB', price: 4200 }
+        { id: '6', name: '6GB', price: 2710 },
+        { id: '8', name: '8GB', price: 3600 },
+        { id: '10', name: '10GB', price: 4210 },
+        { id: '15', name: '15GB', price: 6300 },
+        { id: '20', name: '20GB', price: 8230 },
+        { id: '25', name: '25GB', price: 10180 },
+        { id: '30', name: '30GB', price: 12180 },
+        { id: '40', name: '40GB', price: 16180 },
+        { id: '50', name: '50GB', price: 19630 }
     ],
     "AirtelTigo": [
         { id: '1', name: '1GB', price: 370 }, 
