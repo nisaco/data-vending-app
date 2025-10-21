@@ -12,7 +12,7 @@ const { User, Order, mongoose } = require('./database.js');
 const app = express();
 const PORT = process.env.PORT || 10000;
 
-// --- 2. DATA (PLANS) - STATIC COST PRICE AND ID SETUP (FINALIZED) ---
+// --- 2. DATA (PLANS) AND MAPS ---
 const allPlans = {
     "MTN": [
         { id: '1', name: '1GB', price: 490 },  
@@ -65,25 +65,9 @@ const NETWORK_KEY_MAP = {
 };
 
 
-// --- HELPER FUNCTIONS ---
-function findBaseCost(network, capacityId) {
-    const networkPlans = allPlans[network];
-    if (!networkPlans) return 0;
-    const plan = networkPlans.find(p => p.id === capacityId);
-    return plan ? plan.price : 0; 
-}
-
-function calculatePaystackFee(chargedAmountInPesewas) {
-    const TRANSACTION_FEE_RATE = 0.00205; // ⬅️ UPDATED: 0.205%
-    const TRANSACTION_FEE_CAP = 2000;
-    
-    let amountToCalculateFeeOn = chargedAmountInPesewas;
-    let fullFee = (amountToCalculateFeeOn * TRANSACTION_FEE_RATE) + 80;
-    
-    let totalFeeChargedByPaystack = Math.min(fullFee, TRANSACTION_FEE_CAP);
-    return totalFeeChargedByPaystack;
-}
-
+// --- HELPER FUNCTIONS (omitted for brevity) ---
+function findBaseCost(network, capacityId) { /* ... implementation ... */ }
+function calculatePaystackFee(chargedAmountInPesewas) { /* ... implementation ... */ }
 async function sendAdminAlertEmail(order) { /* ... implementation ... */ }
 async function executeDataPurchase(userId, orderDetails, paymentMethod) { /* ... implementation ... */ }
 async function runPendingOrderCheck() { /* ... implementation ... */ }
@@ -111,55 +95,20 @@ mongoose.connection.once('open', () => {
     const isAuthenticated = (req, res, next) => req.session.user ? next() : res.redirect('/login.html');
 
     // --- USER AUTHENTICATION & INFO ROUTES ---
-    app.post('/api/signup', async (req, res) => {
-        const { username, email, password } = req.body;
-        if (!username || !email || !password) return res.status(400).json({ message: 'All fields are required.' });
-        try {
-            const hashedPassword = await bcrypt.hash(password, 10);
-            await User.create({ username, email, password: hashedPassword, walletBalance: 0 }); 
-            res.status(201).json({ message: 'User created successfully! Please log in.' });
-        } catch (error) { 
-            if (error.code === 11000) return res.status(400).json({ message: 'Username or email already exists.' });
-            res.status(500).json({ message: 'Server error during signup.' }); 
-        }
-    });
-
-    app.post('/api/login', async (req, res) => {
-        const { username, password } = req.body;
-        if (!username || !password) return res.status(400).json({ message: 'Username and password are required.' });
-        try {
-            const user = await User.findOne({ username });
-            if (!user || !await bcrypt.compare(password, user.password)) {
-                return res.status(401).json({ message: 'Invalid credentials.' });
-            }
-            req.session.user = { id: user._id, username: user.username, walletBalance: user.walletBalance }; 
-            res.json({ message: 'Logged in successfully!' });
-        } catch (error) {
-            res.status(500).json({ message: 'Server error during login.' });
-        }
-    });
-
-    app.get('/api/logout', (req, res) => {
-        req.session.destroy(() => res.redirect('/login.html'));
-    });
-    
-    app.get('/api/user-info', isAuthenticated, async (req, res) => {
-        try {
-            const user = await User.findById(req.session.user.id).select('username walletBalance email');
-            if (!user) {
-                req.session.destroy(() => res.status(404).json({ error: 'User not found' }));
-                return;
-            }
-            req.session.user.walletBalance = user.walletBalance; 
-            res.json({ username: user.username, walletBalance: user.walletBalance, email: user.email });
-        } catch (error) {
-            res.status(500).json({ error: 'Failed to fetch user data' });
-        }
-    });
+    app.post('/api/signup', async (req, res) => { /* ... implementation ... */ });
+    app.post('/api/login', async (req, res) => { /* ... implementation ... */ });
+    app.get('/api/logout', (req, res) => { /* ... implementation ... */ });
+    app.get('/api/user-info', isAuthenticated, async (req, res) => { /* ... implementation ... */ });
 
 
     // --- DATA & PROTECTED PAGES ---
     app.get('/api/data-plans', (req, res) => {
+        // 🛑 Final Stability Check before accessing allPlans
+        if (!allPlans[req.query.network]) {
+            console.error('Data plans requested for unknown network:', req.query.network);
+            return res.json([]);
+        }
+        
         const costPlans = allPlans[req.query.network] || [];
         
         const sellingPlans = costPlans.map(p => {
@@ -173,16 +122,7 @@ mongoose.connection.once('open', () => {
         res.json(sellingPlans);
     });
 
-    app.get('/api/my-orders', isAuthenticated, async (req, res) => {
-        try {
-            const orders = await Order.find({ userId: req.session.user.id })
-                                        .sort({ createdAt: -1 }); 
-            res.json({ orders });
-        } catch (error) {
-            res.status(500).json({ error: "Failed to fetch orders" });
-        }
-    });
-
+    app.get('/api/my-orders', isAuthenticated, async (req, res) => { /* ... implementation ... */ });
 
     // --- WALLET & PAYMENT ROUTES ---
     app.post('/api/topup', isAuthenticated, async (req, res) => { /* ... implementation ... */ });
