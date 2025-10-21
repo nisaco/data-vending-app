@@ -16,7 +16,7 @@ const PORT = process.env.PORT || 10000;
 const allPlans = {
     "MTN": [
         { id: '1', name: '1GB', price: 460 }, 
-        { id: '2', name: '2GB', price: 978 }, 
+        { id: '2', name: '2GB', price: 979 }, 
         { id: '3', name: '3GB', price: 1430 },
         { id: '4', name: '4GB', price: 1820 },
         { id: '5', name: '5GB', price: 2300 }, 
