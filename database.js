@@ -37,5 +37,5 @@ const orderSchema = new mongoose.Schema({
 const User = mongoose.model('User', userSchema);
 const Order = mongoose.model('Order', orderSchema);
 
-// Export models AND the mongoose instance for stability
-module.exports = { User, Order, mongoose }; 
+// 🛑 FINAL EXPORT FIX: Ensure mongoose instance is correctly exported
+module.exports = { User, Order, mongoose };
