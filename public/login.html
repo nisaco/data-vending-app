@@ -3,67 +3,107 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <link rel="icon" type="image/x-icon" href="apple-touch-icon.png">
-     <link rel="icon" type="image/x-icon" href="apple-touch-icon.png">
+    <link rel="icon" type="image/x-icon" href="apple-touch-icon.png">
     <title>Log In - DataLink</title>
-    <link rel="stylesheet" href="auth.css">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        /* Custom CSS for Animated Gradient Background */
+        :root { --primary-color: #009879; }
+        body {
+            font-family: 'Inter', sans-serif;
+            background: linear-gradient(-45deg, #009879, #007a63, #23a6d5, #23d5ab);
+            background-size: 400% 400%;
+            animation: gradient 15s ease infinite;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            color: #fff;
+            padding: 1rem;
+        }
+        @keyframes gradient {
+            0% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+            100% { background-position: 0% 50%; }
+        }
+        /* Glassmorphism Card Styling */
+        .glass-card {
+            background: rgba(255, 255, 255, 0.15);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.4);
+        }
+        /* Input overrides */
+        .glass-card input {
+            background: rgba(255, 255, 255, 0.2);
+            border: 1px solid rgba(255, 255, 255, 0.4);
+            color: #fff;
+        }
+        .glass-card input::placeholder { color: #ccc; }
+        .glass-card input:focus { border-color: #fff; outline: none; }
+        .text-primary { color: var(--primary-color); }
+    </style>
 </head>
 <body>
-    <div class="auth-container">
-        <h1>Welcome Back</h1>
+    <div class="glass-card w-full max-w-sm p-8 rounded-2xl text-center">
+        <h1 class="text-3xl font-extrabold mb-6">Welcome Back</h1>
         <form id="loginForm">
-            <div class="form-group">
-                <label for="username">Username</label>
-                <input type="text" id="username" required>
+            <div class="mb-4 text-left">
+                <label for="username" class="block mb-2 font-medium">Username</label>
+                <input type="text" id="username" required class="w-full p-3 rounded-lg transition" autocomplete="username">
             </div>
-            <div class="form-group">
-                <label for="password">Password</label>
-                <input type="password" id="password" required>
+            <div class="mb-6 text-left">
+                <label for="password" class="block mb-2 font-medium">Password</label>
+                <input type="password" id="password" required class="w-full p-3 rounded-lg transition" autocomplete="current-password">
             </div>
-            <button type="submit">Log In</button>
+            <button type="submit" class="w-full py-3 bg-white text-primary font-bold rounded-lg text-lg transition duration-300 hover:bg-gray-200 shadow-xl">
+                Log In
+            </button>
         </form>
-        <div id="status"></div>
-        <p class="auth-link">Don't have an account? <a href="signup.html">Sign Up</a></p>
+        <div id="status" class="mt-4 font-semibold min-h-[20px]"></div>
+        <p class="mt-6 text-sm">
+            Don't have an account? 
+            <a href="signup.html" class="font-bold underline hover:text-gray-200">Sign Up</a>
+        </p>
     </div>
     <script>
-    document.getElementById('loginForm').addEventListener('submit', async (e) => {
-        e.preventDefault();
-        const statusDiv = document.getElementById('status');
-        const [username, password] = [document.getElementById('username').value, document.getElementById('password').value];
-        
-        const button = e.target.querySelector('button');
-        button.disabled = true;
-        statusDiv.textContent = 'Logging in...';
-        statusDiv.style.color = 'yellow';
-        
-        try {
-            const response = await fetch('/api/login', {
-                method: 'POST', headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ username, password })
-            });
+        // Set the primary color used in CSS
+        const primaryColor = document.documentElement.style.getPropertyValue('--primary-color') || '#009879';
+
+        document.getElementById('loginForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const statusDiv = document.getElementById('status');
+            const [username, password] = [document.getElementById('username').value, document.getElementById('password').value];
             
-            if (response.ok) {
-                statusDiv.textContent = 'Success! Redirecting to purchase page...';
-                statusDiv.style.color = 'lightgreen';
+            const button = e.target.querySelector('button');
+            button.disabled = true;
+            statusDiv.textContent = 'Logging in...';
+            statusDiv.style.color = 'yellow';
+            
+            try {
+                const response = await fetch('/api/login', {
+                    method: 'POST', headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ username, password })
+                });
                 
-                // 🛑 CRITICAL FIX: Redirect to the protected EXPRESS ROUTE
-                window.location.href = '/purchase'; 
-            } else {
-                const result = await response.json();
-                statusDiv.textContent = result.message || 'Login failed. Invalid credentials.';
+                if (response.ok) {
+                    statusDiv.textContent = 'Success! Redirecting to purchase page...';
+                    statusDiv.style.color = 'lightgreen';
+                    
+                    window.location.href = '/purchase'; 
+                } else {
+                    const result = await response.json();
+                    statusDiv.textContent = result.message || 'Login failed. Invalid credentials.';
+                    statusDiv.style.color = 'pink';
+                }
+            } catch(err) {
+                statusDiv.textContent = 'Network error. Could not connect to server.';
                 statusDiv.style.color = 'pink';
+            } finally {
+                button.disabled = false;
+                button.textContent = 'Log In';
             }
-        } catch(err) {
-            statusDiv.textContent = 'Network error. Could not connect to server.';
-            statusDiv.style.color = 'pink';
-        } finally {
-            button.disabled = false;
-            button.textContent = 'Log In';
-        }
-    });
-</script>
+        });
+    </script>
 </body>
-
 </html>
-
-
