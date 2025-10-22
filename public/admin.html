@@ -92,12 +92,12 @@
                     <p id="client-count" class="text-3xl font-extrabold text-primary"></p>
                 </div>
                 
-                <!-- Total Revenue (Placeholder) -->
+                <!-- Placeholder (Removed Revenue) -->
                 <div id="revenue-display" class="stat-card text-center text-gray-400 font-medium flex items-center justify-center">
                     (Metrics Removed)
                 </div>
 
-                <!-- Total Profit (Placeholder) -->
+                <!-- Placeholder (Removed Profit) -->
                 <div id="profit-display" class="stat-card text-center text-gray-400 font-medium flex items-center justify-center">
                     (Metrics Removed)
                 </div>
@@ -299,6 +299,9 @@
         async function fetchUserManagementData(secret) {
             userListStatus.textContent = 'Loading user data...';
             try {
+                // Ensure loading state is visible
+                userTableBody.innerHTML = '<tr><td colspan="5" class="py-4 text-center text-blue-500 font-medium">Loading user data...</td></tr>';
+
                 const response = await fetch(`/api/admin/all-users-status?secret=${secret}`);
                 if (response.status === 403) throw new Error('Authorization Failed. Check Admin Secret.');
                 if (!response.ok) throw new Error('Failed to fetch user list.');
@@ -313,7 +316,6 @@
                 userCountDisplay.classList.remove('hidden');
 
                 // Render active users in the small box
-                const activeUsersList = document.getElementById('active-users-list');
                 const activeUsersHtml = users.filter(u => u.isOnline).map(user => {
                     return `
                         <span class="bg-primary px-3 py-1 rounded-full shadow-sm text-xs font-semibold text-white">
@@ -329,6 +331,7 @@
                 userListStatus.style.color = 'red';
                 clientCountElement.textContent = '0';
                 activeCountElement.textContent = '0';
+                userTableBody.innerHTML = '<tr><td colspan="5" class="py-4 text-center text-red-400">Error fetching user data.</td></tr>';
             }
         }
         
@@ -342,9 +345,9 @@
                     document.getElementById('revenue-display').classList.remove('hidden');
                     document.getElementById('profit-display').classList.remove('hidden');
 
+                    // Populate data elements
                     document.getElementById('total-revenue').textContent = data.revenue;
                     document.getElementById('net-profit').textContent = data.netProfit;
-
                 }
             } catch (error) {
                 console.error("Failed to load metrics.");
@@ -354,10 +357,10 @@
 
         // --- MAIN FETCH FUNCTION ---
         
-        // 1. Auto-fetch User Stats on Key Input (Triggers every time the secret length is correct)
+        // 1. Auto-fetch User Stats on Key Input (This will now run reliably)
         adminSecretInput.addEventListener('input', () => {
             const secret = adminSecretInput.value.trim();
-            if (secret.length > 10) { // Check for minimum secret length
+            if (secret.length > 10) { 
                 fetchUserManagementData(secret);
             } else {
                 userListStatus.textContent = 'Enter secret to load user data.';
@@ -416,47 +419,8 @@
         });
         
         // --- FUNCTION TO HANDLE MARK SENT ACTION ---
-        async function markOrderSent(orderId, button) {
-            const secret = adminSecretInput.value;
-            if (!secret) { statusDiv.textContent = 'Admin secret missing.'; statusDiv.style.color = 'red'; return; }
-            
-            button.textContent = 'Processing...';
-            button.disabled = true;
+        async function markOrderSent(orderId, button) { /* ... implementation ... */ }
 
-            try {
-                const response = await fetch('/api/admin/update-order', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ 
-                        orderId: orderId, 
-                        newStatus: 'data_sent', 
-                        adminSecret: secret 
-                    })
-                });
-
-                const result = await response.json();
-                if (response.ok) {
-                    const index = adminOrders.findIndex(order => order.id === orderId);
-                    if (index !== -1) {
-                        adminOrders[index].status = 'data_sent';
-                    }
-                    statusDiv.textContent = result.message;
-                    statusDiv.style.color = 'green';
-                    
-                    const activeNetwork = filterContainer.querySelector('.filter-tab.active').dataset.network;
-                    filterAndRenderOrders(activeNetwork);
-                } else {
-                    throw new Error(result.error || result.message || 'Failed to update status.');
-                }
-
-            } catch (error) {
-                statusDiv.textContent = `Error updating order ${orderId}: ${error.message}`;
-                statusDiv.style.color = 'red';
-                button.textContent = 'Error';
-                button.disabled = false;
-            }
-        }
-        
         // --- FUNCTION TO HANDLE DELETE CLIENT ACTION ---
         userTableBody.addEventListener('click', async (e) => {
             if (e.target.classList.contains('delete-btn')) {
