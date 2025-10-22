@@ -51,6 +51,17 @@
             border-radius: 12px;
             box-shadow: inset 0 1px 3px rgba(0,0,0,0.05);
         }
+        /* Dark Mode Styling */
+        .dark { background-color: #121212; color: #e0e0e0; }
+        .dark .bg-white { background-color: #1f1f1f; color: #e0e0e0; }
+        .dark .shadow-lg { box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.5), 0 2px 4px -2px rgba(0, 0, 0, 0.3); }
+        .dark .text-gray-600, .dark .text-gray-500 { color: #b0b0b0; }
+        .dark .border-gray-100 { border-color: #374151; }
+        .dark .bg-gray-700 { background-color: #374151; }
+        .dark .divide-y { border-color: #4b5563; }
+        .dark .stat-card { background-color: #282828; }
+        .dark .glass-card input { background-color: #374151; border-color: #4b5563; color: #f3f4f6; }
+
     </style>
 </head>
 <body class="bg-gray-50 min-h-screen font-sans dark:bg-[#121212] dark:text-gray-200">
@@ -81,16 +92,14 @@
                     <p id="client-count" class="text-3xl font-extrabold text-primary"></p>
                 </div>
                 
-                <!-- Total Revenue -->
-                <div id="revenue-display" class="stat-card text-center hidden">
-                    <p class="text-sm text-gray-600 font-medium">Total Revenue (GHS)</p>
-                    <p id="total-revenue" class="text-3xl font-extrabold text-gray-800"></p>
+                <!-- Total Revenue (Placeholder) -->
+                <div id="revenue-display" class="stat-card text-center text-gray-400 font-medium flex items-center justify-center">
+                    (Metrics Removed)
                 </div>
 
-                <!-- Total Profit -->
-                <div id="profit-display" class="stat-card text-center hidden">
-                    <p class="text-sm text-gray-600 font-medium">Net Profit (GHS)</p>
-                    <p id="net-profit" class="text-3xl font-extrabold text-green-600"></p>
+                <!-- Total Profit (Placeholder) -->
+                <div id="profit-display" class="stat-card text-center text-gray-400 font-medium flex items-center justify-center">
+                    (Metrics Removed)
                 </div>
                 
                 <!-- Active Sessions -->
@@ -205,7 +214,7 @@
             ordersTableBody.innerHTML = '<tr><td colspan="8" class="py-4 text-center text-blue-500 font-medium">Loading orders...</td></tr>';
         }
 
-        // --- RENDER FUNCTIONS ---
+        // --- RENDER FUNCTIONS (omitted for brevity) ---
         function renderUserList(users) {
             userTableBody.innerHTML = '';
             userListStatus.textContent = '';
@@ -336,12 +345,8 @@
                     document.getElementById('total-revenue').textContent = data.revenue;
                     document.getElementById('net-profit').textContent = data.netProfit;
 
-                    netProfitElement.classList.remove('text-green-600', 'text-red-600');
-                    if (parseFloat(data.netProfit) >= 0) {
-                        netProfitElement.classList.add('text-green-600');
-                    } else {
-                        netProfitElement.classList.add('text-red-600');
-                    }
+                    // This is for demonstration purposes since metrics were requested to be removed
+                    // If you decide to re-enable them, the data is here.
                 }
             } catch (error) {
                 console.error("Failed to load metrics.");
@@ -376,7 +381,7 @@
             fetchOrdersBtn.textContent = 'Loading...';
             statusDiv.textContent = 'Fetching all data sets...';
 
-            // 1. Ensure user management data is loaded (it uses the same auth check)
+            // 1. Fetch User Data (Sequential: required for Auth/Stats)
             await fetchUserManagementData(secret); 
             
             // 2. Fetch Metrics
@@ -480,7 +485,6 @@
                         userListStatus.style.color = 'green';
                         // Refresh the user list and counts
                         fetchUserManagementData(secret); 
-                        // Note: Orders won't disappear until the order table is refreshed by the main button click.
                     } else {
                         throw new Error(result.error || 'Failed to delete user.');
                     }
@@ -508,38 +512,6 @@
                 target.classList.add('active');
                 filterAndRenderOrders(target.dataset.network);
             }
-        });
-        
-        // --- Theme Toggle Initialization ---
-        document.addEventListener('DOMContentLoaded', () => {
-            const htmlElement = document.documentElement;
-            const themeToggle = document.getElementById('theme-toggle');
-            const themeIcon = document.getElementById('theme-icon');
-
-            function updateThemeIcon(isDark) {
-                if (isDark) {
-                    themeIcon.innerHTML = '<path d="M10 2a1 1 0 011 1v1a1 1 0 11-2 0V3a1 1 0 011-1zm4 8a4 4 0 11-8 0 4 4 0 018 0zm-4 7a1 1 0 011 1v1a1 1 0 11-2 0v-1a1 1 0 011-1zm6.5-6.5a1 1 0 010 1.414l-.707.707a1 1 0 11-1.414-1.414l.707-.707a1 1 0 011.414 0zm-13 0a1 1 0 011.414 0l.707.707a1 1 0 11-1.414 1.414l-.707-.707a1 1 0 010-1.414zM3 10a1 1 0 011-1h1a1 1 0 110 2H4a1 1 0 01-1-1zm14 0a1 1 0 01-1 1h-1a1 1 0 110-2h1a1 1 0 011 1z" clip-rule="evenodd" fill-rule="evenodd"></path>';
-                } else {
-                    themeIcon.innerHTML = '<path d="M17.293 13.914A8.966 8.966 0 0112 18c-3.14 0-5.968-1.293-8.06-3.385A9.006 9.006 0 0012 21c5.152 0 9.428-3.791 10.378-8.586z"></path>';
-                }
-            }
-
-            if (localStorage.getItem('theme') === 'dark' || (!('theme' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
-                htmlElement.classList.add('dark');
-                updateThemeIcon(true);
-            }
-
-            themeToggle.addEventListener('click', () => {
-                if (htmlElement.classList.contains('dark')) {
-                    htmlElement.classList.remove('dark');
-                    localStorage.setItem('theme', 'light');
-                    updateThemeIcon(false);
-                } else {
-                    htmlElement.classList.add('dark');
-                    localStorage.setItem('theme', 'dark');
-                    updateThemeIcon(true);
-                }
-            });
         });
     </script>
 </body>
