@@ -92,12 +92,12 @@
                     <p id="client-count" class="text-3xl font-extrabold text-primary"></p>
                 </div>
                 
-                <!-- Placeholder (Removed Revenue) -->
+                <!-- Total Revenue (Placeholder) -->
                 <div id="revenue-display" class="stat-card text-center text-gray-400 font-medium flex items-center justify-center">
                     (Metrics Removed)
                 </div>
 
-                <!-- Placeholder (Removed Profit) -->
+                <!-- Total Profit (Placeholder) -->
                 <div id="profit-display" class="stat-card text-center text-gray-400 font-medium flex items-center justify-center">
                     (Metrics Removed)
                 </div>
@@ -214,7 +214,7 @@
             ordersTableBody.innerHTML = '<tr><td colspan="8" class="py-4 text-center text-blue-500 font-medium">Loading orders...</td></tr>';
         }
 
-        // --- RENDER FUNCTIONS ---
+        // --- RENDER FUNCTIONS (omitted for brevity) ---
         function renderUserList(users) {
             userTableBody.innerHTML = '';
             userListStatus.textContent = '';
@@ -317,11 +317,7 @@
 
                 // Render active users in the small box
                 const activeUsersHtml = users.filter(u => u.isOnline).map(user => {
-                    return `
-                        <span class="bg-primary px-3 py-1 rounded-full shadow-sm text-xs font-semibold text-white">
-                            ${user.username}
-                        </span>
-                    `;
+                    return `<span class="bg-primary px-3 py-1 rounded-full shadow-sm text-xs font-semibold text-white">${user.username}</span>`;
                 }).join('');
 
                 activeUsersList.innerHTML = activeUsersHtml || '<span class="text-gray-500 text-xs italic">None.</span>';
@@ -345,7 +341,6 @@
                     document.getElementById('revenue-display').classList.remove('hidden');
                     document.getElementById('profit-display').classList.remove('hidden');
 
-                    // Populate data elements
                     document.getElementById('total-revenue').textContent = data.revenue;
                     document.getElementById('net-profit').textContent = data.netProfit;
                 }
@@ -360,7 +355,7 @@
         // 1. Auto-fetch User Stats on Key Input (This will now run reliably)
         adminSecretInput.addEventListener('input', () => {
             const secret = adminSecretInput.value.trim();
-            if (secret.length > 10) { 
+            if (secret.length > 10) { // Check for minimum secret length
                 fetchUserManagementData(secret);
             } else {
                 userListStatus.textContent = 'Enter secret to load user data.';
@@ -419,8 +414,47 @@
         });
         
         // --- FUNCTION TO HANDLE MARK SENT ACTION ---
-        async function markOrderSent(orderId, button) { /* ... implementation ... */ }
+        async function markOrderSent(orderId, button) {
+            const secret = adminSecretInput.value;
+            if (!secret) { statusDiv.textContent = 'Admin secret missing.'; statusDiv.style.color = 'red'; return; }
+            
+            button.textContent = 'Processing...';
+            button.disabled = true;
 
+            try {
+                const response = await fetch('/api/admin/update-order', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ 
+                        orderId: orderId, 
+                        newStatus: 'data_sent', 
+                        adminSecret: secret 
+                    })
+                });
+
+                const result = await response.json();
+                if (response.ok) {
+                    const index = adminOrders.findIndex(order => order.id === orderId);
+                    if (index !== -1) {
+                        adminOrders[index].status = 'data_sent';
+                    }
+                    statusDiv.textContent = result.message;
+                    statusDiv.style.color = 'green';
+                    
+                    const activeNetwork = filterContainer.querySelector('.filter-tab.active').dataset.network;
+                    filterAndRenderOrders(activeNetwork);
+                } else {
+                    throw new Error(result.error || result.message || 'Failed to update status.');
+                }
+
+            } catch (error) {
+                statusDiv.textContent = `Error updating order ${orderId}: ${error.message}`;
+                statusDiv.style.color = 'red';
+                button.textContent = 'Error';
+                button.disabled = false;
+            }
+        }
+        
         // --- FUNCTION TO HANDLE DELETE CLIENT ACTION ---
         userTableBody.addEventListener('click', async (e) => {
             if (e.target.classList.contains('delete-btn')) {
