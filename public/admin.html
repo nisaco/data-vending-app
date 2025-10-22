@@ -178,341 +178,363 @@
         </div>
     </div>
     
-    <script>
-        // CRITICAL FIX: Date formatter to prevent "Invalid Date" errors
-        function safeDateFormatter(isoString) {
-            if (!isoString) return 'N/A';
-            try {
-                const date = new Date(isoString); 
-                return date.toLocaleString('en-GB', { 
-                    year: 'numeric', month: 'short', day: 'numeric', 
-                    hour: '2-digit', minute: '2-digit' 
-                });
-            } catch (e) {
-                return 'Invalid Date';
-            }
-        }
-        
-        let adminOrders = []; 
-        const statusDiv = document.getElementById('status');
-        const ordersTableBody = document.getElementById('ordersTableBody');
-        const userTableBody = document.getElementById('userTableBody');
-        const adminSecretInput = document.getElementById('adminSecret');
-        const filterContainer = document.getElementById('network-filters');
-        const userCountDisplay = document.getElementById('user-count-display');
-        const clientCountElement = document.getElementById('client-count');
-        const activeUsersList = document.getElementById('active-users-list');
-        const activeCountElement = document.getElementById('active-count');
-        const userListStatus = document.getElementById('user-list-status');
-        const fetchOrdersBtn = document.getElementById('fetchOrdersBtn');
-
-        
-        // Helper function to show generic loading state
-        function showLoading() {
-            userTableBody.innerHTML = '<tr><td colspan="5" class="py-4 text-center text-blue-500 font-medium">Loading user data...</td></tr>';
-            activeUsersList.innerHTML = '<span class="text-gray-500 text-xs italic">Loading...</span>';
-            ordersTableBody.innerHTML = '<tr><td colspan="8" class="py-4 text-center text-blue-500 font-medium">Loading orders...</td></tr>';
-        }
-
-        // --- RENDER FUNCTIONS (omitted for brevity) ---
-        function renderUserList(users) {
-            userTableBody.innerHTML = '';
-            userListStatus.textContent = '';
-
-            if (users.length === 0) {
-                userListStatus.textContent = 'No registered users found.';
-                return;
-            }
-
-            users.forEach(user => {
-                const row = userTableBody.insertRow();
-                const statusText = user.isOnline ? 'Online' : 'Offline';
-                const statusClass = user.isOnline ? 'status-online' : 'status-offline';
-
-                row.className = 'hover:bg-gray-50 transition duration-150 dark:hover:bg-gray-800';
-
-                row.innerHTML = `
-                    <td class="py-4 px-6 font-semibold text-gray-900 dark:text-white">${user.username}</td>
-                    <td class="py-4 px-6 dark:text-gray-400">${user.email}</td>
-                    <td class="py-4 px-6 dark:text-gray-400">${safeDateFormatter(user.signedUp)}</td>
-                    <td class="py-4 px-6">
-                        <span class="px-3 py-1 text-white text-xs font-bold uppercase rounded-full ${statusClass}">
-                            ${statusText}
-                        </span>
-                    </td>
-                    <td class="py-4 px-6">
-                        <button class="delete-btn bg-red-500 hover:bg-red-700 text-white p-1.5 rounded-md text-xs" data-user-id="${user._id}">
-                            Delete
-                        </button>
-                    </td>
-                `;
+   <script>
+    // CRITICAL FIX: Date formatter to prevent "Invalid Date" errors
+    function safeDateFormatter(isoString) {
+        if (!isoString) return 'N/A';
+        try {
+            const date = new Date(isoString); 
+            return date.toLocaleString('en-GB', { 
+                year: 'numeric', month: 'short', day: 'numeric', 
+                hour: '2-digit', minute: '2-digit' 
             });
+        } catch (e) {
+            return 'Invalid Date';
+        }
+    }
+    
+    let adminOrders = []; 
+    const statusDiv = document.getElementById('status');
+    const ordersTableBody = document.getElementById('ordersTableBody');
+    const userTableBody = document.getElementById('userTableBody');
+    const adminSecretInput = document.getElementById('adminSecret');
+    const filterContainer = document.getElementById('network-filters');
+    const userCountDisplay = document.getElementById('user-count-display');
+    const clientCountElement = document.getElementById('client-count');
+    const activeUsersList = document.getElementById('active-users-list');
+    const activeCountElement = document.getElementById('active-count');
+    const userListStatus = document.getElementById('user-list-status');
+    const fetchOrdersBtn = document.getElementById('fetchOrdersBtn');
+
+    
+    // Helper function to show generic loading state
+    function showLoading() {
+        userTableBody.innerHTML = '<tr><td colspan="5" class="py-4 text-center text-blue-500 font-medium">Loading user data...</td></tr>';
+        activeUsersList.innerHTML = '<span class="text-gray-500 text-xs italic">Loading...</span>';
+        ordersTableBody.innerHTML = '<tr><td colspan="8" class="py-4 text-center text-blue-500 font-medium">Loading orders...</td></tr>';
+    }
+
+    // --- RENDER FUNCTIONS ---
+    function renderUserList(users) {
+        userTableBody.innerHTML = '';
+        userListStatus.textContent = '';
+
+        if (users.length === 0) {
+            userListStatus.textContent = 'No registered users found.';
+            return;
         }
 
-        function renderOrders(orders) {
-            ordersTableBody.innerHTML = '';
-            if (orders.length === 0) {
-                statusDiv.textContent = "No orders found for this filter.";
-                statusDiv.style.color = 'black';
-                return;
-            }
+        users.forEach(user => {
+            const row = userTableBody.insertRow();
+            const statusText = user.isOnline ? 'Online' : 'Offline';
+            const statusClass = user.isOnline ? 'status-online' : 'status-offline';
 
-            statusDiv.textContent = `Displaying ${orders.length} orders.`;
-            statusDiv.style.color = 'green';
-            
-            orders.forEach(order => {
-                const row = ordersTableBody.insertRow();
-                const statusText = order.status.replace(/_/g, ' '); 
-                const statusClass = `status-${order.status}`;
-                
-                const actionButton = order.status === 'pending_review' ? 
-                    `<button class="action-btn" data-id="${order.id}">Mark Sent</button>` : '';
+            row.className = 'hover:bg-gray-50 transition duration-150 dark:hover:bg-gray-800';
 
-                row.className = 'hover:bg-gray-50 transition duration-150 dark:hover:bg-gray-800';
-
-                row.innerHTML = `
-                    <td class="py-4 px-6 font-mono text-xs">${order.id.substring(0, 8)}...</td>
-                    <td class="py-4 px-6 font-medium text-gray-900 dark:text-white">${order.username}</td>
-                    <td class="py-4 px-6 dark:text-gray-400">${safeDateFormatter(order.created_at)}</td>
-                    <td class="py-4 px-6 dark:text-gray-400">${order.phone_number}</td>
-                    <td class="py-4 px-6 dark:text-gray-400">${order.data_plan}</td>
-                    <td class="py-4 px-6 text-gray-800 font-semibold dark:text-white">${order.amount.toFixed(2)}</td>
-                    <td class="py-4 px-6">
-                        <span class="px-3 py-1 text-white text-xs font-bold uppercase rounded-full ${statusClass}">
-                            ${statusText}
-                        </span>
-                    </td>
-                    <td class="py-4 px-6">${actionButton}</td>
-                `;
-            });
-        }
-        
-        function filterAndRenderOrders(network) {
-            let filtered = adminOrders;
-            if (network !== 'All') {
-                filtered = adminOrders.filter(order => order.network === network);
-            }
-            renderOrders(filtered);
-        }
-
-        // --- FETCH USER MANAGEMENT DATA (Auto-Run) ---
-        async function fetchUserManagementData(secret) {
-            userListStatus.textContent = 'Loading user data...';
-            try {
-                const response = await fetch(`/api/admin/all-users-status?secret=${secret}`);
-                if (response.status === 403) throw new Error('Authorization Failed. Check Admin Secret.');
-                if (!response.ok) throw new Error('Failed to fetch user list.');
-                
-                const { users } = await response.json();
-                renderUserList(users);
-                
-                // Update Stat Cards
-                const activeCount = users.filter(u => u.isOnline).length;
-                clientCountElement.textContent = users.length;
-                activeCountElement.textContent = activeCount;
-                userCountDisplay.classList.remove('hidden');
-
-                // Render active users in the small box
-                const activeUsersList = document.getElementById('active-users-list');
-                const activeUsersHtml = users.filter(u => u.isOnline).map(user => {
-                    return `
-                        <span class="bg-primary px-3 py-1 rounded-full shadow-sm text-xs font-semibold text-white">
-                            ${user.username}
-                        </span>
-                    `;
-                }).join('');
-
-                activeUsersList.innerHTML = activeUsersHtml || '<span class="text-gray-500 text-xs italic">None.</span>';
-                
-            } catch (error) {
-                userListStatus.textContent = `Error loading users: ${error.message}`;
-                userListStatus.style.color = 'red';
-                clientCountElement.textContent = '0';
-                activeCountElement.textContent = '0';
-            }
-        }
-        
-        // --- FETCH PROFIT METRICS ---
-        async function fetchMetricsAndRender(secret) {
-            try {
-                const response = await fetch(`/api/admin/metrics?secret=${secret}`);
-                if (response.ok) {
-                    const data = await response.json();
-                    
-                    document.getElementById('revenue-display').classList.remove('hidden');
-                    document.getElementById('profit-display').classList.remove('hidden');
-
-                    document.getElementById('total-revenue').textContent = data.revenue;
-                    document.getElementById('net-profit').textContent = data.netProfit;
-
-                    // This is for demonstration purposes since metrics were requested to be removed
-                    // If you decide to re-enable them, the data is here.
-                }
-            } catch (error) {
-                console.error("Failed to load metrics.");
-            }
-        }
-
-
-        // --- MAIN FETCH FUNCTION ---
-        
-        // 1. Auto-fetch User Stats on Key Input (Triggers every time the secret length is correct)
-        adminSecretInput.addEventListener('input', () => {
-            const secret = adminSecretInput.value.trim();
-            if (secret.length > 10) { // Check for minimum secret length
-                fetchUserManagementData(secret);
-            } else {
-                userListStatus.textContent = 'Enter secret to load user data.';
-                userListStatus.style.color = 'black';
-            }
+            row.innerHTML = `
+                <td class="py-4 px-6 font-semibold text-gray-900 dark:text-white">${user.username}</td>
+                <td class="py-4 px-6 dark:text-gray-400">${user.email}</td>
+                <td class="py-4 px-6 dark:text-gray-400">${safeDateFormatter(user.signedUp)}</td>
+                <td class="py-4 px-6">
+                    <span class="px-3 py-1 text-white text-xs font-bold uppercase rounded-full ${statusClass}">
+                        ${statusText}
+                    </span>
+                </td>
+                <td class="py-4 px-6">
+                    <button class="delete-btn bg-red-500 hover:bg-red-700 text-white p-1.5 rounded-md text-xs" data-user-id="${user._id}">
+                        Delete
+                    </button>
+                </td>
+            `;
         });
+    }
 
-        // 2. Button Click to Fetch Orders/Metrics
-        fetchOrdersBtn.addEventListener('click', async () => {
-            const secret = adminSecretInput.value.trim();
-            if (!secret) { 
-                statusDiv.textContent = 'Please enter the admin secret first.'; 
-                statusDiv.style.color = 'red'; 
-                return; 
-            }
-            
-            // Set loading state on button
-            fetchOrdersBtn.disabled = true;
-            fetchOrdersBtn.textContent = 'Loading...';
-            statusDiv.textContent = 'Fetching all data sets...';
+    function renderOrders(orders) {
+        ordersTableBody.innerHTML = '';
+        if (orders.length === 0) {
+            statusDiv.textContent = "No orders found for this filter.";
+            statusDiv.style.color = 'black';
+            return;
+        }
 
-            // 1. Fetch User Data (Sequential: required for Auth/Stats)
-            await fetchUserManagementData(secret); 
+        statusDiv.textContent = `Displaying ${orders.length} orders.`;
+        statusDiv.style.color = 'green';
+        
+        orders.forEach(order => {
+            const row = ordersTableBody.insertRow();
+            const statusText = order.status.replace(/_/g, ' '); 
+            const statusClass = `status-${order.status}`;
             
-            // 2. Fetch Metrics
-            await fetchMetricsAndRender(secret);
+            const actionButton = order.status === 'pending_review' ? 
+                `<button class="action-btn" data-id="${order.id}">Mark Sent</button>` : '';
+
+            row.className = 'hover:bg-gray-50 transition duration-150 dark:hover:bg-gray-800';
+
+            row.innerHTML = `
+                <td class="py-4 px-6 font-mono text-xs">${order.id.substring(0, 8)}...</td>
+                <td class="py-4 px-6 font-medium text-gray-900 dark:text-white">${order.username}</td>
+                <td class="py-4 px-6 dark:text-gray-400">${safeDateFormatter(order.created_at)}</td>
+                <td class="py-4 px-6 dark:text-gray-400">${order.phone_number}</td>
+                <td class="py-4 px-6 dark:text-gray-400">${order.data_plan}</td>
+                <td class="py-4 px-6 text-gray-800 font-semibold dark:text-white">${order.amount.toFixed(2)}</td>
+                <td class="py-4 px-6">
+                    <span class="px-3 py-1 text-white text-xs font-bold uppercase rounded-full ${statusClass}">
+                        ${statusText}
+                    </span>
+                </td>
+                <td class="py-4 px-6">${actionButton}</td>
+            `;
+        });
+    }
+    
+    function filterAndRenderOrders(network) {
+        let filtered = adminOrders;
+        if (network !== 'All') {
+            filtered = adminOrders.filter(order => order.network === network);
+        }
+        renderOrders(filtered);
+    }
+
+    // --- FETCH USER MANAGEMENT DATA (Auto-Run) ---
+    async function fetchUserManagementData(secret) {
+        userListStatus.textContent = 'Loading user data...';
+        try {
+            const response = await fetch(`/api/admin/all-users-status?secret=${secret}`);
+            if (response.status === 403) throw new Error('Authorization Failed. Check Admin Secret.');
+            if (!response.ok) throw new Error('Failed to fetch user list.');
             
-            // 3. Fetch Orders
-            statusDiv.textContent = 'Fetching order history...';
-            ordersTableBody.innerHTML = '<tr><td colspan="8" class="py-4 text-center text-blue-500 font-medium">Loading orders...</td></tr>';
+            const { users } = await response.json();
+            renderUserList(users);
             
-            try {
-                const response = await fetch(`/api/get-all-orders?secret=${secret}`);
-                
-                if (response.status === 403) throw new Error('Authorization Failed. Check Admin Secret.');
-                if (!response.ok) throw new Error('Server error while fetching orders.');
-                
+            const activeCount = users.filter(u => u.isOnline).length;
+            clientCountElement.textContent = users.length;
+            activeCountElement.textContent = activeCount;
+            userCountDisplay.classList.remove('hidden');
+
+            const activeUsersHtml = users.filter(u => u.isOnline).map(user => {
+                return `<span class="bg-primary px-3 py-1 rounded-full shadow-sm text-xs font-semibold text-white">${user.username}</span>`;
+            }).join('');
+
+            activeUsersList.innerHTML = activeUsersHtml || '<span class="text-gray-500 text-xs italic">None.</span>';
+            
+        } catch (error) {
+            userListStatus.textContent = `Error loading users: ${error.message}`;
+            userListStatus.style.color = 'red';
+            clientCountElement.textContent = '0';
+            activeCountElement.textContent = '0';
+        }
+    }
+    
+    // --- FETCH PROFIT METRICS ---
+    async function fetchMetricsAndRender(secret) {
+        try {
+            const response = await fetch(`/api/admin/metrics?secret=${secret}`);
+            if (response.ok) {
                 const data = await response.json();
-                adminOrders = data.orders || [];
-
-                if (adminOrders.length === 0) { 
-                    statusDiv.textContent = 'No orders found.';
-                    statusDiv.style.color = 'black';
-                }
                 
-                filterAndRenderOrders('All');
+                document.getElementById('revenue-display').classList.remove('hidden');
+                document.getElementById('profit-display').classList.remove('hidden');
 
-            } catch (error) {
-                statusDiv.textContent = `Error: ${error.message}`;
-                statusDiv.style.color = 'red';
-                ordersTableBody.innerHTML = '<tr><td colspan="8" class="py-4 text-center text-red-400">Failed to load order history.</td></tr>';
-            } finally {
-                fetchOrdersBtn.disabled = false;
-                fetchOrdersBtn.textContent = 'Fetch Orders & Clients';
+                document.getElementById('total-revenue').textContent = data.revenue;
+                document.getElementById('net-profit').textContent = data.netProfit;
             }
-        });
+        } catch (error) {
+            console.error("Failed to load metrics.");
+        }
+    }
+
+    // --- MAIN FETCH FUNCTION ---
+    
+    // 1. Auto-fetch User Stats on Key Input
+    adminSecretInput.addEventListener('input', () => {
+        const secret = adminSecretInput.value.trim();
+        if (secret.length > 10) { 
+            fetchUserManagementData(secret);
+        } else {
+            userListStatus.textContent = 'Enter secret to load user data.';
+            userListStatus.style.color = 'black';
+        }
+    });
+
+    // 2. Button Click to Fetch Orders/Metrics
+    fetchOrdersBtn.addEventListener('click', async () => {
+        const secret = adminSecretInput.value.trim();
+        if (!secret) { 
+            statusDiv.textContent = 'Please enter the admin secret first.'; 
+            statusDiv.style.color = 'red'; 
+            return; 
+        }
         
-        // --- FUNCTION TO HANDLE MARK SENT ACTION ---
-        async function markOrderSent(orderId, button) {
-            const secret = adminSecretInput.value;
-            if (!secret) { statusDiv.textContent = 'Admin secret missing.'; statusDiv.style.color = 'red'; return; }
+        // Set loading state on button
+        fetchOrdersBtn.disabled = true;
+        fetchOrdersBtn.textContent = 'Loading...';
+        statusDiv.textContent = 'Fetching all data sets...';
+
+        showLoading(); // Show loading icons
+        
+        // 1. Fetch User Data and Metrics (Crucial Data)
+        await fetchUserManagementData(secret); 
+        await fetchMetricsAndRender(secret);
+        
+        // 2. Fetch Orders (The biggest table)
+        statusDiv.textContent = 'Fetching order history...';
+        
+        try {
+            const response = await fetch(`/api/get-all-orders?secret=${secret}`);
             
-            button.textContent = 'Processing...';
-            button.disabled = true;
+            if (response.status === 403) throw new Error('Authorization Failed. Check Admin Secret.');
+            if (!response.ok) throw new Error('Server error while fetching orders.');
+            
+            const data = await response.json();
+            adminOrders = data.orders || [];
+
+            if (adminOrders.length === 0) { 
+                statusDiv.textContent = 'No orders found.';
+                statusDiv.style.color = 'black';
+            }
+            
+            filterAndRenderOrders('All'); // Render the final table
+
+        } catch (error) {
+            statusDiv.textContent = `Error: ${error.message}`;
+            statusDiv.style.color = 'red';
+            ordersTableBody.innerHTML = '<tr><td colspan="8" class="py-4 text-center text-red-400">Failed to load order history.</td></tr>';
+        } finally {
+            fetchOrdersBtn.disabled = false;
+            fetchOrdersBtn.textContent = 'Fetch Orders & Clients';
+        }
+    });
+    
+    // --- FUNCTION TO HANDLE MARK SENT ACTION ---
+    async function markOrderSent(orderId, button) {
+        const secret = adminSecretInput.value;
+        if (!secret) { statusDiv.textContent = 'Admin secret missing.'; statusDiv.style.color = 'red'; return; }
+        
+        button.textContent = 'Processing...';
+        button.disabled = true;
+
+        try {
+            const response = await fetch('/api/admin/update-order', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ 
+                    orderId: orderId, 
+                    newStatus: 'data_sent', 
+                    adminSecret: secret 
+                })
+            });
+
+            const result = await response.json();
+            if (response.ok) {
+                const index = adminOrders.findIndex(order => order.id === orderId);
+                if (index !== -1) {
+                    adminOrders[index].status = 'data_sent';
+                }
+                statusDiv.textContent = result.message;
+                statusDiv.style.color = 'green';
+                
+                const activeNetwork = filterContainer.querySelector('.filter-tab.active').dataset.network;
+                filterAndRenderOrders(activeNetwork);
+            } else {
+                throw new Error(result.error || result.message || 'Failed to update status.');
+            }
+
+        } catch (error) {
+            statusDiv.textContent = `Error updating order ${orderId}: ${error.message}`;
+            statusDiv.style.color = 'red';
+            button.textContent = 'Error';
+            button.disabled = false;
+        }
+    }
+    
+    // --- FUNCTION TO HANDLE DELETE CLIENT ACTION ---
+    userTableBody.addEventListener('click', async (e) => {
+        if (e.target.classList.contains('delete-btn')) {
+            const userId = e.target.dataset.userId;
+            const secret = adminSecretInput.value;
+
+            if (!confirm(`Are you sure you want to permanently delete user ${userId.substring(0, 8)}...? This will delete ALL their orders and data!`)) {
+                return;
+            }
+            
+            e.target.textContent = 'Deleting...';
+            e.target.disabled = true;
 
             try {
-                const response = await fetch('/api/admin/update-order', {
-                    method: 'POST',
+                const response = await fetch('/api/admin/delete-user', {
+                    method: 'DELETE',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ 
-                        orderId: orderId, 
-                        newStatus: 'data_sent', 
-                        adminSecret: secret 
-                    })
+                    body: JSON.stringify({ userId, adminSecret: secret })
                 });
-
+                
                 const result = await response.json();
                 if (response.ok) {
-                    const index = adminOrders.findIndex(order => order.id === orderId);
-                    if (index !== -1) {
-                        adminOrders[index].status = 'data_sent';
-                    }
-                    statusDiv.textContent = result.message;
-                    statusDiv.style.color = 'green';
-                    
-                    const activeNetwork = filterContainer.querySelector('.filter-tab.active').dataset.network;
-                    filterAndRenderOrders(activeNetwork);
+                    userListStatus.textContent = result.message;
+                    userListStatus.style.color = 'green';
+                    fetchUserManagementData(secret); 
                 } else {
-                    throw new Error(result.error || result.message || 'Failed to update status.');
+                    throw new Error(result.error || 'Failed to delete user.');
                 }
-
             } catch (error) {
-                statusDiv.textContent = `Error updating order ${orderId}: ${error.message}`;
-                statusDiv.style.color = 'red';
-                button.textContent = 'Error';
-                button.disabled = false;
+                userListStatus.textContent = `Delete Error: ${error.message}`;
+                userListStatus.style.color = 'red';
+                e.target.textContent = 'Failed';
             }
         }
-        
-        // --- FUNCTION TO HANDLE DELETE CLIENT ACTION ---
-        userTableBody.addEventListener('click', async (e) => {
-            if (e.target.classList.contains('delete-btn')) {
-                const userId = e.target.dataset.userId;
-                const secret = adminSecretInput.value;
+    });
 
-                if (!confirm(`Are you sure you want to permanently delete user ${userId.substring(0, 8)}...? This will delete ALL their orders and data!`)) {
-                    return;
-                }
-                
-                e.target.textContent = 'Deleting...';
-                e.target.disabled = true;
 
-                try {
-                    const response = await fetch('/api/admin/delete-user', {
-                        method: 'DELETE',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ userId, adminSecret: secret })
-                    });
-                    
-                    const result = await response.json();
-                    if (response.ok) {
-                        userListStatus.textContent = result.message;
-                        userListStatus.style.color = 'green';
-                        // Refresh the user list and counts
-                        fetchUserManagementData(secret); 
-                    } else {
-                        throw new Error(result.error || 'Failed to delete user.');
-                    }
-                } catch (error) {
-                    userListStatus.textContent = `Delete Error: ${error.message}`;
-                    userListStatus.style.color = 'red';
-                    e.target.textContent = 'Failed';
-                }
+    // --- EVENT LISTENERS ---
+    ordersTableBody.addEventListener('click', (e) => {
+        if (e.target.classList.contains('action-btn')) {
+            const orderId = e.target.dataset.id;
+            markOrderSent(orderId, e.target);
+        }
+    });
+    
+    filterContainer.addEventListener('click', (e) => {
+        const target = e.target.closest('.filter-tab');
+        if (target) {
+            document.querySelectorAll('.filter-tab').forEach(tab => tab.classList.remove('active'));
+            target.classList.add('active');
+            filterAndRenderOrders(target.dataset.network);
+        }
+    });
+    
+    // --- Theme Toggle Initialization ---
+    document.addEventListener('DOMContentLoaded', () => {
+        const htmlElement = document.documentElement;
+        const themeToggle = document.getElementById('theme-toggle');
+        const themeIcon = document.getElementById('theme-icon');
+
+        function updateThemeIcon(isDark) {
+            if (isDark) {
+                themeIcon.innerHTML = '<path d="M10 2a1 1 1 0 011 1v1a1 1 0 11-2 0V3a1 1 0 011-1zm4 8a4 4 0 11-8 0 4 4 0 018 0zm-4 7a1 1 0 011 1v1a1 1 0 11-2 0v-1a1 1 0 011-1zm6.5-6.5a1 1 0 010 1.414l-.707.707a1 1 0 11-1.414-1.414l.707-.707a1 1 0 011.414 0zm-13 0a1 1 0 011.414 0l.707.707a1 1 0 11-1.414 1.414l-.707-.707a1 1 0 010-1.414zM3 10a1 1 0 011-1h1a1 1 0 110 2H4a1 1 0 01-1-1zm14 0a1 1 0 01-1 1h-1a1 1 0 110-2h1a1 1 0 011 1z" clip-rule="evenodd" fill-rule="evenodd"></path>';
+            } else {
+                themeIcon.innerHTML = '<path d="M17.293 13.914A8.966 8.966 0 0112 18c-3.14 0-5.968-1.293-8.06-3.385A9.006 9.006 0 0012 21c5.152 0 9.428-3.791 10.378-8.586z"></path>';
+            }
+        }
+
+        if (localStorage.getItem('theme') === 'dark' || (!('theme' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+            htmlElement.classList.add('dark');
+            updateThemeIcon(true);
+        } else {
+            htmlElement.classList.remove('dark');
+            updateThemeIcon(false);
+        }
+
+        themeToggle.addEventListener('click', () => {
+            if (htmlElement.classList.contains('dark')) {
+                htmlElement.classList.remove('dark');
+                localStorage.setItem('theme', 'light');
+                updateThemeIcon(false);
+            } else {
+                htmlElement.classList.add('dark');
+                localStorage.setItem('theme', 'dark');
+                updateThemeIcon(true);
             }
         });
-
-
-        // --- EVENT LISTENERS ---
-        ordersTableBody.addEventListener('click', (e) => {
-            if (e.target.classList.contains('action-btn')) {
-                const orderId = e.target.dataset.id;
-                markOrderSent(orderId, e.target);
-            }
-        });
-        
-        filterContainer.addEventListener('click', (e) => {
-            const target = e.target.closest('.filter-tab');
-            if (target) {
-                document.querySelectorAll('.filter-tab').forEach(tab => tab.classList.remove('active'));
-                target.classList.add('active');
-                filterAndRenderOrders(target.dataset.network);
-            }
-        });
-    </script>
+    });
+</script>
 </body>
 </html>
