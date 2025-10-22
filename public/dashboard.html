@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
- <link rel="icon" type="image/x-icon" href="apple-touch-icon.png">
+    <link rel="icon" type="image/x-icon" href="apple-touch-icon.png">
     <title>My Dashboard - DataLink</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
@@ -17,12 +17,13 @@
         .dark .shadow-lg { box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.5), 0 2px 4px -2px rgba(0, 0, 0, 0.3); }
         .dark .text-gray-600, .dark .text-gray-500 { color: #b0b0b0; }
         .dark .border-gray-100 { border-color: #374151; }
+        .dark .bg-gray-700 { background-color: #374151; }
         .dark .divide-y { border-color: #4b5563; }
         
         /* Table Status Colors */
         .status-data_sent { background-color: #10b981; } 
         .status-pending_review { background-color: #f59e0b; } 
-        .status-payment_success, .status-topup_successful { background-color: #3b82f6; } 
+        .status-payment_success, .status-topup_successful { background-color: #3b82f6; } /* Blue */
         
         /* Tab Styling */
         .filter-tab {
@@ -71,6 +72,7 @@
                         GHS 0.00
                     </p>
                 </div>
+                <!-- TopUp Link (Fixed to run JS) -->
                 <a href="#" id="topup-link" class="py-2 px-4 bg-white text-primary font-bold rounded-lg shadow-md transition hover:bg-gray-100">
                     TopUp
                 </a>
@@ -107,6 +109,8 @@
         </div>
     </div>
     
+    <script src="https://js.paystack.co/v1/inline.js"></script>
+
     <script>
         // --- THEME LOGIC START ---
         const themeToggle = document.getElementById('theme-toggle');
@@ -166,6 +170,9 @@
         const filterContainer = document.getElementById('network-filters');
         const balanceDisplay = document.getElementById('wallet-balance-dashboard');
         const topupLink = document.getElementById('topup-link');
+        
+        const PAYSTACK_PUBLIC_KEY = 'pk_test_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxx'; 
+
 
         // Fetches user's current wallet balance
         async function fetchBalance() {
@@ -189,8 +196,7 @@
 
         // Handles Paystack Top-Up
         const handleTopup = (userEmail) => {
-            const PAYSTACK_PUBLIC_KEY = 'pk_test_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxx'; 
-            const TOPUP_AMOUNT_PESEWAS = 5000; 
+            const TOPUP_AMOUNT_PESEWAS = 5000; // Fixed GHS 50 topup amount for simplicity
             
             if (!userEmail) {
                 statusDiv.textContent = "Error: User session data is missing.";
@@ -201,6 +207,17 @@
             topupLink.classList.add('opacity-50');
             topupLink.textContent = 'Processing...';
 
+            // 🛑 FIX: The client needs to calculate the FINAL amount to charge the user (40/60 split)
+            const PAYSTACK_RATE = 0.019;
+            const PAYSTACK_FLAT = 80;
+            const netDepositPesewas = TOPUP_AMOUNT_PESEWAS;
+            
+            const requiredTotalCharge = (netDepositPesewas + PAYSTACK_FLAT) / (1 - PAYSTACK_RATE);
+            const truePaystackFee = requiredTotalCharge - netDepositPesewas;
+            const feeClientPays = truePaystackFee * 0.60; // Client pays 60%
+            const finalChargedAmount = netDepositPesewas + Math.round(feeClientPays);
+
+
             const paymentCallback = function(response) {
                 statusDiv.textContent = "Verifying top-up, please wait...";
                 statusDiv.style.color = "orange";
@@ -210,7 +227,7 @@
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ 
                         reference: response.reference, 
-                        amount: TOPUP_AMOUNT_PESEWAS / 100 
+                        amount: finalChargedAmount / 100 // Send the final total charged amount
                     }),
                 })
                 .then(verifyResponse => verifyResponse.json())
@@ -236,7 +253,7 @@
             PaystackPop.setup({
                 key: PAYSTACK_PUBLIC_KEY, 
                 email: userEmail, 
-                amount: TOPUP_AMOUNT_PESEWAS, 
+                amount: finalChargedAmount, // ⬅️ Charge the user the amount + their 60% fee
                 currency: 'GHS',
                 ref: 'DL-TOPUP-' + Math.floor((Math.random() * 1000000000) + 1),
                 callback: paymentCallback,
@@ -324,13 +341,12 @@
 
         // --- INITIALIZATION ---
         document.addEventListener('DOMContentLoaded', async () => {
-            const userData = await fetchBalance(); 
+            const userEmail = await fetchBalance(); // Fetch balance and user email
             
-            if (userData) {
+            if (userEmail) {
                 // Bind TopUp link to handler, passing user's email
                 topupLink.addEventListener('click', (e) => {
                     e.preventDefault();
-                    const userEmail = userData.email || "placeholder@datavending.com"; 
                     handleTopup(userEmail);
                 });
             }
