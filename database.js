@@ -19,6 +19,8 @@ const userSchema = new mongoose.Schema({
     email: { type: String, required: true, unique: true },
     password: { type: String, required: true },
     walletBalance: { type: Number, default: 0 }, 
+    resetToken: String,         
+    resetTokenExpires: Date,    
     createdAt: { type: Date, default: Date.now }
 });
 
