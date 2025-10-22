@@ -24,16 +24,16 @@ const allPlans = {
         { id: '40', name: '40GB', price: 16200 }, { id: '50', name: '50GB', price: 19800 }
     ],
     "AirtelTigo": [
-        { id: '1', name: '1GB', price: 400 }, { id: '2', name: '2GB', price: 800 }, { id: '3', name: '3GB', price: 1200 },  
-        { id: '4', name: '4GB', price: 1600 }, { id: '5', name: '5GB', price: 2000 }, { id: '6', name: '6GB', price: 2420 },  
-        { id: '7', name: '7GB', price: 2800 }, { id: '8', name: '8GB', price: 3200 }, { id: '9', name: '9GB', price: 3600 },  
-        { id: '10', name: '10GB', price: 4200 }, { id: '12', name: '12GB', price: 5000 }, { id: '15', name: '15GB', price: 6200 },
-        { id: '20', name: '20GB', price: 8200 }
+        { id: '1', name: '1GB', price: 370 }, { id: '2', name: '2GB', price: 740 }, { id: '3', name: '3GB', price: 1110 },  
+        { id: '4', name: '4GB', price: 1480 }, { id: '5', name: '5GB', price: 1850 }, { id: '6', name: '6GB', price: 2220 },  
+        { id: '7', name: '7GB', price: 2590 }, { id: '8', name: '8GB', price: 2960 }, { id: '9', name: '9GB', price: 3330 },  
+        { id: '10', name: '10GB', price: 3700 }, { id: '12', name: '12GB', price: 4440 }, { id: '15', name: '15GB', price: 5550 },
+        { id: '20', name: '20GB', price: 7400 }
     ],
     "Telecel": [
-        { id: '5', name: '5GB', price: 2300 }, { id: '10', name: '10GB', price: 4300 }, { id: '15', name: '15GB', price: 6300 }, 
-        { id: '20', name: '20GB', price: 8300 }, { id: '25', name: '25GB', price: 10300 }, { id: '30', name: '30GB', price: 12300 },
-        { id: '40', name: '40GB', price: 15500 }, { id: '50', name: '50GB', price: 19500 }, { id: '100', name: '100GB', price: 39000}
+        { id: '5', name: '5GB', price: 2000 }, { id: '10', name: '10GB', price: 3800 }, { id: '15', name: '15GB', price: 5500 }, 
+        { id: '20', name: '20GB', price: 7300 }, { id: '25', name: '25GB', price: 9000 }, { id: '30', name: '30GB', price: 11000 },
+        { id: '40', name: '40GB', price: 14300 }, { id: '50', name: '50GB', price: 18000 }, { id: '100', name: '100GB', price: 35000}
     ]
 };
 
@@ -55,27 +55,6 @@ function calculatePaystackFee(chargedAmountInPesewas) {
     let totalFeeChargedByPaystack = Math.min(fullFee, TRANSACTION_FEE_CAP);
     return totalFeeChargedByPaystack;
 }
-
-// 🛑 NEW HELPER: Calculates the amount the customer must pay for a top-up (40/60 Split)
-function calculateClientTopupFee(netDepositPesewas) {
-    const PAYSTACK_RATE = 0.019;
-    const PAYSTACK_FLAT = 80;
-    
-    // The amount Paystack needs to receive to deposit the requested amount
-    const requiredTotalCharge = (netDepositPesewas + PAYSTACK_FLAT) / (1 - PAYSTACK_RATE);
-    
-    // The true Paystack fee for this transaction
-    const truePaystackFee = requiredTotalCharge - netDepositPesewas;
-    
-    // The portion of the fee the client pays (60% of the true Paystack Fee)
-    const feeClientPays = truePaystackFee * 0.60;
-    
-    // The total amount to charge the client for the net deposit
-    const finalCharge = netDepositPesewas + feeClientPays;
-
-    return Math.round(finalCharge);
-}
-
 async function sendAdminAlertEmail(order) {
     if (!process.env.SENDGRID_API_KEY) {
         console.error("SENDGRID_API_KEY not set. Cannot send alert email.");
@@ -83,8 +62,8 @@ async function sendAdminAlertEmail(order) {
     }
     sgMail.setApiKey(process.env.SENDGRID_API_KEY);
     const msg = {
-        to: 'ajcustomercare2@gmail.com', 
-        from: 'jnkpappoe@gmail.com', 
+        to: 'YOUR_ADMIN_RECEIVING_EMAIL@example.com', 
+        from: 'YOUR_VERIFIED_SENDER_EMAIL@example.com', 
         subject: `🚨 MANUAL REVIEW REQUIRED: ${order.network} Data Transfer Failed`,
         html: `
             <h1>Urgent Action Required!</h1>
@@ -106,7 +85,6 @@ async function sendAdminAlertEmail(order) {
         console.error('Failed to send admin alert email:', error.response?.body || error);
     }
 }
-
 async function executeDataPurchase(userId, orderDetails, paymentMethod) {
     const { network, dataPlan, amount } = orderDetails;
     
@@ -365,7 +343,7 @@ app.post('/api/topup', isDbReady, isAuthenticated, async (req, res) => {
     let topupAmountPesewas = Math.round(amount * 100);
     const userId = req.session.user.id;
 
-    // 🛑 Final charged amount using the 40/60 split logic
+    // 🛑 Calculate the final charged amount using the 40/60 split logic
     const finalChargedAmountPesewas = calculateClientTopupFee(topupAmountPesewas);
 
     try {
