@@ -15,13 +15,15 @@
         .bg-safe-button { background-color: #006400; }
         .hover\:bg-safe-button-darker:hover { background-color: #004d00; } 
         
-        /* Dark mode colors */
+        /* DARK MODE BASE STYLES */
         .dark { background-color: #121212; color: #e0e0e0; }
         .dark .bg-white { background-color: #1f1f1f; color: #e0e0e0; }
         .dark .shadow-lg { box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.5), 0 2px 4px -2px rgba(0, 0, 0, 0.3); }
-        .dark .text-gray-600 { color: #b0b0b0; }
+        .dark .text-gray-600, .dark .text-gray-500 { color: #b0b0b0; }
         .dark .network-tab { background-color: #2b2b2b; }
         .dark .bg-blue-50 { background-color: #1e3a8a; border-color: #3b82f6; color: #bfdbfe; }
+        .dark input, .dark select { background-color: #374151; border-color: #4b5563; }
+
 
         /* Active Tab Styling */
         .network-tab.active { 
@@ -169,10 +171,8 @@
 
         function updateThemeIcon(isDark) {
             if (isDark) {
-                // Sun icon
                 themeIcon.innerHTML = '<path d="M10 2a1 1 0 011 1v1a1 1 0 11-2 0V3a1 1 0 011-1zm4 8a4 4 0 11-8 0 4 4 0 018 0zm-4 7a1 1 0 011 1v1a1 1 0 11-2 0v-1a1 1 0 011-1zm6.5-6.5a1 1 0 010 1.414l-.707.707a1 1 0 11-1.414-1.414l.707-.707a1 1 0 011.414 0zm-13 0a1 1 0 011.414 0l.707.707a1 1 0 11-1.414 1.414l-.707-.707a1 1 0 010-1.414zM3 10a1 1 0 011-1h1a1 1 0 110 2H4a1 1 0 01-1-1zm14 0a1 1 0 01-1 1h-1a1 1 0 110-2h1a1 1 0 011 1z" clip-rule="evenodd" fill-rule="evenodd"></path>';
             } else {
-                // Moon icon
                 themeIcon.innerHTML = '<path d="M17.293 13.914A8.966 8.966 0 0112 18c-3.14 0-5.968-1.293-8.06-3.385A9.006 9.006 0 0012 21c5.152 0 9.428-3.791 10.378-8.586z"></path>';
             }
         }
@@ -211,7 +211,7 @@
 
         let userWalletBalance = 0; 
         
-        const PAYSTACK_PUBLIC_KEY = 'pk_live_62dc43eeea153c81c216b75e3967f8a44ee94fc3'; 
+        const PAYSTACK_PUBLIC_KEY = 'pk_test_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxx'; 
         
         // --- HELPER: Clears form inputs after successful transaction ---
         function clearForm() {
@@ -320,7 +320,7 @@
             const selected = dataplanSelect.options[dataplanSelect.selectedIndex];
             const priceInPesewas = parseInt(selected.dataset.amount);
             
-            let amountToCharge = isTopup ? 5000 : calculateTotalCharge(priceInPesewas);
+            let amountToCharge = isTopup ? 5000 : calculateTotalCharge(priceInPesewas); // Fixed GHS 50 topup for simplicity
             
             payButton.disabled = true;
             payButton.textContent = 'Initiating Checkout...';
@@ -350,7 +350,7 @@
                     }
                     
                     if (data.status === 'success') {
-                        clearForm(); // Clear on success
+                        clearForm(); 
                     }
 
                 })
@@ -412,7 +412,7 @@
                 await fetchUserInfo();
                 
                 if (data.status === 'success') {
-                    clearForm(); // Clear on success
+                    clearForm(); 
                 }
 
             } catch (err) {
@@ -485,7 +485,7 @@
             dataplanSelect.addEventListener('change', (e) => updatePayButton(e.target.options[e.target.selectedIndex]));
 
 
-            // 5. Form Submission Handler
+            // 5. Form Submission Handler (omitted for brevity, remains the same)
             paymentForm.addEventListener("submit", function(e) {
                 e.preventDefault();
                 
