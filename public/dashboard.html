@@ -24,7 +24,7 @@
         /* Table Status Colors */
         .status-data_sent { background-color: #10b981; } 
         .status-pending_review { background-color: #f59e0b; } 
-        .status-payment_success, .status-topup_successful { background-color: #3b82f6; } /* Blue */
+        .status-payment_success, .status-topup_successful { background-color: #3b82f6; } 
         
         /* Tab Styling */
         .filter-tab {
@@ -39,9 +39,31 @@
             border-bottom: 2px solid var(--primary);
             font-weight: 700;
         }
+        /* Modal Backdrop */
+        #modal-backdrop {
+            background-color: rgba(0, 0, 0, 0.75);
+            transition: opacity 0.3s ease;
+            z-index: 50;
+        }
     </style>
 </head>
 <body class="bg-gray-50 min-h-screen font-sans dark:bg-[#121212] dark:text-gray-200">
+    
+    <!-- Modal Backdrop -->
+    <div id="modal-backdrop" class="fixed inset-0 hidden items-center justify-center opacity-0">
+        <!-- Modal Content -->
+        <div id="topup-modal" class="bg-white p-6 rounded-xl shadow-2xl w-full max-w-sm transform scale-95 transition-all duration-300 dark:bg-gray-800">
+            <h3 class="text-xl font-bold text-gray-800 dark:text-white mb-4">Deposit to Wallet</h3>
+            <div id="modal-content-status" class="text-sm font-medium mb-3 text-red-500"></div>
+            <label for="modal-topup-amount" class="block text-gray-700 dark:text-gray-300 mb-2">Amount (GHS, Min 6.00)</label>
+            <input type="number" id="modal-topup-amount" min="6.00" step="0.50" placeholder="e.g., 10.00" value="6.00"
+                   class="w-full p-2 border border-gray-300 rounded-lg text-gray-800 focus:ring-primary focus:border-primary dark:bg-gray-700 dark:text-white">
+            <div class="mt-4 flex justify-end space-x-3">
+                <button id="modal-cancel" type="button" class="py-2 px-4 bg-gray-200 text-gray-800 rounded-lg hover:bg-gray-300 transition">Cancel</button>
+                <button id="modal-pay" type="button" class="py-2 px-4 bg-primary text-white rounded-lg hover:bg-secondary transition">Pay</button>
+            </div>
+        </div>
+    </div>
     
     <!-- Navbar -->
     <nav class="bg-white shadow-lg dark:bg-[#1f1f1f]">
@@ -66,29 +88,24 @@
             <p class="text-center text-gray-500 mb-6 dark:text-gray-400">Review your wallet balance and transaction history.</p>
             
             <!-- Wallet Balance Card -->
-            <div class="bg-primary text-white p-6 rounded-xl shadow-lg mb-8">
-                <div class="flex justify-between items-start">
-                    <div>
-                        <p class="text-lg font-medium">Your Current Wallet Balance</p>
-                        <p class="text-5xl font-extrabold mt-1" id="wallet-balance-dashboard">
-                            GHS 0.00
-                        </p>
-                    </div>
+            <div class="bg-primary text-white p-6 rounded-xl shadow-lg mb-8 flex justify-between items-center">
+                <div>
+                    <p class="text-lg font-medium">Your Current Wallet Balance</p>
+                    <p class="text-5xl font-extrabold mt-1" id="wallet-balance-dashboard">
+                        GHS 0.00
+                    </p>
                 </div>
-                
-                <!-- TopUp Form -->
-                <div class="mt-4 pt-4 border-t border-white border-opacity-30">
-                    <p class="font-semibold mb-2">Deposit Funds (Minimum GHS 6.00)</p>
-                    <div id="topup-form-status" class="text-sm font-medium mb-2 text-yellow-200"></div>
-                    <div class="flex space-x-3">
-                        <input type="number" id="topup-amount" min="6.00" step="0.50" placeholder="e.g., 10.00" 
-                               class="w-full p-2 rounded-lg text-gray-800 focus:ring-2 focus:ring-white transition">
-                        <button id="topup-button" class="py-2 px-4 bg-white text-primary font-bold rounded-lg shadow-md transition hover:bg-gray-100 whitespace-nowrap">
-                            TopUp
-                        </button>
-                    </div>
-                </div>
+                <!-- TopUp Link now triggers modal -->
+                <button id="open-topup-modal" class="py-2 px-4 bg-white text-primary font-bold rounded-lg shadow-md transition hover:bg-gray-100">
+                    TopUp
+                </button>
             </div>
+            
+            <!-- Notification Area -->
+            <div id="notification-area" class="space-y-3 mb-6">
+                <!-- Notifications will be added here -->
+            </div>
+
 
             <!-- Order History Filters -->
             <div id="network-filters" class="flex justify-center space-x-4 mb-6 border-b border-gray-200 text-gray-600 dark:border-gray-700 dark:text-gray-400">
@@ -175,26 +192,70 @@
             }
         }
         
+        // --- GLOBAL STATE ---
         let userOrders = []; 
-        let userEmail = null; // Store user email globally
+        let userEmail = null; 
+        const MIN_TOPUP_GHS = 6.00;
+        const PAYSTACK_PUBLIC_KEY = 'pk_live_62dc43eeea153c81c216b75e3967f8a44ee94fc3'; 
+        
+        // --- DOM ELEMENTS ---
         const statusDiv = document.getElementById('status');
-        const topupFormStatus = document.getElementById('topup-form-status');
         const tableBody = document.getElementById('ordersTableBody');
         const filterContainer = document.getElementById('network-filters');
         const balanceDisplay = document.getElementById('wallet-balance-dashboard');
-        const topupButton = document.getElementById('topup-button');
-        const topupAmountInput = document.getElementById('topup-amount');
+        const openTopupModalBtn = document.getElementById('open-topup-modal');
+        const notificationArea = document.getElementById('notification-area');
 
 
-        // Fetches user's current wallet balance and email
+        // --- NOTIFICATION HANDLER ---
+        function showNotification(message, type = 'success') {
+            const colors = {
+                success: 'bg-green-100 border-green-500 text-green-700 dark:bg-green-900 dark:text-green-300',
+                error: 'bg-red-100 border-red-500 text-red-700 dark:bg-red-900 dark:text-red-300',
+                warning: 'bg-yellow-100 border-yellow-500 text-yellow-700 dark:bg-yellow-900 dark:text-yellow-300'
+            };
+            
+            const alert = document.createElement('div');
+            alert.className = `p-3 border-l-4 rounded-md shadow-sm ${colors[type]}`;
+            alert.innerHTML = `<p class="font-medium">${message}</p>`;
+            
+            notificationArea.prepend(alert); // Add to the top
+            
+            // Remove after 8 seconds
+            setTimeout(() => {
+                alert.remove();
+            }, 8000);
+        }
+
+        // --- FEE CALCULATION (60/40 split for TopUp) ---
+        function calculateClientTopupFee(netDepositPesewas) {
+            const PAYSTACK_RATE = 0.019;
+            const PAYSTACK_FLAT = 80;
+            
+            const requiredTotalCharge = (netDepositPesewas + PAYSTACK_FLAT) / (1 - PAYSTACK_RATE);
+            const truePaystackFee = requiredTotalCharge - netDepositPesewas;
+            
+            // Client pays 60% of the true fee
+            const feeClientPays = truePaystackFee * 0.60;
+            
+            const finalCharge = netDepositPesewas + feeClientPays;
+            return Math.round(finalCharge);
+        }
+
+
+        // --- DATA FETCHING ---
         async function fetchBalance() {
             try {
                 const response = await fetch('/api/user-info');
                 if (response.ok) {
                     const data = await response.json();
                     balanceDisplay.textContent = `GHS ${(data.walletBalance / 100).toFixed(2)}`;
-                    userEmail = data.email; // Store email
-                    return data.email;
+                    
+                    // Add balance alert logic
+                    if (data.walletBalance < 1000) { // GHS 10.00 threshold
+                        showNotification('Warning: Your wallet balance is running low!', 'warning');
+                    }
+                    return data.email; 
                 } else if (response.status === 401) {
                     statusDiv.textContent = 'Session expired. Redirecting to login...';
                     statusDiv.style.color = 'red';
@@ -207,82 +268,32 @@
             }
         }
 
-        // Handles Paystack Top-Up
-        const handleTopup = (amountInGHS) => {
-            const PAYSTACK_PUBLIC_KEY = 'pk_live_62dc43eeea153c81c216b75e3967f8a44ee94fc3'; 
-            const MIN_TOPUP_GHS = 5.00;
-            
-            // 1. Validation
-            if (amountInGHS < MIN_TOPUP_GHS) {
-                topupFormStatus.textContent = `Minimum top-up is GHS ${MIN_TOPUP_GHS.toFixed(2)}.`;
-                topupFormStatus.style.color = '#ffcc00';
-                return;
-            }
-            
-            const amountInPesewas = Math.round(amountInGHS * 100);
-
-            topupButton.disabled = true;
-            topupButton.textContent = 'Processing...';
-
-            // 🛑 CRITICAL: Calculate the final charged amount (40/60 split)
-            const PAYSTACK_RATE = 0.019;
-            const PAYSTACK_FLAT = 80;
-            const netDepositPesewas = amountInPesewas;
-            
-            const requiredTotalCharge = (netDepositPesewas + PAYSTACK_FLAT) / (1 - PAYSTACK_RATE);
-            const truePaystackFee = requiredTotalCharge - netDepositPesewas;
-            const feeClientPays = truePaystackFee * 0.60; // Client pays 60%
-            const finalChargedAmount = netDepositPesewas + Math.round(feeClientPays);
-
-
-            const paymentCallback = function(response) {
-                topupFormStatus.textContent = "Verifying top-up, please wait...";
-                topupFormStatus.style.color = 'orange';
+        async function fetchOrderHistory() {
+            try {
+                const response = await fetch('/api/my-orders');
                 
-                fetch('/api/topup', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ 
-                        reference: response.reference, 
-                        amount: amountInGHS // Send the net deposit amount for server verification
-                    }),
-                })
-                .then(verifyResponse => verifyResponse.json())
-                .then(data => {
-                    topupFormStatus.textContent = data.message;
-                    topupFormStatus.style.color = data.status === 'success' ? 'lightgreen' : 'red';
-                    
-                    if (data.newBalance !== undefined) {
-                         fetchBalance(); 
-                         setTimeout(() => fetchOrderHistory(), 1000); 
-                    }
-                })
-                .catch(err => {
-                    topupFormStatus.textContent = "Top-up verification failed.";
-                    topupFormStatus.style.color = "red";
-                })
-                .finally(() => {
-                    topupButton.disabled = false;
-                    topupButton.textContent = 'TopUp';
-                });
-            };
-            
-            PaystackPop.setup({
-                key: PAYSTACK_PUBLIC_KEY, 
-                email: userEmail, // Use the stored user email
-                amount: finalChargedAmount, // ⬅️ Charge the user the full amount + their 60% fee
-                currency: 'GHS',
-                ref: 'DL-TOPUP-' + Math.floor((Math.random() * 1000000000) + 1),
-                callback: paymentCallback,
-                onClose: function() { 
-                    topupFormStatus.textContent = "Top-up cancelled."; 
-                    topupFormStatus.style.color = "red"; 
-                    topupButton.disabled = false;
-                    topupButton.textContent = 'TopUp';
-                }
-            }).openIframe();
-        };
+                if (response.status === 401) return; // Handled by fetchBalance
+                if (!response.ok) throw new Error('Could not fetch orders.');
+                
+                const data = await response.json();
+                userOrders = data.orders || [];
 
+                if (userOrders.length === 0) { 
+                    statusDiv.textContent = "You haven't made any transactions yet."; 
+                    statusDiv.style.color = 'black';
+                    return; 
+                }
+                
+                // Initial render
+                filterAndRenderOrders(filterContainer.querySelector('.filter-tab.active').dataset.network);
+
+            } catch (error) {
+                statusDiv.textContent = `Error: ${error.message}`;
+                statusDiv.style.color = 'red';
+            }
+        }
+
+        // --- RENDERING ---
         function renderOrders(orders) {
             tableBody.innerHTML = '';
             if (orders.length === 0) {
@@ -325,57 +336,123 @@
             renderOrders(filtered);
         }
 
-        async function fetchOrderHistory() {
-            try {
-                const response = await fetch('/api/my-orders');
-                
-                if (response.status === 401) {
-                    statusDiv.textContent = 'Session expired. Redirecting to login...';
-                    statusDiv.style.color = 'red';
-                    setTimeout(() => window.location.href = '/login.html', 1000);
-                    return;
-                }
-                
-                if (!response.ok) throw new Error('Could not fetch orders.');
-                
-                const data = await response.json();
-                userOrders = data.orders || [];
+        // --- TOP-UP MODAL LOGIC ---
+        const topupModal = document.getElementById('topup-modal');
+        const modalBackdrop = document.getElementById('modal-backdrop');
+        const modalPayBtn = document.getElementById('modal-pay');
+        const modalAmountInput = document.getElementById('modal-topup-amount');
+        const modalStatus = document.getElementById('modal-content-status');
 
-                if (userOrders.length === 0) { 
-                    statusDiv.textContent = "You haven't made any transactions yet."; 
-                    statusDiv.style.color = 'black';
-                    return; 
-                }
-                
-                filterAndRenderOrders(filterContainer.querySelector('.filter-tab.active').dataset.network);
-
-            } catch (error) {
-                statusDiv.textContent = `Error: ${error.message}`;
-                statusDiv.style.color = 'red';
-            }
+        function openModal() {
+            modalBackdrop.style.display = 'flex';
+            setTimeout(() => {
+                modalBackdrop.style.opacity = 1;
+                topupModal.style.transform = 'scale(1)';
+            }, 10);
+            modalAmountInput.focus();
         }
 
+        function closeModal() {
+            modalBackdrop.style.opacity = 0;
+            topupModal.style.transform = 'scale(0.95)';
+            setTimeout(() => {
+                modalBackdrop.style.display = 'none';
+                modalStatus.textContent = '';
+            }, 300);
+        }
 
-        // --- INITIALIZATION & LISTENERS ---
-        document.addEventListener('DOMContentLoaded', async () => {
-            const userDataEmail = await fetchBalance(); // Fetch balance and user email
+        // --- MODAL EVENT HANDLERS ---
+        openTopupModalBtn.addEventListener('click', () => {
+            modalAmountInput.value = MIN_TOPUP_GHS.toFixed(2);
+            openModal();
+        });
+        document.getElementById('modal-cancel').addEventListener('click', closeModal);
+
+        modalPayBtn.addEventListener('click', () => {
+            const amount = parseFloat(modalAmountInput.value);
+            if (isNaN(amount) || amount < MIN_TOPUP_GHS) {
+                modalStatus.textContent = `Please enter a valid amount (Min GHS ${MIN_TOPUP_GHS.toFixed(2)}).`;
+                return;
+            }
+            if (!userEmail) {
+                modalStatus.textContent = 'Error: Session data missing. Please log out and back in.';
+                return;
+            }
             
-            // 1. Bind TopUp button action
-            topupButton.addEventListener('click', (e) => {
-                e.preventDefault();
-                const amount = parseFloat(topupAmountInput.value);
-                if (isNaN(amount) || amount <= 0) {
-                     topupFormStatus.textContent = "Please enter a valid amount.";
-                     topupFormStatus.style.color = 'red';
-                     return;
+            // Start Paystack process
+            initiatePaystackTopup(amount);
+        });
+
+
+        // --- PAYSTACK INTEGRATION ---
+        const initiatePaystackTopup = (amountInGHS) => {
+            const amountInPesewas = Math.round(amountInGHS * 100);
+            
+            // 🛑 Calculate the final amount charged to the client (Deposit + 60% Fee)
+            const PAYSTACK_RATE = 0.019;
+            const PAYSTACK_FLAT = 80;
+            const netDepositPesewas = amountInPesewas;
+            
+            const requiredTotalCharge = (netDepositPesewas + PAYSTACK_FLAT) / (1 - PAYSTACK_RATE);
+            const truePaystackFee = requiredTotalCharge - netDepositPesewas;
+            const feeClientPays = truePaystackFee * 0.60; 
+            const finalChargedAmount = netDepositPesewas + Math.round(feeClientPays);
+
+            modalPayBtn.disabled = true;
+            modalPayBtn.textContent = 'Processing...';
+            closeModal(); // Close the modal before Paystack opens
+
+            const paymentCallback = function(response) {
+                showNotification("Verifying top-up...", 'warning');
+                
+                fetch('/api/topup', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ 
+                        reference: response.reference, 
+                        amount: amountInGHS // Send the intended GHS amount for server verification
+                    }),
+                })
+                .then(verifyResponse => verifyResponse.json())
+                .then(data => {
+                    if (data.status === 'success') {
+                        showNotification(`Deposit successful! GHS ${data.newBalance / 100} added to your wallet.`, 'success');
+                         fetchBalance(); 
+                         setTimeout(() => fetchOrderHistory(), 1000); 
+                    } else {
+                        showNotification(data.message, 'error');
+                    }
+                })
+                .catch(err => {
+                    showNotification("Top-up verification failed.", 'error');
+                })
+                .finally(() => {
+                    modalPayBtn.disabled = false;
+                    modalPayBtn.textContent = 'Pay';
+                });
+            };
+            
+            PaystackPop.setup({
+                key: PAYSTACK_PUBLIC_KEY, 
+                email: userEmail, 
+                amount: finalChargedAmount, 
+                currency: 'GHS',
+                ref: 'DL-TOPUP-' + Math.floor((Math.random() * 1000000000) + 1),
+                callback: paymentCallback,
+                onClose: function() { 
+                    showNotification("Top-up cancelled.", 'error');
+                    modalPayBtn.disabled = false;
+                    modalPayBtn.textContent = 'Pay';
                 }
-                handleTopup(amount);
-            });
+            }).openIframe();
+        };
 
-            // 2. Load History
-            fetchOrderHistory();
+        // --- INITIALIZATION ---
+        document.addEventListener('DOMContentLoaded', async () => {
+            const userDataEmail = await fetchBalance(); 
+            userEmail = userDataEmail; // Set global user email
             
-            // 3. Theme toggle is handled globally in the script tag
+            fetchOrderHistory();
         });
 
         // Add event listener for filter tabs
@@ -388,3 +465,5 @@
             }
         });
     </script>
+</body>
+</html>
