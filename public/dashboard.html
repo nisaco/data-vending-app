@@ -3,7 +3,6 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <link rel="icon" type="image/x-icon" href="apple-touch-icon.png">
     <title>My Dashboard - DataLink</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
@@ -19,6 +18,8 @@
         .dark .border-gray-100 { border-color: #374151; }
         .dark .bg-gray-700 { background-color: #374151; }
         .dark .divide-y { border-color: #4b5563; }
+        .dark .stat-card { background-color: #282828; }
+        .dark input { background-color: #374151; border-color: #4b5563; color: #f3f4f6; }
         
         /* Table Status Colors */
         .status-data_sent { background-color: #10b981; } 
@@ -65,17 +66,28 @@
             <p class="text-center text-gray-500 mb-6 dark:text-gray-400">Review your wallet balance and transaction history.</p>
             
             <!-- Wallet Balance Card -->
-            <div class="bg-primary text-white p-6 rounded-xl shadow-lg mb-8 flex justify-between items-center">
-                <div>
-                    <p class="text-lg font-medium">Your Current Wallet Balance</p>
-                    <p class="text-5xl font-extrabold mt-1" id="wallet-balance-dashboard">
-                        GHS 0.00
-                    </p>
+            <div class="bg-primary text-white p-6 rounded-xl shadow-lg mb-8">
+                <div class="flex justify-between items-start">
+                    <div>
+                        <p class="text-lg font-medium">Your Current Wallet Balance</p>
+                        <p class="text-5xl font-extrabold mt-1" id="wallet-balance-dashboard">
+                            GHS 0.00
+                        </p>
+                    </div>
                 </div>
-                <!-- TopUp Link (Fixed to run JS) -->
-                <a href="#" id="topup-link" class="py-2 px-4 bg-white text-primary font-bold rounded-lg shadow-md transition hover:bg-gray-100">
-                    TopUp
-                </a>
+                
+                <!-- TopUp Form -->
+                <div class="mt-4 pt-4 border-t border-white border-opacity-30">
+                    <p class="font-semibold mb-2">Deposit Funds (Minimum GHS 6.00)</p>
+                    <div id="topup-form-status" class="text-sm font-medium mb-2 text-yellow-200"></div>
+                    <div class="flex space-x-3">
+                        <input type="number" id="topup-amount" min="6.00" step="0.50" placeholder="e.g., 10.00" 
+                               class="w-full p-2 rounded-lg text-gray-800 focus:ring-2 focus:ring-white transition">
+                        <button id="topup-button" class="py-2 px-4 bg-white text-primary font-bold rounded-lg shadow-md transition hover:bg-gray-100 whitespace-nowrap">
+                            TopUp
+                        </button>
+                    </div>
+                </div>
             </div>
 
             <!-- Order History Filters -->
@@ -151,7 +163,6 @@
         function safeDateFormatter(isoString) {
             if (!isoString) return 'N/A';
             try {
-                // Parse date string safely
                 const date = new Date(isoString); 
                 if (isNaN(date)) return 'Invalid Date';
                 
@@ -165,23 +176,25 @@
         }
         
         let userOrders = []; 
+        let userEmail = null; // Store user email globally
         const statusDiv = document.getElementById('status');
+        const topupFormStatus = document.getElementById('topup-form-status');
         const tableBody = document.getElementById('ordersTableBody');
         const filterContainer = document.getElementById('network-filters');
         const balanceDisplay = document.getElementById('wallet-balance-dashboard');
-        const topupLink = document.getElementById('topup-link');
-        
-        const PAYSTACK_PUBLIC_KEY = 'pk_live_62dc43eeea153c81c216b75e3967f8a44ee94fc3'; 
+        const topupButton = document.getElementById('topup-button');
+        const topupAmountInput = document.getElementById('topup-amount');
 
 
-        // Fetches user's current wallet balance
+        // Fetches user's current wallet balance and email
         async function fetchBalance() {
             try {
                 const response = await fetch('/api/user-info');
                 if (response.ok) {
                     const data = await response.json();
                     balanceDisplay.textContent = `GHS ${(data.walletBalance / 100).toFixed(2)}`;
-                    return data.email; 
+                    userEmail = data.email; // Store email
+                    return data.email;
                 } else if (response.status === 401) {
                     statusDiv.textContent = 'Session expired. Redirecting to login...';
                     statusDiv.style.color = 'red';
@@ -195,22 +208,26 @@
         }
 
         // Handles Paystack Top-Up
-        const handleTopup = (userEmail) => {
-            const TOPUP_AMOUNT_PESEWAS = 5000; // Fixed GHS 50 topup amount for simplicity
+        const handleTopup = (amountInGHS) => {
+            const PAYSTACK_PUBLIC_KEY = 'pk_live_62dc43eeea153c81c216b75e3967f8a44ee94fc3'; 
+            const MIN_TOPUP_GHS = 5.00;
             
-            if (!userEmail) {
-                statusDiv.textContent = "Error: User session data is missing.";
-                statusDiv.style.color = "red";
+            // 1. Validation
+            if (amountInGHS < MIN_TOPUP_GHS) {
+                topupFormStatus.textContent = `Minimum top-up is GHS ${MIN_TOPUP_GHS.toFixed(2)}.`;
+                topupFormStatus.style.color = '#ffcc00';
                 return;
             }
+            
+            const amountInPesewas = Math.round(amountInGHS * 100);
 
-            topupLink.classList.add('opacity-50');
-            topupLink.textContent = 'Processing...';
+            topupButton.disabled = true;
+            topupButton.textContent = 'Processing...';
 
-            // 🛑 FIX: The client needs to calculate the FINAL amount to charge the user (40/60 split)
+            // 🛑 CRITICAL: Calculate the final charged amount (40/60 split)
             const PAYSTACK_RATE = 0.019;
             const PAYSTACK_FLAT = 80;
-            const netDepositPesewas = TOPUP_AMOUNT_PESEWAS;
+            const netDepositPesewas = amountInPesewas;
             
             const requiredTotalCharge = (netDepositPesewas + PAYSTACK_FLAT) / (1 - PAYSTACK_RATE);
             const truePaystackFee = requiredTotalCharge - netDepositPesewas;
@@ -219,21 +236,21 @@
 
 
             const paymentCallback = function(response) {
-                statusDiv.textContent = "Verifying top-up, please wait...";
-                statusDiv.style.color = "orange";
+                topupFormStatus.textContent = "Verifying top-up, please wait...";
+                topupFormStatus.style.color = 'orange';
                 
                 fetch('/api/topup', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ 
                         reference: response.reference, 
-                        amount: finalChargedAmount / 100 // Send the final total charged amount
+                        amount: amountInGHS // Send the net deposit amount for server verification
                     }),
                 })
                 .then(verifyResponse => verifyResponse.json())
                 .then(data => {
-                    statusDiv.textContent = data.message;
-                    statusDiv.style.color = data.status === 'success' ? 'green' : 'red';
+                    topupFormStatus.textContent = data.message;
+                    topupFormStatus.style.color = data.status === 'success' ? 'lightgreen' : 'red';
                     
                     if (data.newBalance !== undefined) {
                          fetchBalance(); 
@@ -241,27 +258,27 @@
                     }
                 })
                 .catch(err => {
-                    statusDiv.textContent = "Top-up verification failed.";
-                    statusDiv.style.color = "red";
+                    topupFormStatus.textContent = "Top-up verification failed.";
+                    topupFormStatus.style.color = "red";
                 })
                 .finally(() => {
-                    topupLink.classList.remove('opacity-50');
-                    topupLink.textContent = 'TopUp';
+                    topupButton.disabled = false;
+                    topupButton.textContent = 'TopUp';
                 });
             };
             
             PaystackPop.setup({
                 key: PAYSTACK_PUBLIC_KEY, 
-                email: userEmail, 
-                amount: finalChargedAmount, // ⬅️ Charge the user the amount + their 60% fee
+                email: userEmail, // Use the stored user email
+                amount: finalChargedAmount, // ⬅️ Charge the user the full amount + their 60% fee
                 currency: 'GHS',
                 ref: 'DL-TOPUP-' + Math.floor((Math.random() * 1000000000) + 1),
                 callback: paymentCallback,
                 onClose: function() { 
-                    statusDiv.textContent = "Top-up cancelled."; 
-                    statusDiv.style.color = "red"; 
-                    topupLink.classList.remove('opacity-50');
-                    topupLink.textContent = 'TopUp';
+                    topupFormStatus.textContent = "Top-up cancelled."; 
+                    topupFormStatus.style.color = "red"; 
+                    topupButton.disabled = false;
+                    topupButton.textContent = 'TopUp';
                 }
             }).openIframe();
         };
@@ -339,18 +356,26 @@
         }
 
 
-        // --- INITIALIZATION ---
+        // --- INITIALIZATION & LISTENERS ---
         document.addEventListener('DOMContentLoaded', async () => {
-            const userEmail = await fetchBalance(); // Fetch balance and user email
+            const userDataEmail = await fetchBalance(); // Fetch balance and user email
             
-            if (userEmail) {
-                // Bind TopUp link to handler, passing user's email
-                topupLink.addEventListener('click', (e) => {
-                    e.preventDefault();
-                    handleTopup(userEmail);
-                });
-            }
+            // 1. Bind TopUp button action
+            topupButton.addEventListener('click', (e) => {
+                e.preventDefault();
+                const amount = parseFloat(topupAmountInput.value);
+                if (isNaN(amount) || amount <= 0) {
+                     topupFormStatus.textContent = "Please enter a valid amount.";
+                     topupFormStatus.style.color = 'red';
+                     return;
+                }
+                handleTopup(amount);
+            });
+
+            // 2. Load History
             fetchOrderHistory();
+            
+            // 3. Theme toggle is handled globally in the script tag
         });
 
         // Add event listener for filter tabs
@@ -363,6 +388,3 @@
             }
         });
     </script>
-</body>
-</html>
-
