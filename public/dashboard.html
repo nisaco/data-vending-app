@@ -1,9 +1,9 @@
- <!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <link rel="icon" type="image/x-icon" href="apple-touch-icon.png">
+ <link rel="icon" type="image/x-icon" href="apple-touch-icon.png">
     <title>My Dashboard - DataLink</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
@@ -11,7 +11,7 @@
         .text-primary { color: var(--primary); }
         .bg-primary { background-color: var(--primary); }
         
-        /* Dark Mode Styling */
+        /* DARK MODE STYLES */
         .dark { background-color: #121212; color: #e0e0e0; }
         .dark .bg-white { background-color: #1f1f1f; color: #e0e0e0; }
         .dark .shadow-lg { box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.5), 0 2px 4px -2px rgba(0, 0, 0, 0.3); }
@@ -22,7 +22,7 @@
         /* Table Status Colors */
         .status-data_sent { background-color: #10b981; } 
         .status-pending_review { background-color: #f59e0b; } 
-        .status-payment_success, .status-topup_successful { background-color: #3b82f6; } /* Blue */
+        .status-payment_success, .status-topup_successful { background-color: #3b82f6; } 
         
         /* Tab Styling */
         .filter-tab {
@@ -142,6 +142,7 @@
         });
         // --- THEME LOGIC END ---
 
+
         // CRITICAL FIX: Date formatter to prevent "Invalid Date" errors
         function safeDateFormatter(isoString) {
             if (!isoString) return 'N/A';
@@ -188,7 +189,6 @@
 
         // Handles Paystack Top-Up
         const handleTopup = (userEmail) => {
-            // Note: Paystack logic implementation is omitted for brevity but remains the same
             const PAYSTACK_PUBLIC_KEY = 'pk_test_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxx'; 
             const TOPUP_AMOUNT_PESEWAS = 5000; 
             
@@ -267,7 +267,7 @@
                 let source = order.paymentMethod === 'wallet' ? 'Wallet' : 'Paystack';
                 let item = order.dataPlan === 'WALLET TOP-UP' ? 'Wallet Top-up' : `${order.dataPlan} (${order.network})`;
 
-                row.className = 'hover:bg-gray-50 transition duration-150';
+                row.className = 'hover:bg-gray-50 transition duration-150 dark:hover:bg-gray-800';
 
                 row.innerHTML = `
                     <td class="py-4 px-6">${safeDateFormatter(order.created_at)}</td>
@@ -324,7 +324,7 @@
 
         // --- INITIALIZATION ---
         document.addEventListener('DOMContentLoaded', async () => {
-            const userData = await fetchBalance(); // Fetch balance and user data
+            const userData = await fetchBalance(); 
             
             if (userData) {
                 // Bind TopUp link to handler, passing user's email
