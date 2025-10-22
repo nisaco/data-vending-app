@@ -1,9 +1,8 @@
- <!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <link rel="icon" type="image/x-icon" href="apple-touch-icon.png">
     <title>Admin Dashboard - DataLink</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
@@ -54,24 +53,24 @@
         }
     </style>
 </head>
-<body class="bg-gray-50 min-h-screen font-sans">
+<body class="bg-gray-50 min-h-screen font-sans dark:bg-[#121212] dark:text-gray-200">
     
     <!-- Navbar (Minimalist for Admin View) -->
-    <nav class="bg-white shadow-lg">
+    <nav class="bg-white shadow-lg dark:bg-[#1f1f1f]">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex justify-between items-center h-16">
             <span class="text-xl font-bold text-primary">Admin Panel</span>
             <div class="flex space-x-4">
-                <a href="/purchase" class="text-gray-600 hover:text-primary transition font-medium">Client View</a>
+                <a href="/purchase" class="text-gray-600 hover:text-primary transition font-medium dark:text-gray-400">Client View</a>
             </div>
         </div>
     </nav>
 
     <!-- Main Content Card -->
     <div class="container mx-auto p-4 max-w-7xl">
-        <div class="bg-white p-6 md:p-8 rounded-2xl shadow-xl mt-8 border border-gray-100">
+        <div class="bg-white p-6 md:p-8 rounded-2xl shadow-xl mt-8 border border-gray-100 dark:bg-[#1f1f1f] dark:border-gray-700">
             
-            <h1 class="text-3xl font-extrabold text-center text-gray-800 mb-2">Admin Control Panel</h1>
-            <p class="text-center text-gray-500 mb-6">Monitor users, track orders, and manually resolve issues.</p>
+            <h1 class="text-3xl font-extrabold text-center text-gray-800 mb-2 dark:text-white">Admin Control Panel</h1>
+            <p class="text-center text-gray-500 mb-6 dark:text-gray-400">Monitor users, track orders, and manually resolve issues.</p>
 
             <!-- STATS BLOCK -->
             <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
@@ -107,47 +106,48 @@
             <!-- END STATS BLOCK -->
 
             <div class="flex flex-col sm:flex-row gap-3 mb-6 items-center justify-center">
-                <input type="password" id="adminSecret" placeholder="Enter Admin Secret" class="w-full sm:w-64 p-3 border border-gray-300 rounded-lg focus:ring-primary focus:border-primary">
+                <input type="password" id="adminSecret" placeholder="Enter Admin Secret" class="w-full sm:w-64 p-3 border border-gray-300 rounded-lg focus:ring-primary focus:border-primary dark:bg-gray-700 dark:border-gray-600 dark:text-white">
                 <button id="fetchOrdersBtn" class="w-full sm:w-auto py-3 px-6 bg-primary text-white font-bold rounded-lg hover:bg-secondary transition">
                     Fetch Orders & Clients
                 </button>
             </div>
             
             <!-- USER MANAGEMENT TABLE -->
-            <h2 class="text-xl font-bold text-gray-800 mt-8 mb-4 border-b pb-2">Client User List</h2>
-            <div id="user-list-status" class="text-center font-medium mb-4 text-gray-700">Enter secret to load user data.</div>
+            <h2 class="text-xl font-bold text-gray-800 mt-8 mb-4 border-b pb-2 dark:text-white">Client User List</h2>
+            <div id="user-list-status" class="text-center font-medium mb-4 text-gray-700 dark:text-gray-400">Enter secret to load user data.</div>
 
-            <div class="overflow-x-auto rounded-xl border border-gray-200 shadow-inner mb-8">
-                <table class="w-full text-sm text-left text-gray-500">
+            <div class="overflow-x-auto rounded-xl border border-gray-200 shadow-inner mb-8 dark:border-gray-700">
+                <table class="w-full text-sm text-left text-gray-500 dark:text-gray-400">
                     <thead class="text-xs text-white uppercase bg-gray-700">
                         <tr>
                             <th scope="col" class="py-3 px-6 rounded-tl-xl">Username</th>
                             <th scope="col" class="py-3 px-6">Email</th>
                             <th scope="col" class="py-3 px-6">Signed Up</th>
-                            <th scope="col" class="py-3 px-6 rounded-tr-xl">Status</th>
+                            <th scope="col" class="py-3 px-6">Status</th>
+                            <th scope="col" class="py-3 px-6 rounded-tr-xl">Action</th>
                         </tr>
                     </thead>
-                    <tbody id="userTableBody" class="bg-white divide-y divide-gray-100">
-                        <tr><td colspan="4" class="py-4 text-center text-gray-400">User data will appear here.</td></tr>
+                    <tbody id="userTableBody" class="bg-white divide-y divide-gray-100 dark:bg-[#1f1f1f] dark:divide-gray-700">
+                        <tr><td colspan="5" class="py-4 text-center text-gray-400">User data will appear here.</td></tr>
                     </tbody>
                 </table>
             </div>
 
             <!-- ORDER MANAGEMENT TABLE -->
-            <h2 class="text-xl font-bold text-gray-800 mt-8 mb-4 border-b pb-2">Order History</h2>
+            <h2 class="text-xl font-bold text-gray-800 mt-8 mb-4 border-b pb-2 dark:text-white">Order History</h2>
 
             <!-- Network Filters -->
-            <div id="network-filters" class="flex justify-center space-x-4 mb-6 border-b border-gray-200 text-gray-600">
+            <div id="network-filters" class="flex justify-center space-x-4 mb-6 border-b border-gray-200 text-gray-600 dark:border-gray-700 dark:text-gray-400">
                 <div class="filter-tab active" data-network="All">All Orders</div>
                 <div class="filter-tab" data-network="MTN">MTN</div>
                 <div class="filter-tab" data-network="AirtelTigo">AirtelTigo</div>
                 <div class="filter-tab" data-network="Telecel">Telecel</div>
             </div>
 
-            <div id="status" class="text-center font-medium mb-4 text-gray-700">Click the button above to load orders.</div>
+            <div id="status" class="text-center font-medium mb-4 text-gray-700 dark:text-gray-400">Click the button above to load orders.</div>
             
-            <div class="overflow-x-auto rounded-xl border border-gray-200 shadow-inner">
-                <table class="w-full text-sm text-left text-gray-500">
+            <div class="overflow-x-auto rounded-xl border border-gray-200 shadow-inner dark:border-gray-700">
+                <table class="w-full text-sm text-left text-gray-500 dark:text-gray-400">
                     <thead class="text-xs text-white uppercase bg-primary">
                         <tr>
                             <th scope="col" class="py-3 px-6 rounded-tl-xl">ID</th>
@@ -160,7 +160,7 @@
                             <th scope="col" class="py-3 px-6 rounded-tr-xl">Action</th>
                         </tr>
                     </thead>
-                    <tbody id="ordersTableBody" class="bg-white divide-y divide-gray-100">
+                    <tbody id="ordersTableBody" class="bg-white divide-y divide-gray-100 dark:bg-[#1f1f1f] dark:divide-gray-700">
                         <tr><td colspan="8" class="py-4 text-center text-gray-400">Order history will appear here.</td></tr>
                     </tbody>
                 </table>
@@ -195,11 +195,16 @@
         const activeUsersList = document.getElementById('active-users-list');
         const activeCountElement = document.getElementById('active-count');
         const userListStatus = document.getElementById('user-list-status');
-        const totalRevenueElement = document.getElementById('total-revenue');
-        const netProfitElement = document.getElementById('net-profit');
         const fetchOrdersBtn = document.getElementById('fetchOrdersBtn');
 
         
+        // Helper function to show generic loading state
+        function showLoading() {
+            userTableBody.innerHTML = '<tr><td colspan="5" class="py-4 text-center text-blue-500 font-medium">Loading user data...</td></tr>';
+            activeUsersList.innerHTML = '<span class="text-gray-500 text-xs italic">Loading...</span>';
+            ordersTableBody.innerHTML = '<tr><td colspan="8" class="py-4 text-center text-blue-500 font-medium">Loading orders...</td></tr>';
+        }
+
         // --- RENDER FUNCTIONS ---
         function renderUserList(users) {
             userTableBody.innerHTML = '';
@@ -215,16 +220,21 @@
                 const statusText = user.isOnline ? 'Online' : 'Offline';
                 const statusClass = user.isOnline ? 'status-online' : 'status-offline';
 
-                row.className = 'hover:bg-gray-50 transition duration-150';
+                row.className = 'hover:bg-gray-50 transition duration-150 dark:hover:bg-gray-800';
 
                 row.innerHTML = `
-                    <td class="py-4 px-6 font-semibold text-gray-900">${user.username}</td>
-                    <td class="py-4 px-6">${user.email}</td>
-                    <td class="py-4 px-6">${safeDateFormatter(user.signedUp)}</td>
+                    <td class="py-4 px-6 font-semibold text-gray-900 dark:text-white">${user.username}</td>
+                    <td class="py-4 px-6 dark:text-gray-400">${user.email}</td>
+                    <td class="py-4 px-6 dark:text-gray-400">${safeDateFormatter(user.signedUp)}</td>
                     <td class="py-4 px-6">
                         <span class="px-3 py-1 text-white text-xs font-bold uppercase rounded-full ${statusClass}">
                             ${statusText}
                         </span>
+                    </td>
+                    <td class="py-4 px-6">
+                        <button class="delete-btn bg-red-500 hover:bg-red-700 text-white p-1.5 rounded-md text-xs" data-user-id="${user._id}">
+                            Delete
+                        </button>
                     </td>
                 `;
             });
@@ -249,15 +259,15 @@
                 const actionButton = order.status === 'pending_review' ? 
                     `<button class="action-btn" data-id="${order.id}">Mark Sent</button>` : '';
 
-                row.className = 'hover:bg-gray-50 transition duration-150';
+                row.className = 'hover:bg-gray-50 transition duration-150 dark:hover:bg-gray-800';
 
                 row.innerHTML = `
                     <td class="py-4 px-6 font-mono text-xs">${order.id.substring(0, 8)}...</td>
-                    <td class="py-4 px-6 font-medium text-gray-900">${order.username}</td>
-                    <td class="py-4 px-6">${safeDateFormatter(order.created_at)}</td>
-                    <td class="py-4 px-6">${order.phone_number}</td>
-                    <td class="py-4 px-6">${order.data_plan}</td>
-                    <td class="py-4 px-6 text-gray-800 font-semibold">${order.amount.toFixed(2)}</td>
+                    <td class="py-4 px-6 font-medium text-gray-900 dark:text-white">${order.username}</td>
+                    <td class="py-4 px-6 dark:text-gray-400">${safeDateFormatter(order.created_at)}</td>
+                    <td class="py-4 px-6 dark:text-gray-400">${order.phone_number}</td>
+                    <td class="py-4 px-6 dark:text-gray-400">${order.data_plan}</td>
+                    <td class="py-4 px-6 text-gray-800 font-semibold dark:text-white">${order.amount.toFixed(2)}</td>
                     <td class="py-4 px-6">
                         <span class="px-3 py-1 text-white text-xs font-bold uppercase rounded-full ${statusClass}">
                             ${statusText}
@@ -326,8 +336,12 @@
                     document.getElementById('total-revenue').textContent = data.revenue;
                     document.getElementById('net-profit').textContent = data.netProfit;
 
-                    // Note: Elements were removed, leaving this as console feedback only
-                    // console.log(`Metrics: Revenue: ${data.revenue}, Profit: ${data.netProfit}`); 
+                    netProfitElement.classList.remove('text-green-600', 'text-red-600');
+                    if (parseFloat(data.netProfit) >= 0) {
+                        netProfitElement.classList.add('text-green-600');
+                    } else {
+                        netProfitElement.classList.add('text-red-600');
+                    }
                 }
             } catch (error) {
                 console.error("Failed to load metrics.");
@@ -362,7 +376,7 @@
             fetchOrdersBtn.textContent = 'Loading...';
             statusDiv.textContent = 'Fetching all data sets...';
 
-            // 1. Fetch User Data (Sequential: required for Auth/Stats)
+            // 1. Ensure user management data is loaded (it uses the same auth check)
             await fetchUserManagementData(secret); 
             
             // 2. Fetch Metrics
@@ -394,12 +408,90 @@
                 ordersTableBody.innerHTML = '<tr><td colspan="8" class="py-4 text-center text-red-400">Failed to load order history.</td></tr>';
             } finally {
                 fetchOrdersBtn.disabled = false;
-                fetchOrdersBtn.textContent = 'Fetch Orders & Metrics';
+                fetchOrdersBtn.textContent = 'Fetch Orders & Clients';
             }
         });
         
-        // --- FUNCTION TO HANDLE MARK SENT ACTION (omitted for brevity) ---
-        async function markOrderSent(orderId, button) { /* ... implementation ... */ }
+        // --- FUNCTION TO HANDLE MARK SENT ACTION ---
+        async function markOrderSent(orderId, button) {
+            const secret = adminSecretInput.value;
+            if (!secret) { statusDiv.textContent = 'Admin secret missing.'; statusDiv.style.color = 'red'; return; }
+            
+            button.textContent = 'Processing...';
+            button.disabled = true;
+
+            try {
+                const response = await fetch('/api/admin/update-order', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ 
+                        orderId: orderId, 
+                        newStatus: 'data_sent', 
+                        adminSecret: secret 
+                    })
+                });
+
+                const result = await response.json();
+                if (response.ok) {
+                    const index = adminOrders.findIndex(order => order.id === orderId);
+                    if (index !== -1) {
+                        adminOrders[index].status = 'data_sent';
+                    }
+                    statusDiv.textContent = result.message;
+                    statusDiv.style.color = 'green';
+                    
+                    const activeNetwork = filterContainer.querySelector('.filter-tab.active').dataset.network;
+                    filterAndRenderOrders(activeNetwork);
+                } else {
+                    throw new Error(result.error || result.message || 'Failed to update status.');
+                }
+
+            } catch (error) {
+                statusDiv.textContent = `Error updating order ${orderId}: ${error.message}`;
+                statusDiv.style.color = 'red';
+                button.textContent = 'Error';
+                button.disabled = false;
+            }
+        }
+        
+        // --- FUNCTION TO HANDLE DELETE CLIENT ACTION ---
+        userTableBody.addEventListener('click', async (e) => {
+            if (e.target.classList.contains('delete-btn')) {
+                const userId = e.target.dataset.userId;
+                const secret = adminSecretInput.value;
+
+                if (!confirm(`Are you sure you want to permanently delete user ${userId.substring(0, 8)}...? This will delete ALL their orders and data!`)) {
+                    return;
+                }
+                
+                e.target.textContent = 'Deleting...';
+                e.target.disabled = true;
+
+                try {
+                    const response = await fetch('/api/admin/delete-user', {
+                        method: 'DELETE',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ userId, adminSecret: secret })
+                    });
+                    
+                    const result = await response.json();
+                    if (response.ok) {
+                        userListStatus.textContent = result.message;
+                        userListStatus.style.color = 'green';
+                        // Refresh the user list and counts
+                        fetchUserManagementData(secret); 
+                        // Note: Orders won't disappear until the order table is refreshed by the main button click.
+                    } else {
+                        throw new Error(result.error || 'Failed to delete user.');
+                    }
+                } catch (error) {
+                    userListStatus.textContent = `Delete Error: ${error.message}`;
+                    userListStatus.style.color = 'red';
+                    e.target.textContent = 'Failed';
+                }
+            }
+        });
+
 
         // --- EVENT LISTENERS ---
         ordersTableBody.addEventListener('click', (e) => {
@@ -416,6 +508,38 @@
                 target.classList.add('active');
                 filterAndRenderOrders(target.dataset.network);
             }
+        });
+        
+        // --- Theme Toggle Initialization ---
+        document.addEventListener('DOMContentLoaded', () => {
+            const htmlElement = document.documentElement;
+            const themeToggle = document.getElementById('theme-toggle');
+            const themeIcon = document.getElementById('theme-icon');
+
+            function updateThemeIcon(isDark) {
+                if (isDark) {
+                    themeIcon.innerHTML = '<path d="M10 2a1 1 0 011 1v1a1 1 0 11-2 0V3a1 1 0 011-1zm4 8a4 4 0 11-8 0 4 4 0 018 0zm-4 7a1 1 0 011 1v1a1 1 0 11-2 0v-1a1 1 0 011-1zm6.5-6.5a1 1 0 010 1.414l-.707.707a1 1 0 11-1.414-1.414l.707-.707a1 1 0 011.414 0zm-13 0a1 1 0 011.414 0l.707.707a1 1 0 11-1.414 1.414l-.707-.707a1 1 0 010-1.414zM3 10a1 1 0 011-1h1a1 1 0 110 2H4a1 1 0 01-1-1zm14 0a1 1 0 01-1 1h-1a1 1 0 110-2h1a1 1 0 011 1z" clip-rule="evenodd" fill-rule="evenodd"></path>';
+                } else {
+                    themeIcon.innerHTML = '<path d="M17.293 13.914A8.966 8.966 0 0112 18c-3.14 0-5.968-1.293-8.06-3.385A9.006 9.006 0 0012 21c5.152 0 9.428-3.791 10.378-8.586z"></path>';
+                }
+            }
+
+            if (localStorage.getItem('theme') === 'dark' || (!('theme' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+                htmlElement.classList.add('dark');
+                updateThemeIcon(true);
+            }
+
+            themeToggle.addEventListener('click', () => {
+                if (htmlElement.classList.contains('dark')) {
+                    htmlElement.classList.remove('dark');
+                    localStorage.setItem('theme', 'light');
+                    updateThemeIcon(false);
+                } else {
+                    htmlElement.classList.add('dark');
+                    localStorage.setItem('theme', 'dark');
+                    updateThemeIcon(true);
+                }
+            });
         });
     </script>
 </body>
