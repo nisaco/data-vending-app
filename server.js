@@ -49,19 +49,139 @@ function findBaseCost(network, capacityId) {
     return plan ? plan.price : 0; 
 }
 function calculatePaystackFee(chargedAmountInPesewas) {
-    const TRANSACTION_FEE_RATE = 0.00205; 
-    const TRANSACTION_FEE_CAP = 2000;
-    
-    let amountToCalculateFeeOn = chargedAmountInPesewas;
-    let fullFee = (amountToCalculateFeeOn * TRANSACTION_FEE_RATE) + 80;
-    
+    const TRANSACTION_FEE_RATE = 0.00205; const TRANSACTION_FEE_CAP = 2000;
+    let fullFee = (chargedAmountInPesewas * TRANSACTION_FEE_RATE) + 80;
     let totalFeeChargedByPaystack = Math.min(fullFee, TRANSACTION_FEE_CAP);
     return totalFeeChargedByPaystack;
 }
-async function sendAdminAlertEmail(order) { /* ... implementation ... */ }
-async function executeDataPurchase(userId, orderDetails, paymentMethod) { /* ... implementation ... */ }
-async function runPendingOrderCheck() { /* ... implementation ... */ }
-async function sendResetEmail(user, token) { /* ... implementation ... */ }
+async function sendAdminAlertEmail(order) {
+    if (!process.env.SENDGRID_API_KEY) {
+        console.error("SENDGRID_API_KEY not set. Cannot send alert email.");
+        return;
+    }
+    sgMail.setApiKey(process.env.SENDGRID_API_KEY);
+    const msg = {
+        to: 'YOUR_ADMIN_RECEIVING_EMAIL@example.com', 
+        from: 'YOUR_VERIFIED_SENDER_EMAIL@example.com', 
+        subject: `🚨 MANUAL REVIEW REQUIRED: ${order.network} Data Transfer Failed`,
+        html: `
+            <h1>Urgent Action Required!</h1>
+            <p>A customer payment was successful, but the data bundle transfer failed automatically. Please fulfill this order manually through the Datahub Ghana dashboard.</p>
+            <hr>
+            <p><strong>Status:</strong> PENDING REVIEW</p>
+            <p><strong>Network:</strong> ${order.network}</p>
+            <p><strong>Plan:</strong> ${order.dataPlan}</p>
+            <p><strong>Phone:</strong> ${order.phoneNumber}</p>
+            <p><strong>Amount Paid:</strong> GHS ${order.amount.toFixed(2)}</p>
+            <p><strong>Reference:</strong> ${order.reference}</p>
+            <p><strong>Action:</strong> Go to the Admin Dashboard and click 'Mark Sent' after fulfilling manually.</p>
+        `,
+    };
+    try {
+        await sgMail.send(msg);
+        console.log(`Manual alert email sent for reference: ${order.reference}`);
+    } catch (error) {
+        console.error('Failed to send admin alert email:', error.response?.body || error);
+    }
+}
+async function executeDataPurchase(userId, orderDetails, paymentMethod) {
+    const { network, dataPlan, amount } = orderDetails;
+    
+    let finalStatus = 'payment_success'; 
+    const reference = `${paymentMethod.toUpperCase()}-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`; 
+
+    // --- STEP 1: TRANSFER DATA VIA RESELLER API ---
+    const resellerApiUrl = 'https://console.ckgodsway.com/api/data-purchase';
+    const networkKey = NETWORK_KEY_MAP[network];
+    
+    const resellerPayload = {
+        networkKey: networkKey,       
+        recipient: orderDetails.phoneNumber,      
+        capacity: dataPlan,          
+        reference: reference          
+    };
+    
+    try {
+        const transferResponse = await axios.post(resellerApiUrl, resellerPayload, {
+            headers: {
+                'Content-Type': 'application/json',
+                'X-API-Key': process.env.DATA_API_SECRET
+            }
+        });
+
+        if (transferResponse.data.success === true) {
+            finalStatus = 'data_sent';
+        } else {
+            console.error('Data API failed response:', transferResponse.data);
+            finalStatus = 'pending_review';
+        }
+
+    } catch (transferError) {
+        console.error('Data API Network Error:', transferError.message);
+        finalStatus = 'pending_review';
+    }
+
+    // --- STEP 2: SAVE FINAL ORDER STATUS TO MONGODB & SEND ALERT ---
+    await Order.create({
+        userId: userId,
+        reference: reference,
+        phoneNumber: orderDetails.phoneNumber,
+        network: network,
+        dataPlan: dataPlan,
+        amount: amount,
+        status: finalStatus,
+        paymentMethod: paymentMethod
+    });
+
+    if (finalStatus === 'pending_review') {
+        await sendAdminAlertEmail(orderDetails); 
+    }
+
+    return { status: finalStatus, reference: reference };
+}
+
+async function runPendingOrderCheck() {
+    console.log('--- CRON: Checking for pending orders needing status update... ---');
+    const CHECK_API_ENDPOINT = 'https://console.ckgodsway.com/api/order-status'; 
+
+    try {
+        if (mongoose.connection.readyState !== 1) {
+            console.log('CRON: Skipping check, database not ready (State: ' + mongoose.connection.readyState + ')');
+            return;
+        }
+
+        const pendingOrders = await Order.find({ status: 'pending_review' }).limit(20); 
+
+        if (pendingOrders.length === 0) {
+            console.log('CRON: No orders currently pending review.');
+            return;
+        }
+
+        for (const order of pendingOrders) {
+            try {
+                const statusResponse = await axios.get(`${CHECK_API_ENDPOINT}?reference=${order.reference}`, {
+                    headers: { 'X-API-Key': process.env.DATA_API_SECRET }
+                });
+
+                const apiData = statusResponse.data;
+
+                if (apiData.success && apiData.data.status === 'SUCCESSFUL') {
+                    await Order.findByIdAndUpdate(order._id, { status: 'data_sent' });
+                    console.log(`CRON SUCCESS: Order ${order.reference} automatically marked 'data_sent'.`);
+
+                } else if (apiData.success && apiData.data.status === 'FAILED') {
+                    await Order.findByIdAndUpdate(order._id, { status: 'data_failed' });
+                    console.log(`CRON FAILURE: Order ${order.reference} marked 'data_failed'.`);
+                }
+            } catch (apiError) {
+                console.error(`CRON ERROR: Failed to check status for ${order.reference}.`, apiError.message);
+            }
+        }
+
+    } catch (dbError) {
+        console.error('CRON FATAL ERROR: Database read failed.', dbError.message);
+    }
+}
 
 
 // --- 3. MIDDLEWARE ---
@@ -78,12 +198,21 @@ app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
 
 
-// --- 4. CORE ROUTE DEFINITION (IMMEDIATE START) ---
+// --- 4. DATABASE CHECK MIDDLEWARE ---
+const isDbReady = (req, res, next) => {
+    // Check if Mongoose is in the 'connected' state (state 1)
+    if (mongoose.connection.readyState !== 1) {
+        console.error("DB NOT READY. State:", mongoose.connection.readyState);
+        return res.status(503).json({ message: 'Database connection is initializing. Please try again in 10 seconds.' });
+    }
+    next();
+};
 
 const isAuthenticated = (req, res, next) => req.session.user ? next() : res.redirect('/login.html');
 
+
 // --- USER AUTHENTICATION & INFO ROUTES ---
-app.post('/api/signup', async (req, res) => {
+app.post('/api/signup', isDbReady, async (req, res) => {
     const { username, email, password } = req.body;
     if (!username || !email || !password) return res.status(400).json({ message: 'All fields are required.' });
     try {
@@ -96,7 +225,7 @@ app.post('/api/signup', async (req, res) => {
     }
 });
 
-app.post('/api/login', async (req, res) => {
+app.post('/api/login', isDbReady, async (req, res) => {
     const { username, password } = req.body;
     if (!username || !password) return res.status(400).json({ message: 'Username and password are required.' });
     try {
@@ -115,7 +244,7 @@ app.get('/api/logout', (req, res) => {
     req.session.destroy(() => res.redirect('/login.html'));
 });
 
-app.get('/api/user-info', isAuthenticated, async (req, res) => {
+app.get('/api/user-info', isDbReady, isAuthenticated, async (req, res) => {
     try {
         const user = await User.findById(req.session.user.id).select('username walletBalance email');
         if (!user) {
@@ -129,8 +258,7 @@ app.get('/api/user-info', isAuthenticated, async (req, res) => {
     }
 });
 
-// 🛑 PASSWORD RESET ENDPOINTS (Must be present for login page to work)
-app.post('/api/forgot-password', async (req, res) => {
+app.post('/api/forgot-password', isDbReady, async (req, res) => {
     const { email } = req.body;
     try {
         const user = await User.findOne({ email });
@@ -144,7 +272,6 @@ app.post('/api/forgot-password', async (req, res) => {
         user.resetTokenExpires = Date.now() + 3600000; // 1 hour
         await user.save();
         
-        // This fails if SendGrid is not set up, but the app keeps running
         // await sendResetEmail(user, resetToken); 
 
         res.json({ message: 'A password reset link has been sent to your email.' });
@@ -154,7 +281,7 @@ app.post('/api/forgot-password', async (req, res) => {
     }
 });
 
-app.post('/api/reset-password', async (req, res) => {
+app.post('/api/reset-password', isDbReady, async (req, res) => {
     const { token, newPassword } = req.body;
     try {
         const user = await User.findOne({
@@ -182,7 +309,7 @@ app.post('/api/reset-password', async (req, res) => {
 
 
 // --- DATA & PROTECTED PAGES ---
-app.get('/api/data-plans', (req, res) => {
+app.get('/api/data-plans', isDbReady, (req, res) => {
     const costPlans = allPlans[req.query.network] || [];
     
     const sellingPlans = costPlans.map(p => {
@@ -196,7 +323,7 @@ app.get('/api/data-plans', (req, res) => {
     res.json(sellingPlans);
 });
 
-app.get('/api/my-orders', isAuthenticated, async (req, res) => {
+app.get('/api/my-orders', isDbReady, isAuthenticated, async (req, res) => {
     try {
         const orders = await Order.find({ userId: req.session.user.id })
                                     .sort({ createdAt: -1 }); 
@@ -208,17 +335,17 @@ app.get('/api/my-orders', isAuthenticated, async (req, res) => {
 
 
 // --- WALLET & PAYMENT ROUTES ---
-app.post('/api/topup', isAuthenticated, async (req, res) => { /* ... implementation ... */ });
-app.post('/api/wallet-purchase', isAuthenticated, async (req, res) => { /* ... implementation ... */ });
-app.post('/paystack/verify', isAuthenticated, async (req, res) => { /* ... implementation ... */ });
+app.post('/api/topup', isDbReady, isAuthenticated, async (req, res) => { /* ... implementation ... */ });
+app.post('/api/wallet-purchase', isDbReady, isAuthenticated, async (req, res) => { /* ... implementation ... */ });
+app.post('/paystack/verify', isDbReady, isAuthenticated, async (req, res) => { /* ... implementation ... */ });
 
 
 // --- ADMIN & MANAGEMENT ROUTES ---
-app.get('/api/get-all-orders', async (req, res) => { /* ... implementation ... */ });
-app.get('/api/admin/all-users-status', async (req, res) => { /* ... implementation ... */ });
-app.get('/api/admin/user-count', async (req, res) => { /* ... implementation ... */ });
-app.post('/api/admin/update-order', async (req, res) => { /* ... implementation ... */ });
-app.get('/api/admin/metrics', async (req, res) => { /* ... implementation ... */ });
+app.get('/api/get-all-orders', isDbReady, async (req, res) => { /* ... implementation ... */ });
+app.get('/api/admin/all-users-status', isDbReady, async (req, res) => { /* ... implementation ... */ });
+app.get('/api/admin/user-count', isDbReady, async (req, res) => { /* ... implementation ... */ });
+app.post('/api/admin/update-order', isDbReady, async (req, res) => { /* ... implementation ... */ });
+app.get('/api/admin/metrics', isDbReady, async (req, res) => { /* ... implementation ... */ });
 
 
 // --- SERVE HTML FILES ---
@@ -231,6 +358,7 @@ app.get('/reset.html', (req, res) => res.sendFile(path.join(__dirname, 'public',
 
 
 // --- SERVER START ---
+// The Express server starts immediately, avoiding the Mongoose crash dependency.
 app.listen(PORT, '0.0.0.0', () => {
     console.log(`Server is LIVE on port ${PORT}`);
     console.log('Database connection is initializing...');
