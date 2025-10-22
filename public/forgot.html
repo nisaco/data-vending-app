@@ -1,1 +1,95 @@
 
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Forgot Password - DataLink</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        :root { --primary-color: #009879; }
+        body {
+            font-family: 'Inter', sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            padding: 1rem;
+            background-color: #e5e7eb; 
+        }
+        .glass-card {
+            background: white;
+            color: #1f2937;
+            border: 1px solid #d1d5db;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+        }
+        .dark { background-color: #1a1a1a; }
+        .dark .glass-card {
+            background: #282828;
+            color: #f3f4f6;
+            border: 1px solid #4b5563;
+            box-shadow: 0 8px 16px rgba(0, 0, 0, 0.6);
+        }
+        .dark .glass-card input {
+            background: #374151;
+            border-color: #4b5563;
+            color: #f3f4f6;
+        }
+        .glass-card input {
+            background: #f3f4f6;
+            border: 1px solid #d1d5db;
+            color: #1f2937;
+        }
+        .text-primary { color: var(--primary-color); }
+    </style>
+</head>
+<body class="dark:bg-[#1a1a1a]">
+    <div class="glass-card w-full max-w-sm p-8 rounded-2xl text-center">
+        <h1 class="text-2xl font-extrabold mb-4">Reset Password</h1>
+        <p class="text-sm mb-6 text-gray-600 dark:text-gray-400">Enter your email address to receive a password reset link.</p>
+        <form id="forgotForm">
+            <div class="mb-6 text-left">
+                <label for="email" class="block mb-2 font-medium">Email Address</label>
+                <input type="email" id="email" required class="w-full p-3 rounded-lg transition">
+            </div>
+            <button type="submit" class="w-full py-3 bg-primary text-white font-bold rounded-lg text-lg transition duration-300 hover:bg-secondary shadow-xl">
+                Send Reset Link
+            </button>
+        </form>
+        <div id="status" class="mt-4 font-semibold min-h-[20px] text-gray-700 dark:text-gray-200"></div>
+        <p class="mt-6 text-sm text-gray-700 dark:text-gray-400">
+            <a href="login.html" class="font-bold underline hover:text-primary dark:text-white">Back to Log In</a>
+        </p>
+    </div>
+    <script>
+        document.getElementById('forgotForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const statusDiv = document.getElementById('status');
+            const email = document.getElementById('email').value;
+            
+            const button = e.target.querySelector('button');
+            button.disabled = true;
+            statusDiv.textContent = 'Sending email...';
+            statusDiv.style.color = 'orange';
+
+            try {
+                const response = await fetch('/api/forgot-password', {
+                    method: 'POST', headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ email })
+                });
+                const result = await response.json();
+                
+                statusDiv.textContent = result.message;
+                statusDiv.style.color = response.ok ? 'green' : 'red';
+                
+            } catch (err) {
+                statusDiv.textContent = 'Network error. Could not connect to server.';
+                statusDiv.style.color = 'red';
+            } finally {
+                button.disabled = false;
+                button.textContent = 'Send Reset Link';
+            }
+        });
+    </script>
+</body>
+</html>
