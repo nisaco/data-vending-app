@@ -55,6 +55,27 @@ function calculatePaystackFee(chargedAmountInPesewas) {
     let totalFeeChargedByPaystack = Math.min(fullFee, TRANSACTION_FEE_CAP);
     return totalFeeChargedByPaystack;
 }
+
+// 🛑 NEW HELPER: Calculates the amount the customer must pay for a top-up (40/60 Split)
+function calculateClientTopupFee(netDepositPesewas) {
+    const PAYSTACK_RATE = 0.019;
+    const PAYSTACK_FLAT = 80;
+    
+    // The amount Paystack needs to receive to deposit the requested amount
+    const requiredTotalCharge = (netDepositPesewas + PAYSTACK_FLAT) / (1 - PAYSTACK_RATE);
+    
+    // The true Paystack fee for this transaction
+    const truePaystackFee = requiredTotalCharge - netDepositPesewas;
+    
+    // The portion of the fee the client pays (60% of the true Paystack Fee)
+    const feeClientPays = truePaystackFee * 0.60;
+    
+    // The total amount to charge the client for the net deposit
+    const finalCharge = netDepositPesewas + feeClientPays;
+
+    return Math.round(finalCharge);
+}
+
 async function sendAdminAlertEmail(order) {
     if (!process.env.SENDGRID_API_KEY) {
         console.error("SENDGRID_API_KEY not set. Cannot send alert email.");
@@ -62,8 +83,8 @@ async function sendAdminAlertEmail(order) {
     }
     sgMail.setApiKey(process.env.SENDGRID_API_KEY);
     const msg = {
-        to: 'YOUR_ADMIN_RECEIVING_EMAIL@example.com', 
-        from: 'YOUR_VERIFIED_SENDER_EMAIL@example.com', 
+        to: 'ajcustomercare2@gmail.com', 
+        from: 'jnkpappoe@gmail.com', 
         subject: `🚨 MANUAL REVIEW REQUIRED: ${order.network} Data Transfer Failed`,
         html: `
             <h1>Urgent Action Required!</h1>
@@ -85,6 +106,7 @@ async function sendAdminAlertEmail(order) {
         console.error('Failed to send admin alert email:', error.response?.body || error);
     }
 }
+
 async function executeDataPurchase(userId, orderDetails, paymentMethod) {
     const { network, dataPlan, amount } = orderDetails;
     
@@ -209,7 +231,6 @@ const isDbReady = (req, res, next) => {
 };
 
 const isAuthenticated = (req, res, next) => req.session.user ? next() : res.redirect('/login.html');
-
 
 // --- USER AUTHENTICATION & INFO ROUTES ---
 app.post('/api/signup', isDbReady, async (req, res) => {
@@ -344,6 +365,9 @@ app.post('/api/topup', isDbReady, isAuthenticated, async (req, res) => {
     let topupAmountPesewas = Math.round(amount * 100);
     const userId = req.session.user.id;
 
+    // 🛑 Final charged amount using the 40/60 split logic
+    const finalChargedAmountPesewas = calculateClientTopupFee(topupAmountPesewas);
+
     try {
         // --- STEP 1: VERIFY PAYMENT WITH PAYSTACK ---
         const paystackUrl = `https://api.paystack.co/transaction/verify/${reference}`;
@@ -356,15 +380,15 @@ app.post('/api/topup', isDbReady, isAuthenticated, async (req, res) => {
             return res.status(400).json({ status: 'error', message: 'Payment verification failed.' });
         }
         
-        if (data.amount !== topupAmountPesewas) {
-            console.error(`Fraud Alert: Charged ${data.amount} but expected ${topupAmountPesewas}`);
-            return res.status(400).json({ status: 'error', message: 'Amount mismatch detected.' });
+        if (Math.abs(data.amount - finalChargedAmountPesewas) > 5) {
+            console.error(`Fraud Alert: Charged ${data.amount} but expected ${finalChargedAmountPesewas}`);
+            return res.status(400).json({ status: 'error', message: 'Amount charged mismatch detected.' });
         }
         
-        // --- STEP 2: UPDATE USER WALLET BALANCE ---
+        // --- STEP 2: UPDATE USER WALLET BALANCE (NET DEPOSIT) ---
         const updatedUser = await User.findByIdAndUpdate(
             userId,
-            { $inc: { walletBalance: topupAmountPesewas } },
+            { $inc: { walletBalance: topupAmountPesewas } }, // Deposit the net amount (e.g., 5000)
             { new: true, runValidators: true }
         );
         
@@ -374,13 +398,13 @@ app.post('/api/topup', isDbReady, isAuthenticated, async (req, res) => {
         await Order.create({
             userId: userId,
             reference: reference,
-            amount: amount,
+            amount: finalChargedAmountPesewas / 100, // Log the total charged amount
             status: 'topup_successful',
             paymentMethod: 'paystack',
             dataPlan: 'WALLET TOP-UP'
         });
 
-        res.json({ status: 'success', message: `Wallet topped up successfully!`, newBalance: updatedUser.walletBalance });
+        res.json({ status: 'success', message: `Wallet topped up successfully! GHS ${topupAmountPesewas/100} deposited.`, newBalance: updatedUser.walletBalance });
 
     } catch (error) {
         console.error('Topup Verification Error:', error);
