@@ -194,6 +194,7 @@
         }
         
         let adminOrders = []; 
+        let storedAdminSecret = null; // 🛑 NEW: Store the valid secret here
         const statusDiv = document.getElementById('status');
         const ordersTableBody = document.getElementById('ordersTableBody');
         const userTableBody = document.getElementById('userTableBody');
@@ -299,7 +300,7 @@
         async function fetchUserManagementData(secret) {
             userListStatus.textContent = 'Loading user data...';
             try {
-                // Ensure loading state is visible
+                // Show loading state
                 userTableBody.innerHTML = '<tr><td colspan="5" class="py-4 text-center text-blue-500 font-medium">Loading user data...</td></tr>';
 
                 const response = await fetch(`/api/admin/all-users-status?secret=${secret}`);
@@ -352,14 +353,16 @@
 
         // --- MAIN FETCH FUNCTION ---
         
-        // 1. Auto-fetch User Stats on Key Input (This will now run reliably)
+        // 1. Auto-fetch User Stats on Key Input (Triggers every time the secret length is correct)
         adminSecretInput.addEventListener('input', () => {
             const secret = adminSecretInput.value.trim();
             if (secret.length > 10) { // Check for minimum secret length
+                storedAdminSecret = secret; // 🛑 Store secret on valid input
                 fetchUserManagementData(secret);
             } else {
                 userListStatus.textContent = 'Enter secret to load user data.';
                 userListStatus.style.color = 'black';
+                storedAdminSecret = null; // Clear secret if invalid
             }
         });
 
@@ -377,10 +380,8 @@
             fetchOrdersBtn.textContent = 'Loading...';
             statusDiv.textContent = 'Fetching all data sets...';
 
-            // 1. Fetch User Data (Sequential: required for Auth/Stats)
+            // 1. Fetch User Data and Metrics
             await fetchUserManagementData(secret); 
-            
-            // 2. Fetch Metrics
             await fetchMetricsAndRender(secret);
             
             // 3. Fetch Orders
@@ -415,7 +416,8 @@
         
         // --- FUNCTION TO HANDLE MARK SENT ACTION ---
         async function markOrderSent(orderId, button) {
-            const secret = adminSecretInput.value;
+            // 🛑 Use the stored secret instead of reading the input again
+            const secret = storedAdminSecret; 
             if (!secret) { statusDiv.textContent = 'Admin secret missing.'; statusDiv.style.color = 'red'; return; }
             
             button.textContent = 'Processing...';
@@ -428,7 +430,7 @@
                     body: JSON.stringify({ 
                         orderId: orderId, 
                         newStatus: 'data_sent', 
-                        adminSecret: secret 
+                        adminSecret: secret // Use stored secret
                     })
                 });
 
@@ -459,7 +461,7 @@
         userTableBody.addEventListener('click', async (e) => {
             if (e.target.classList.contains('delete-btn')) {
                 const userId = e.target.dataset.userId;
-                const secret = adminSecretInput.value;
+                const secret = adminSecretInput.value; // Read from input, as this is a one-off operation
 
                 if (!confirm(`Are you sure you want to permanently delete user ${userId.substring(0, 8)}...? This will delete ALL their orders and data!`)) {
                     return;
