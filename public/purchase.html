@@ -3,17 +3,26 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <link rel="icon" type="image/x-icon" href="apple-touch-icon.png">
+    <link rel="icon" type="image/x-icon" href="apple-touch-icon.png">
     <title>Purchase Data - DataLink</title>
     <!-- Load Tailwind CSS for modern styling -->
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
+        /* Define primary colors */
         :root { --primary: #009879; }
         .text-primary { color: var(--primary); }
         .border-primary { border-color: var(--primary); }
         .bg-safe-button { background-color: #006400; }
         .hover\:bg-safe-button-darker:hover { background-color: #004d00; } 
         
+        /* Dark mode colors */
+        .dark { background-color: #121212; color: #e0e0e0; }
+        .dark .bg-white { background-color: #1f1f1f; color: #e0e0e0; }
+        .dark .shadow-lg { box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.5), 0 2px 4px -2px rgba(0, 0, 0, 0.3); }
+        .dark .text-gray-600 { color: #b0b0b0; }
+        .dark .network-tab { background-color: #2b2b2b; }
+        .dark .bg-blue-50 { background-color: #1e3a8a; border-color: #3b82f6; color: #bfdbfe; }
+
         /* Active Tab Styling */
         .network-tab.active { 
             box-shadow: 0 0 0 3px var(--primary), 0 1px 3px 0 rgba(0, 0, 0, 0.1);
@@ -29,43 +38,50 @@
             cursor: pointer;
             transition: all 0.2s;
             border-radius: 0.75rem;
-            border: 3px solid transparent; /* Default transparent border */
+            border: 3px solid transparent; 
         }
         .pay-option.active {
-            border: 3px solid #009879; /* Primary color border when active */
+            border: 3px solid #009879; 
             box-shadow: 0 4px 6px rgba(0, 152, 121, 0.2);
         }
     </style>
 </head>
-<body class="bg-gray-50 min-h-screen font-sans">
+<body class="bg-gray-50 min-h-screen font-sans dark:bg-[#121212] dark:text-gray-200">
 
     <!-- Navbar -->
-    <nav class="bg-white shadow-lg">
+    <nav class="bg-white shadow-lg dark:bg-[#1f1f1f]">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex justify-between items-center h-16">
             <a href="/purchase" class="text-xl font-bold text-primary">DataLink</a>
             
             <div class="flex space-x-4 items-center">
-                <!-- NEW WALLET BALANCE DISPLAY -->
-                <span class="text-sm font-semibold text-gray-700 whitespace-nowrap">
+                
+                <!-- Wallet Balance Display -->
+                <span class="text-sm font-semibold text-gray-700 whitespace-nowrap dark:text-gray-300">
                     Wallet Balance: <span id="wallet-balance-display" class="text-primary font-extrabold">GHS 0.00</span>
                 </span>
-
-                <a href="/dashboard" class="text-gray-600 hover:text-primary transition font-medium">Dashboard</a>
+                
+                <a href="/dashboard" class="text-gray-600 hover:text-primary transition font-medium dark:text-gray-400">Dashboard</a>
                 <a href="/api/logout" class="text-red-500 hover:text-red-700 transition font-medium">Logout</a>
+                
+                <!-- Dark Mode Toggle Button (Moon/Sun SVG) -->
+                <button id="theme-toggle" class="p-2 rounded-full text-gray-600 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700 transition">
+                    <!-- Icon will be replaced by JS -->
+                    <svg id="theme-icon" class="w-6 h-6" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg"><path d="M17.293 13.914A8.966 8.966 0 0112 18c-3.14 0-5.968-1.293-8.06-3.385A9.006 9.006 0 0012 21c5.152 0 9.428-3.791 10.378-8.586z"></path></svg>
+                </button>
             </div>
         </div>
     </nav>
     
     <!-- Main Content Container -->
     <div class="container mx-auto p-4 max-w-2xl">
-        <div class="bg-white p-6 md:p-8 rounded-2xl shadow-xl mt-8 border border-gray-100">
-            <h1 class="text-3xl font-extrabold text-center text-gray-800 mb-2">Buy Mobile Data</h1>
-            <p class="text-center text-gray-500 mb-8">Select your network and plan below.</p>
+        <div class="bg-white p-6 md:p-8 rounded-2xl shadow-xl mt-8 border border-gray-100 dark:bg-[#1f1f1f] dark:border-gray-700">
+            <h1 class="text-3xl font-extrabold text-center text-gray-800 mb-2 dark:text-white">Buy Mobile Data</h1>
+            <p class="text-center text-gray-500 mb-8 dark:text-gray-400">Select your network and plan below.</p>
 
             <form id="paymentForm">
                 
                 <!-- Network Selection Tabs -->
-                <label class="block text-gray-700 font-semibold mb-3">Choose Network</label>
+                <label class="block text-gray-700 font-semibold mb-3 dark:text-gray-300">Choose Network</label>
                 <div id="network-tabs" class="grid grid-cols-3 gap-3 mb-6">
                     <!-- MTN -->
                     <div class="network-tab p-4 cursor-pointer bg-gray-50 shadow-md text-center text-sm font-bold border-2 border-primary" data-network="MTN">
@@ -87,14 +103,14 @@
                 
                 <!-- Data Plan Selection -->
                 <div class="form-group mb-5">
-                    <label for="dataplan" class="block text-gray-700 font-medium mb-2">Select Data Plan</label>
-                    <select id="dataplan" required class="w-full p-3 border border-gray-300 rounded-lg focus:ring-primary focus:border-primary transition">
+                    <label for="dataplan" class="block text-gray-700 font-medium mb-2 dark:text-gray-300">Select Data Plan</label>
+                    <select id="dataplan" required class="w-full p-3 border border-gray-300 rounded-lg focus:ring-primary focus:border-primary transition dark:bg-gray-700 dark:border-gray-600 dark:text-white">
                         <option value="" data-amount="0" selected disabled>Loading plans...</option>
                     </select>
                 </div>
                 
                 <!-- Guidance Note -->
-                <div class="bg-blue-50 border border-blue-200 text-blue-700 p-4 rounded-xl mb-4 text-sm shadow-inner">
+                <div class="bg-blue-50 border border-blue-200 text-blue-700 p-4 rounded-xl mb-4 text-sm shadow-inner dark:bg-blue-900 dark:border-blue-700 dark:text-blue-300">
                     <p class="font-bold mb-1">Checklist for Fast Delivery:</p>
                     <ul class="list-disc list-inside space-y-1">
                         <li>Ensure the **10-digit phone number starts with 0**.</li>
@@ -104,30 +120,29 @@
 
                 <!-- Phone Number -->
                 <div class="form-group mb-5">
-                    <label for="phone" class="block text-gray-700 font-medium mb-2">Recipient Phone Number</label>
-                    <input type="tel" id="phone" pattern="0[0-9]{9}" maxlength="10" placeholder="e.g., 0501234567" required class="w-full p-3 border border-gray-300 rounded-lg focus:ring-primary focus:border-primary transition">
+                    <label for="phone" class="block text-gray-700 font-medium mb-2 dark:text-gray-300">Recipient Phone Number</label>
+                    <input type="tel" id="phone" pattern="0[0-9]{9}" maxlength="10" placeholder="e.g., 0501234567" required class="w-full p-3 border border-gray-300 rounded-lg focus:ring-primary focus:border-primary transition dark:bg-gray-700 dark:border-gray-600 dark:text-white">
                 </div>
                 
                 <!-- Email for Receipt -->
                 <div class="form-group mb-6">
-                    <label for="email" class="block text-gray-700 font-medium mb-2">Email for Receipt</label>
-                    <input type="email" id="email" placeholder="your.email@example.com" required class="w-full p-3 border border-gray-300 rounded-lg focus:ring-primary focus:border-primary transition">
+                    <label for="email" class="block text-gray-700 font-medium mb-2 dark:text-gray-300">Email for Receipt</label>
+                    <input type="email" id="email" placeholder="your.email@example.com" required class="w-full p-3 border border-gray-300 rounded-lg focus:ring-primary focus:border-primary transition dark:bg-gray-700 dark:border-gray-600 dark:text-white">
                 </div>
                 
                 <!-- Payment Method Selection -->
-                <label class="block text-gray-700 font-semibold mb-3">Choose Payment Method</label>
+                <label class="block text-gray-700 font-semibold mb-3 dark:text-gray-300">Choose Payment Method</label>
                 <div id="payment-methods" class="grid grid-cols-2 gap-4 mb-6">
                     <!-- Wallet Option -->
-                    <div class="pay-option p-4 bg-gray-50 shadow-lg text-center active" data-method="wallet">
-                        <p class="font-bold text-lg text-gray-800">Use Wallet</p>
-                        <!-- Wallet Balance Display is REMOVED from here -->
-                        <p class="text-xs text-gray-500">Instant & Fee-Free</p>
+                    <div class="pay-option p-4 bg-gray-50 shadow-lg text-center active dark:bg-gray-800" data-method="wallet">
+                        <p class="font-bold text-lg text-gray-800 dark:text-white">Use Wallet</p>
+                        <p class="text-xs text-gray-500 dark:text-gray-400">Instant & Fee-Free</p>
                     </div>
                     <!-- Paystack Option -->
-                    <div class="pay-option p-4 bg-gray-50 shadow-lg text-center" data-method="paystack">
-                        <p class="font-bold text-lg text-gray-800">Mobile Money / Card</p>
+                    <div class="pay-option p-4 bg-gray-50 shadow-lg text-center dark:bg-gray-800" data-method="paystack">
+                        <p class="font-bold text-lg text-gray-800 dark:text-white">Mobile Money / Card</p>
                         <p class="text-red-500 font-extrabold text-xl">via Paystack</p>
-                        <p class="text-xs text-gray-500">External Fees Apply</p>
+                        <p class="text-xs text-gray-500 dark:text-gray-400">External Fees Apply</p>
                     </div>
                 </div>
 
@@ -138,7 +153,7 @@
                 </button>
             </form>
             
-            <div id="status" class="text-center mt-4 font-semibold min-h-[20px] text-gray-800"></div>
+            <div id="status" class="text-center mt-4 font-semibold min-h-[20px] text-gray-800 dark:text-gray-200"></div>
         </div>
     </div>
 
@@ -146,180 +161,356 @@
     <script src="https://js.paystack.co/v1/inline.js"></script>
     
     <!-- JavaScript Logic -->
- <script>
-    const networkTabs = document.getElementById('network-tabs');
-    const networkInput = document.getElementById('network');
-    const dataplanSelect = document.getElementById('dataplan');
-    const paymentForm = document.getElementById('paymentForm');
-    const statusDiv = document.getElementById('status');
-    const payButton = document.getElementById('pay-button');
-    const phoneInput = document.getElementById('phone'); 
-    const walletBalanceDisplay = document.getElementById('wallet-balance-display');
-    const paymentMethodsContainer = document.getElementById('payment-methods');
+    <script>
+        // --- THEME LOGIC START ---
+        const themeToggle = document.getElementById('theme-toggle');
+        const htmlElement = document.documentElement;
+        const themeIcon = document.getElementById('theme-icon');
 
-    let userWalletBalance = 0; 
-    
-    const PAYSTACK_PUBLIC_KEY = 'pk_live_62dc43eeea153c81c216b75e3967f8a44ee94fc3'; 
-    
-    // --- PAYSTACK FEE CALCULATION (Modified to use 0.22% + 15 Pesewas) ---
-    function calculateTotalCharge(planPriceInPesewas) {
-        // Your Custom Fee Rate: 0.22% + 15 pesewas
-        const CUSTOM_FEE_RATE = 0.0022; // 0.22%
-        const CUSTOM_FEE_FLAT = 15;     // 15 pesewas
-        
-        // This calculates the fee amount you charge the customer
-        let feeToChargeCustomer = (planPriceInPesewas * CUSTOM_FEE_RATE) + CUSTOM_FEE_FLAT;
+        function updateThemeIcon(isDark) {
+            if (isDark) {
+                // Sun icon
+                themeIcon.innerHTML = '<path d="M10 2a1 1 0 011 1v1a1 1 0 11-2 0V3a1 1 0 011-1zm4 8a4 4 0 11-8 0 4 4 0 018 0zm-4 7a1 1 0 011 1v1a1 1 0 11-2 0v-1a1 1 0 011-1zm6.5-6.5a1 1 0 010 1.414l-.707.707a1 1 0 11-1.414-1.414l.707-.707a1 1 0 011.414 0zm-13 0a1 1 0 011.414 0l.707.707a1 1 0 11-1.414 1.414l-.707-.707a1 1 0 010-1.414zM3 10a1 1 0 011-1h1a1 1 0 110 2H4a1 1 0 01-1-1zm14 0a1 1 0 01-1 1h-1a1 1 0 110-2h1a1 1 0 011 1z" clip-rule="evenodd" fill-rule="evenodd"></path>';
+            } else {
+                // Moon icon
+                themeIcon.innerHTML = '<path d="M17.293 13.914A8.966 8.966 0 0112 18c-3.14 0-5.968-1.293-8.06-3.385A9.006 9.006 0 0012 21c5.152 0 9.428-3.791 10.378-8.586z"></path>';
+            }
+        }
 
-        // The total amount charged to the customer
-        const totalAmountCharged = planPriceInPesewas + Math.round(feeToChargeCustomer);
+        if (localStorage.getItem('theme') === 'dark' || (!('theme' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+            htmlElement.classList.add('dark');
+            updateThemeIcon(true);
+        } else {
+            htmlElement.classList.remove('dark');
+            updateThemeIcon(false);
+        }
+
+        themeToggle.addEventListener('click', () => {
+            if (htmlElement.classList.contains('dark')) {
+                htmlElement.classList.remove('dark');
+                localStorage.setItem('theme', 'light');
+                updateThemeIcon(false);
+            } else {
+                htmlElement.classList.add('dark');
+                localStorage.setItem('theme', 'dark');
+                updateThemeIcon(true);
+            }
+        });
+        // --- THEME LOGIC END ---
+
+
+        const networkTabs = document.getElementById('network-tabs');
+        const networkInput = document.getElementById('network');
+        const dataplanSelect = document.getElementById('dataplan');
+        const paymentForm = document.getElementById('paymentForm');
+        const statusDiv = document.getElementById('status');
+        const payButton = document.getElementById('pay-button');
+        const phoneInput = document.getElementById('phone'); 
+        const walletBalanceDisplay = document.getElementById('wallet-balance-display');
+        const paymentMethodsContainer = document.getElementById('payment-methods');
+
+        let userWalletBalance = 0; 
         
-        return totalAmountCharged;
-    }
-    
-    // --- UI UPDATE AND DATA FETCH (omitted for brevity, unchanged) ---
-    function updatePayButton(selectedOption) {
-        const priceInPesewas = parseInt(selectedOption.dataset.amount) || 0;
-        const selectedMethod = paymentMethodsContainer.querySelector('.pay-option.active').dataset.method;
+        const PAYSTACK_PUBLIC_KEY = 'pk_live_62dc43eeea153c81c216b75e3967f8a44ee94fc3'; 
         
-        if (priceInPesewas === 0) {
-            payButton.textContent = 'Pay Now';
-            payButton.disabled = true;
-            return;
+        // --- HELPER: Clears form inputs after successful transaction ---
+        function clearForm() {
+            phoneInput.value = '';
+            document.getElementById('email').value = '';
+            // Reset the dataplan dropdown to the disabled "Select a Plan" option
+            const defaultOption = dataplanSelect.querySelector('option[data-amount="0"][disabled]');
+            if (defaultOption) {
+                dataplanSelect.value = defaultOption.value;
+                updatePayButton(defaultOption);
+            }
+        }
+
+        // --- PAYSTACK FEE CALCULATION (Modified to use 0.205% rate) ---
+        function calculateTotalCharge(planPriceInPesewas) {
+            const TRANSACTION_FEE_RATE = 0.00205; 
+            const TRANSACTION_FEE_FLAT = 80; 
+            const TRANSACTION_FEE_CAP = 2000; 
+
+            let totalFee = (planPriceInPesewas * TRANSACTION_FEE_RATE) + TRANSACTION_FEE_FLAT;
+            totalFee = totalFee > TRANSACTION_FEE_CAP ? TRANSACTION_FEE_CAP : totalFee;
+            
+            let netFeeToPass = Math.max(0, totalFee - TRANSACTION_FEE_FLAT); 
+            const totalAmountCharged = planPriceInPesewas + Math.round(netFeeToPass);
+            
+            return totalAmountCharged;
         }
         
-        const sellingPriceGHS = (priceInPesewas / 100).toFixed(2);
-        
-        if (selectedMethod === 'wallet') {
-            if (priceInPesewas > userWalletBalance) {
-                payButton.textContent = `Insufficient Funds (GHS ${sellingPriceGHS})`;
+        // --- UI UPDATE AND DATA FETCH ---
+        function updatePayButton(selectedOption) {
+            const priceInPesewas = parseInt(selectedOption.dataset.amount) || 0;
+            const selectedMethod = paymentMethodsContainer.querySelector('.pay-option.active').dataset.method;
+            
+            if (priceInPesewas === 0) {
+                payButton.textContent = 'Pay Now';
                 payButton.disabled = true;
+                return;
+            }
+            
+            const sellingPriceGHS = (priceInPesewas / 100).toFixed(2);
+            
+            if (selectedMethod === 'wallet') {
+                if (priceInPesewas > userWalletBalance) {
+                    payButton.textContent = `Insufficient Funds (GHS ${sellingPriceGHS})`;
+                    payButton.disabled = true;
+                } else {
+                    payButton.textContent = `Pay GHS ${sellingPriceGHS} with Wallet`;
+                    payButton.disabled = false;
+                }
             } else {
-                payButton.textContent = `Pay GHS ${sellingPriceGHS} with Wallet`;
+                payButton.textContent = `Pay GHS ${sellingPriceGHS}`;
                 payButton.disabled = false;
             }
-        } else {
-            payButton.textContent = `Pay GHS ${sellingPriceGHS}`;
-            payButton.disabled = false;
         }
-    }
 
-    const fetchPlansForNetwork = (network) => {
-        dataplanSelect.innerHTML = '<option value="" data-amount="0" selected disabled>Loading plans...</option>';
-        payButton.disabled = true;
+        // Fetches plans based on the selected network
+        const fetchPlansForNetwork = (network) => {
+            dataplanSelect.innerHTML = '<option value="" data-amount="0" selected disabled>Loading plans...</option>';
+            payButton.disabled = true;
 
-        fetch(`/api/data-plans?network=${network}`)
-            .then(response => response.json())
-            .then(plans => {
-                dataplanSelect.innerHTML = '<option value="" data-amount="0" selected disabled>Select a Plan...</option>';
-                if (!plans.length) { dataplanSelect.innerHTML = '<option value="" data-amount="0">No plans available</option>'; return; }
-                
-                plans.forEach(p => {
-                    const opt = document.createElement('option');
-                    opt.value = p.id; 
-                    opt.dataset.amount = p.price; 
-                    opt.textContent = `${p.name} - GHS ${(p.price / 100).toFixed(2)}`;
-                    dataplanSelect.appendChild(opt);
+            fetch(`/api/data-plans?network=${network}`)
+                .then(response => response.json())
+                .then(plans => {
+                    dataplanSelect.innerHTML = '<option value="" data-amount="0" selected disabled>Select a Plan...</option>';
+                    if (!plans.length) { dataplanSelect.innerHTML = '<option value="" data-amount="0">No plans available</option>'; return; }
+                    
+                    plans.forEach(p => {
+                        const opt = document.createElement('option');
+                        opt.value = p.id; 
+                        opt.dataset.amount = p.price; 
+                        opt.textContent = `${p.name} - GHS ${(p.price / 100).toFixed(2)}`;
+                        dataplanSelect.appendChild(opt);
+                    });
+                    updatePayButton(dataplanSelect.options[dataplanSelect.selectedIndex]);
+                })
+                .catch(() => { 
+                    dataplanSelect.innerHTML = '<option value="" data-amount="0">Could not load plans</option>'; 
                 });
-                updatePayButton(dataplanSelect.options[dataplanSelect.selectedIndex]);
-            })
-            .catch(() => { 
-                dataplanSelect.innerHTML = '<option value="" data-amount="0">Could not load plans</option>'; 
-            });
-    };
+        };
 
-    async function fetchUserInfo() {
-        try {
-            const response = await fetch('/api/user-info');
-            if (response.ok) {
-                const data = await response.json();
-                userWalletBalance = data.walletBalance;
-                walletBalanceDisplay.textContent = `GHS ${(userWalletBalance / 100).toFixed(2)}`;
-            } else {
+        // Fetches user's current wallet balance
+        async function fetchUserInfo() {
+            try {
+                const response = await fetch('/api/user-info');
+                if (response.ok) {
+                    const data = await response.json();
+                    userWalletBalance = data.walletBalance;
+                    walletBalanceDisplay.textContent = `GHS ${(userWalletBalance / 100).toFixed(2)}`;
+                    return data; 
+                } else {
+                    userWalletBalance = 0;
+                    walletBalanceDisplay.textContent = 'GHS 0.00';
+                    return null;
+                }
+            } catch (error) {
                 userWalletBalance = 0;
-                walletBalanceDisplay.textContent = 'GHS 0.00';
+                walletBalanceDisplay.textContent = 'GHS Err';
+                return null;
             }
-        } catch (error) {
-            userWalletBalance = 0;
-            walletBalanceDisplay.textContent = 'GHS Err';
         }
-    }
-    
-    // --- PURCHASE LOGIC (omitted for brevity, unchanged) ---
-    const handlePaystackTransaction = (transactionType) => { /* ... implementation ... */ };
-    const handleWalletPurchase = async () => { /* ... implementation ... */ };
-
-    // --- EVENT LISTENERS (omitted for brevity, unchanged) ---
-    networkTabs.addEventListener('click', (e) => {
-        let target = e.target.closest('.network-tab');
-        if (target) {
-            document.querySelectorAll('.network-tab').forEach(tab => {
-                tab.classList.remove('active', 'border-primary');
-                tab.classList.add('border-transparent');
-            });
-            
-            target.classList.add('active', 'border-primary');
-            target.classList.remove('border-transparent');
-
-            const network = target.dataset.network;
-            networkInput.value = network; 
-            fetchPlansForNetwork(network); 
-        }
-    });
-    
-    paymentMethodsContainer.addEventListener('click', (e) => {
-        let target = e.target.closest('.pay-option');
-        if (target) {
-            document.querySelectorAll('.pay-option').forEach(option => option.classList.remove('active'));
-            target.classList.add('active');
+        
+        // --- PURCHASE LOGIC (Handles transaction outcome) ---
+        const handlePaystackTransaction = (transactionType) => {
+            const isTopup = transactionType === 'topup';
             
             const selected = dataplanSelect.options[dataplanSelect.selectedIndex];
-            if (selected) updatePayButton(selected);
-        }
-    });
+            const priceInPesewas = parseInt(selected.dataset.amount);
+            
+            let amountToCharge = isTopup ? 5000 : calculateTotalCharge(priceInPesewas);
+            
+            payButton.disabled = true;
+            payButton.textContent = 'Initiating Checkout...';
+            
+            const transactionUrl = isTopup ? '/api/topup' : '/paystack/verify';
 
-    document.addEventListener('DOMContentLoaded', () => {
-        fetchUserInfo(); 
+            const paymentCallback = function(response) {
+                statusDiv.textContent = "Verifying payment, please wait...";
+                statusDiv.style.color = "orange";
+                
+                fetch(transactionUrl, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ 
+                        reference: response.reference, 
+                        amount: amountToCharge / 100 
+                    }),
+                })
+                .then(verifyResponse => verifyResponse.json())
+                .then(data => {
+                    statusDiv.textContent = data.message;
+                    statusDiv.style.color = data.status === 'success' ? 'green' : (data.status === 'pending' ? 'orange' : 'red');
+                    
+                    if (data.newBalance !== undefined) {
+                        userWalletBalance = data.newBalance;
+                        walletBalanceDisplay.textContent = `GHS ${(userWalletBalance / 100).toFixed(2)}`;
+                    }
+                    
+                    if (data.status === 'success') {
+                        clearForm(); // Clear on success
+                    }
+
+                })
+                .catch(err => {
+                    statusDiv.textContent = "An error occurred during verification.";
+                    statusDiv.style.color = "red";
+                })
+                .finally(() => {
+                    payButton.disabled = false;
+                    updatePayButton(selected);
+                });
+            };
+            
+            PaystackPop.setup({
+                key: PAYSTACK_PUBLIC_KEY, 
+                email: document.getElementById('email').value,
+                amount: amountToCharge, 
+                currency: 'GHS',
+                ref: 'DL-' + Math.floor((Math.random() * 1000000000) + 1),
+                metadata: { 
+                    phone_number: phoneInput.value, 
+                    network: networkInput.value, 
+                    data_plan: selected.value,
+                },
+                callback: paymentCallback,
+                onClose: function() { 
+                    statusDiv.textContent = "Transaction cancelled."; 
+                    statusDiv.style.color = "red"; 
+                    payButton.disabled = false;
+                    updatePayButton(selected);
+                }
+            }).openIframe();
+        };
         
-        const defaultTab = document.querySelector('.network-tab[data-network="MTN"]');
-        if (defaultTab) {
-            defaultTab.classList.add('active', 'border-primary');
-            defaultTab.classList.remove('border-transparent');
-            networkInput.value = 'MTN';
-            fetchPlansForNetwork('MTN');
-        }
-    });
-    
-    dataplanSelect.addEventListener('change', (e) => updatePayButton(e.target.options[e.target.selectedIndex]));
+        const handleWalletPurchase = async () => {
+            const selected = dataplanSelect.options[dataplanSelect.selectedIndex];
+            const priceInPesewas = parseInt(selected.dataset.amount);
+            
+            payButton.disabled = true;
+            payButton.textContent = 'Processing Wallet Payment...';
 
-    paymentForm.addEventListener("submit", function(e) {
-        e.preventDefault();
-        
-        const selected = dataplanSelect.options[dataplanSelect.selectedIndex];
-        const priceInPesewas = parseInt(selected.dataset.amount);
-        const selectedMethod = paymentMethodsContainer.querySelector('.pay-option.active').dataset.method;
-        
-        if (!phoneInput.checkValidity()) {
-            statusDiv.textContent = "Please enter a valid 10-digit phone number starting with 0.";
-            statusDiv.style.color = "red";
-            phoneInput.focus();
-            return;
-        }
+            try {
+                const response = await fetch('/api/wallet-purchase', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        network: networkInput.value,
+                        dataPlan: selected.value,
+                        phone_number: phoneInput.value,
+                        amountInPesewas: priceInPesewas
+                    })
+                });
 
-        if (!selected || priceInPesewas === 0 || isNaN(priceInPesewas)) {
-            statusDiv.textContent = "Please select a valid data plan.";
-            statusDiv.style.color = "red";
-            return;
-        }
-        
-        if (selectedMethod === 'paystack') {
-            handlePaystackTransaction('purchase');
-        } else if (selectedMethod === 'wallet') {
-            handleWalletPurchase();
-        }
-    });
-</script></body>
-</html>
+                const data = await response.json();
 
+                statusDiv.textContent = data.message;
+                statusDiv.style.color = data.status === 'success' ? 'green' : (data.status === 'pending' ? 'orange' : 'red');
+
+                await fetchUserInfo();
+                
+                if (data.status === 'success') {
+                    clearForm(); // Clear on success
+                }
+
+            } catch (err) {
+                statusDiv.textContent = "An unknown error occurred during wallet transaction.";
+                statusDiv.style.color = "red";
+            } finally {
+                payButton.disabled = false;
+                updatePayButton(selected);
+            }
+        };
 
 
+        // --- 4. INITIALIZATION HANDLER ---
+        document.addEventListener('DOMContentLoaded', async () => {
+            
+            // 1. Fetch User Info (Wallet Balance)
+            await fetchUserInfo(); 
+            
+            // 2. Set Default Network & Load Plans (This must run AFTER balance is set)
+            const defaultTab = document.querySelector('.network-tab[data-network="MTN"]');
+            if (defaultTab) {
+                defaultTab.classList.add('active', 'border-primary');
+                defaultTab.classList.remove('border-transparent');
+                networkInput.value = 'MTN';
+                fetchPlansForNetwork('MTN');
+            }
 
+            // 3. Attach Theme Listener
+            themeToggle.addEventListener('click', () => {
+                if (htmlElement.classList.contains('dark')) {
+                    htmlElement.classList.remove('dark');
+                    localStorage.setItem('theme', 'light');
+                    updateThemeIcon(false);
+                } else {
+                    htmlElement.classList.add('dark');
+                    localStorage.setItem('theme', 'dark');
+                    updateThemeIcon(true);
+                }
+            });
+
+            // 4. Attach Event Listeners
+            networkTabs.addEventListener('click', (e) => {
+                let target = e.target.closest('.network-tab');
+                if (target) {
+                    document.querySelectorAll('.network-tab').forEach(tab => {
+                        tab.classList.remove('active', 'border-primary');
+                        tab.classList.add('border-transparent');
+                    });
+                    
+                    target.classList.add('active', 'border-primary');
+                    target.classList.remove('border-transparent');
+
+                    const network = target.dataset.network;
+                    networkInput.value = network; 
+                    fetchPlansForNetwork(network); 
+                }
+            });
+            
+            paymentMethodsContainer.addEventListener('click', (e) => {
+                let target = e.target.closest('.pay-option');
+                if (target) {
+                    document.querySelectorAll('.pay-option').forEach(option => option.classList.remove('active'));
+                    target.classList.add('active');
+                    
+                    const selected = dataplanSelect.options[dataplanSelect.selectedIndex];
+                    if (selected) updatePayButton(selected);
+                }
+            });
+            
+            dataplanSelect.addEventListener('change', (e) => updatePayButton(e.target.options[e.target.selectedIndex]));
+
+
+            // 5. Form Submission Handler
+            paymentForm.addEventListener("submit", function(e) {
+                e.preventDefault();
+                
+                const selected = dataplanSelect.options[dataplanSelect.selectedIndex];
+                const priceInPesewas = parseInt(selected.dataset.amount);
+                const selectedMethod = paymentMethodsContainer.querySelector('.pay-option.active').dataset.method;
+                
+                if (!phoneInput.checkValidity()) {
+                    statusDiv.textContent = "Please enter a valid 10-digit phone number starting with 0.";
+                    statusDiv.style.color = "red";
+                    phoneInput.focus();
+                    return;
+                }
+
+                if (!selected || priceInPesewas === 0 || isNaN(priceInPesewas)) {
+                    statusDiv.textContent = "Please select a valid data plan.";
+                    statusDiv.style.color = "red";
+                    return;
+                }
+                
+                if (selectedMethod === 'paystack') {
+                    handlePaystackTransaction('purchase');
+                } else if (selectedMethod === 'wallet') {
+                    handleWalletPurchase();
+                }
+            });
+        });
+    </script>
