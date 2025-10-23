@@ -25,15 +25,15 @@ const allPlans = {
     ],
     "AirtelTigo": [
         { id: '1', name: '1GB', price: 380 }, { id: '2', name: '2GB', price: 750 }, { id: '3', name: '3GB', price: 1150 },  
-        { id: '4', name: '4GB', price: 1480 }, { id: '5', name: '5GB', price: 1900 }, { id: '6', name: '6GB', price: 2250 },  
-        { id: '7', name: '7GB', price: 2590 }, { id: '8', name: '8GB', price: 3000 }, { id: '9', name: '9GB', price: 3380 },  
-        { id: '10', name: '10GB', price: 3700 }, { id: '12', name: '12GB', price: 4500 }, { id: '15', name: '15GB', price: 5600 },
-        { id: '20', name: '20GB', price: 7500 }
+        { id: '4', name: '4GB', price: 1600 }, { id: '5', name: '5GB', price: 2000 }, { id: '6', name: '6GB', price: 2420 },  
+        { id: '7', name: '7GB', price: 2800 }, { id: '8', name: '8GB', price: 3200 }, { id: '9', name: '9GB', price: 3600 },  
+        { id: '10', name: '10GB', price: 4200 }, { id: '12', name: '12GB', price: 5000 }, { id: '15', name: '15GB', price: 6000 },
+        { id: '20', name: '20GB', price: 8000 }
     ],
     "Telecel": [
-        { id: '5', name: '5GB', price: 2300 }, { id: '10', name: '10GB', price: 4000 }, { id: '15', name: '15GB', price: 5700 }, 
-        { id: '20', name: '20GB', price: 7500 }, { id: '25', name: '25GB', price: 9200 }, { id: '30', name: '30GB', price: 11100 },
-        { id: '40', name: '40GB', price: 14400 }, { id: '50', name: '50GB', price: 18400 }, { id: '100', name: '100GB', price: 35300}
+        { id: '5', name: '5GB', price: 2300 }, { id: '10', name: '10GB', price: 4300 }, { id: '15', name: '15GB', price: 6300 }, 
+        { id: '20', name: '20GB', price: 8300 }, { id: '25', name: '25GB', price: 10300 }, { id: '30', name: '30GB', price: 12300 },
+        { id: '40', name: '40GB', price: 15500 }, { id: '50', name: '50GB', price: 19500 }, { id: '100', name: '100GB', price: 38900}
     ]
 };
 
