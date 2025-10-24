@@ -3,7 +3,6 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <link rel="icon" type="image/x-icon" href="apple-touch-icon.png">
     <title>Purchase Data - DataLink</title>
     <!-- Load Tailwind CSS for modern styling -->
     <script src="https://cdn.tailwindcss.com"></script>
@@ -15,16 +14,6 @@
         .bg-safe-button { background-color: #006400; }
         .hover\:bg-safe-button-darker:hover { background-color: #004d00; } 
         
-        /* DARK MODE BASE STYLES */
-        .dark { background-color: #121212; color: #e0e0e0; }
-        .dark .bg-white { background-color: #1f1f1f; color: #e0e0e0; }
-        .dark .shadow-lg { box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.5), 0 2px 4px -2px rgba(0, 0, 0, 0.3); }
-        .dark .text-gray-600, .dark .text-gray-500 { color: #b0b0b0; }
-        .dark .network-tab { background-color: #2b2b2b; }
-        .dark .bg-blue-50 { background-color: #1e3a8a; border-color: #3b82f6; color: #bfdbfe; }
-        .dark input, .dark select { background-color: #374151; border-color: #4b5563; }
-
-
         /* Active Tab Styling */
         .network-tab.active { 
             box-shadow: 0 0 0 3px var(--primary), 0 1px 3px 0 rgba(0, 0, 0, 0.1);
@@ -48,42 +37,41 @@
         }
     </style>
 </head>
-<body class="bg-gray-50 min-h-screen font-sans dark:bg-[#121212] dark:text-gray-200">
+<body class="bg-gray-50 min-h-screen font-sans">
 
-    <!-- Navbar -->
-    <nav class="bg-white shadow-lg dark:bg-[#1f1f1f]">
-        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex justify-between items-center h-16">
-            <a href="/purchase" class="text-xl font-bold text-primary">DataLink</a>
+    <!-- Navbar (Fixed for Mobile View) -->
+    <nav class="bg-white shadow-lg">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex justify-between items-center h-24 sm:h-16 flex-col sm:flex-row py-2">
             
-            <div class="flex space-x-4 items-center">
+            <!-- Logo Area -->
+            <a href="/purchase" class="text-xl font-bold text-primary w-full sm:w-auto text-center sm:text-left">DataLink</a>
+            
+            <!-- Links and Wallet Area -->
+            <div class="flex space-x-4 items-center w-full justify-center sm:w-auto mt-2 sm:mt-0">
                 
                 <!-- Wallet Balance Display -->
-                <span class="text-sm font-semibold text-gray-700 whitespace-nowrap dark:text-gray-300">
+                <span class="text-sm font-semibold text-gray-700 whitespace-nowrap">
                     Wallet Balance: <span id="wallet-balance-display" class="text-primary font-extrabold">GHS 0.00</span>
                 </span>
                 
-                <a href="/dashboard" class="text-gray-600 hover:text-primary transition font-medium dark:text-gray-400">Dashboard</a>
+                <a href="/dashboard" class="text-gray-600 hover:text-primary transition font-medium">Dashboard</a>
                 <a href="/api/logout" class="text-red-500 hover:text-red-700 transition font-medium">Logout</a>
                 
-                <!-- Dark Mode Toggle Button (Moon/Sun SVG) -->
-                <button id="theme-toggle" class="p-2 rounded-full text-gray-600 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700 transition">
-                    <!-- Icon will be replaced by JS -->
-                    <svg id="theme-icon" class="w-6 h-6" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg"><path d="M17.293 13.914A8.966 8.966 0 0112 18c-3.14 0-5.968-1.293-8.06-3.385A9.006 9.006 0 0012 21c5.152 0 9.428-3.791 10.378-8.586z"></path></svg>
-                </button>
+                <!-- Theme Toggle REMOVED -->
             </div>
         </div>
     </nav>
     
     <!-- Main Content Container -->
     <div class="container mx-auto p-4 max-w-2xl">
-        <div class="bg-white p-6 md:p-8 rounded-2xl shadow-xl mt-8 border border-gray-100 dark:bg-[#1f1f1f] dark:border-gray-700">
-            <h1 class="text-3xl font-extrabold text-center text-gray-800 mb-2 dark:text-white">Buy Mobile Data</h1>
-            <p class="text-center text-gray-500 mb-8 dark:text-gray-400">Select your network and plan below.</p>
+        <div class="bg-white p-6 md:p-8 rounded-2xl shadow-xl mt-8 border border-gray-100">
+            <h1 class="text-3xl font-extrabold text-center text-gray-800 mb-2">Buy Mobile Data</h1>
+            <p class="text-center text-gray-500 mb-8">Select your network and plan below.</p>
 
             <form id="paymentForm">
                 
                 <!-- Network Selection Tabs -->
-                <label class="block text-gray-700 font-semibold mb-3 dark:text-gray-300">Choose Network</label>
+                <label class="block text-gray-700 font-semibold mb-3">Choose Network</label>
                 <div id="network-tabs" class="grid grid-cols-3 gap-3 mb-6">
                     <!-- MTN -->
                     <div class="network-tab p-4 cursor-pointer bg-gray-50 shadow-md text-center text-sm font-bold border-2 border-primary" data-network="MTN">
@@ -105,14 +93,14 @@
                 
                 <!-- Data Plan Selection -->
                 <div class="form-group mb-5">
-                    <label for="dataplan" class="block text-gray-700 font-medium mb-2 dark:text-gray-300">Select Data Plan</label>
-                    <select id="dataplan" required class="w-full p-3 border border-gray-300 rounded-lg focus:ring-primary focus:border-primary transition dark:bg-gray-700 dark:border-gray-600 dark:text-white">
+                    <label for="dataplan" class="block text-gray-700 font-medium mb-2">Select Data Plan</label>
+                    <select id="dataplan" required class="w-full p-3 border border-gray-300 rounded-lg focus:ring-primary focus:border-primary transition">
                         <option value="" data-amount="0" selected disabled>Loading plans...</option>
                     </select>
                 </div>
                 
                 <!-- Guidance Note -->
-                <div class="bg-blue-50 border border-blue-200 text-blue-700 p-4 rounded-xl mb-4 text-sm shadow-inner dark:bg-blue-900 dark:border-blue-700 dark:text-blue-300">
+                <div class="bg-blue-50 border border-blue-200 text-blue-700 p-4 rounded-xl mb-4 text-sm shadow-inner">
                     <p class="font-bold mb-1">Checklist for Fast Delivery:</p>
                     <ul class="list-disc list-inside space-y-1">
                         <li>Ensure the **10-digit phone number starts with 0**.</li>
@@ -122,29 +110,29 @@
 
                 <!-- Phone Number -->
                 <div class="form-group mb-5">
-                    <label for="phone" class="block text-gray-700 font-medium mb-2 dark:text-gray-300">Recipient Phone Number</label>
-                    <input type="tel" id="phone" pattern="0[0-9]{9}" maxlength="10" placeholder="e.g., 0501234567" required class="w-full p-3 border border-gray-300 rounded-lg focus:ring-primary focus:border-primary transition dark:bg-gray-700 dark:border-gray-600 dark:text-white">
+                    <label for="phone" class="block text-gray-700 font-medium mb-2">Recipient Phone Number</label>
+                    <input type="tel" id="phone" pattern="0[0-9]{9}" maxlength="10" placeholder="e.g., 0501234567" required class="w-full p-3 border border-gray-300 rounded-lg focus:ring-primary focus:border-primary transition">
                 </div>
                 
                 <!-- Email for Receipt -->
                 <div class="form-group mb-6">
-                    <label for="email" class="block text-gray-700 font-medium mb-2 dark:text-gray-300">Email for Receipt</label>
-                    <input type="email" id="email" placeholder="your.email@example.com" required class="w-full p-3 border border-gray-300 rounded-lg focus:ring-primary focus:border-primary transition dark:bg-gray-700 dark:border-gray-600 dark:text-white">
+                    <label for="email" class="block text-gray-700 font-medium mb-2">Email for Receipt</label>
+                    <input type="email" id="email" placeholder="your.email@example.com" required class="w-full p-3 border border-gray-300 rounded-lg focus:ring-primary focus:border-primary transition">
                 </div>
                 
                 <!-- Payment Method Selection -->
-                <label class="block text-gray-700 font-semibold mb-3 dark:text-gray-300">Choose Payment Method</label>
+                <label class="block text-gray-700 font-semibold mb-3">Choose Payment Method</label>
                 <div id="payment-methods" class="grid grid-cols-2 gap-4 mb-6">
                     <!-- Wallet Option -->
-                    <div class="pay-option p-4 bg-gray-50 shadow-lg text-center active dark:bg-gray-800" data-method="wallet">
-                        <p class="font-bold text-lg text-gray-800 dark:text-white">Use Wallet</p>
-                        <p class="text-xs text-gray-500 dark:text-gray-400">Instant & Fee-Free</p>
+                    <div class="pay-option p-4 bg-gray-50 shadow-lg text-center active" data-method="wallet">
+                        <p class="font-bold text-lg text-gray-800">Use Wallet</p>
+                        <p class="text-xs text-gray-500">Instant & Fee-Free</p>
                     </div>
                     <!-- Paystack Option -->
-                    <div class="pay-option p-4 bg-gray-50 shadow-lg text-center dark:bg-gray-800" data-method="paystack">
-                        <p class="font-bold text-lg text-gray-800 dark:text-white">Mobile Money / Card</p>
+                    <div class="pay-option p-4 bg-gray-50 shadow-lg text-center" data-method="paystack">
+                        <p class="font-bold text-lg text-gray-800">Mobile Money / Card</p>
                         <p class="text-red-500 font-extrabold text-xl">via Paystack</p>
-                        <p class="text-xs text-gray-500 dark:text-gray-400">External Fees Apply</p>
+                        <p class="text-xs text-gray-500">External Fees Apply</p>
                     </div>
                 </div>
 
@@ -155,7 +143,7 @@
                 </button>
             </form>
             
-            <div id="status" class="text-center mt-4 font-semibold min-h-[20px] text-gray-800 dark:text-gray-200"></div>
+            <div id="status" class="text-center mt-4 font-semibold min-h-[20px] text-gray-800"></div>
         </div>
     </div>
 
@@ -164,41 +152,7 @@
     
     <!-- JavaScript Logic -->
     <script>
-        // --- THEME LOGIC START ---
-        const themeToggle = document.getElementById('theme-toggle');
-        const htmlElement = document.documentElement;
-        const themeIcon = document.getElementById('theme-icon');
-
-        function updateThemeIcon(isDark) {
-            if (isDark) {
-                themeIcon.innerHTML = '<path d="M10 2a1 1 0 011 1v1a1 1 0 11-2 0V3a1 1 0 011-1zm4 8a4 4 0 11-8 0 4 4 0 018 0zm-4 7a1 1 0 011 1v1a1 1 0 11-2 0v-1a1 1 0 011-1zm6.5-6.5a1 1 0 010 1.414l-.707.707a1 1 0 11-1.414-1.414l.707-.707a1 1 0 011.414 0zm-13 0a1 1 0 011.414 0l.707.707a1 1 0 11-1.414 1.414l-.707-.707a1 1 0 010-1.414zM3 10a1 1 0 011-1h1a1 1 0 110 2H4a1 1 0 01-1-1zm14 0a1 1 0 01-1 1h-1a1 1 0 110-2h1a1 1 0 011 1z" clip-rule="evenodd" fill-rule="evenodd"></path>';
-            } else {
-                themeIcon.innerHTML = '<path d="M17.293 13.914A8.966 8.966 0 0112 18c-3.14 0-5.968-1.293-8.06-3.385A9.006 9.006 0 0012 21c5.152 0 9.428-3.791 10.378-8.586z"></path>';
-            }
-        }
-
-        if (localStorage.getItem('theme') === 'dark' || (!('theme' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
-            htmlElement.classList.add('dark');
-            updateThemeIcon(true);
-        } else {
-            htmlElement.classList.remove('dark');
-            updateThemeIcon(false);
-        }
-
-        themeToggle.addEventListener('click', () => {
-            if (htmlElement.classList.contains('dark')) {
-                htmlElement.classList.remove('dark');
-                localStorage.setItem('theme', 'light');
-                updateThemeIcon(false);
-            } else {
-                htmlElement.classList.add('dark');
-                localStorage.setItem('theme', 'dark');
-                updateThemeIcon(true);
-            }
-        });
-        // --- THEME LOGIC END ---
-
-
+        // --- FINAL GLOBAL CONSTANTS & ELEMENTS ---
         const networkTabs = document.getElementById('network-tabs');
         const networkInput = document.getElementById('network');
         const dataplanSelect = document.getElementById('dataplan');
@@ -300,7 +254,7 @@
                     const data = await response.json();
                     userWalletBalance = data.walletBalance;
                     walletBalanceDisplay.textContent = `GHS ${(userWalletBalance / 100).toFixed(2)}`;
-                    return data; 
+                    return data.email; 
                 } else {
                     userWalletBalance = 0;
                     walletBalanceDisplay.textContent = 'GHS 0.00';
@@ -320,12 +274,14 @@
             const selected = dataplanSelect.options[dataplanSelect.selectedIndex];
             const priceInPesewas = parseInt(selected.dataset.amount);
             
-            let amountToCharge = isTopup ? 5000 : calculateTotalCharge(priceInPesewas); // Fixed GHS 50 topup for simplicity
+            // Amount to charge: This page is only for PURCHASE, so we charge the calculated fee.
+            // (The top-up logic should be on the dashboard.)
+            let amountToCharge = calculateTotalCharge(priceInPesewas); 
             
             payButton.disabled = true;
             payButton.textContent = 'Initiating Checkout...';
             
-            const transactionUrl = isTopup ? '/api/topup' : '/paystack/verify';
+            const transactionUrl = '/paystack/verify'; // Only verify purchase from this page
 
             const paymentCallback = function(response) {
                 statusDiv.textContent = "Verifying payment, please wait...";
@@ -336,6 +292,7 @@
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ 
                         reference: response.reference, 
+                        // Send the full charged amount for server verification
                         amount: amountToCharge / 100 
                     }),
                 })
@@ -425,13 +382,13 @@
         };
 
 
-        // --- 4. INITIALIZATION HANDLER ---
+        // --- INITIALIZATION & LISTENERS ---
         document.addEventListener('DOMContentLoaded', async () => {
             
             // 1. Fetch User Info (Wallet Balance)
             await fetchUserInfo(); 
             
-            // 2. Set Default Network & Load Plans (This must run AFTER balance is set)
+            // 2. Set Default Network & Load Plans 
             const defaultTab = document.querySelector('.network-tab[data-network="MTN"]');
             if (defaultTab) {
                 defaultTab.classList.add('active', 'border-primary');
@@ -440,20 +397,7 @@
                 fetchPlansForNetwork('MTN');
             }
 
-            // 3. Attach Theme Listener
-            themeToggle.addEventListener('click', () => {
-                if (htmlElement.classList.contains('dark')) {
-                    htmlElement.classList.remove('dark');
-                    localStorage.setItem('theme', 'light');
-                    updateThemeIcon(false);
-                } else {
-                    htmlElement.classList.add('dark');
-                    localStorage.setItem('theme', 'dark');
-                    updateThemeIcon(true);
-                }
-            });
-
-            // 4. Attach Event Listeners
+            // 3. Attach Event Listeners
             networkTabs.addEventListener('click', (e) => {
                 let target = e.target.closest('.network-tab');
                 if (target) {
@@ -485,7 +429,7 @@
             dataplanSelect.addEventListener('change', (e) => updatePayButton(e.target.options[e.target.selectedIndex]));
 
 
-            // 5. Form Submission Handler (omitted for brevity, remains the same)
+            // 4. Form Submission Handler
             paymentForm.addEventListener("submit", function(e) {
                 e.preventDefault();
                 
@@ -514,4 +458,5 @@
             });
         });
     </script>
-
+</body>
+</html>
