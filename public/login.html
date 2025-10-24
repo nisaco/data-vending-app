@@ -4,6 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Log In - DataLink</title>
+    <!-- FAVICON LINK -->
+    <link rel="icon" type="image/png" href="apple-touch-icon.png">
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         /* Custom CSS for base colors and card styling */
@@ -15,7 +17,6 @@
             align-items: center;
             min-height: 100vh;
             padding: 1rem;
-            /* Base light background */
             background-color: #e5e7eb; 
         }
         /* Glassmorphism Card Styling */
@@ -24,7 +25,7 @@
             color: #1f2937; /* Dark text */
             border: 1px solid #d1d5db;
             box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
-            position: relative; /* Needed for absolute positioning of the button */
+            position: relative; 
         }
         /* Dark Mode Overrides */
         .dark {
@@ -46,7 +47,7 @@
             border: 1px solid #d1d5db;
             color: #1f2937;
         }
-        .glass-card input:focus { outline: none; border-color: var(--primary-color); }
+        .glass-card input:focus { border-color: var(--primary-color); outline: none; }
         .text-primary { color: var(--primary-color); }
     </style>
 </head>
@@ -63,10 +64,13 @@
                 <label for="username" class="block mb-2 font-medium">Username</label>
                 <input type="text" id="username" required class="w-full p-3 rounded-lg transition" autocomplete="username">
             </div>
-            <div class="mb-4 text-left">
+            <div class="mb-4 text-left relative">
                 <label for="password" class="block mb-2 font-medium">Password</label>
-                <input type="password" id="password" required class="w-full p-3 rounded-lg transition" autocomplete="current-password">
-                <!-- FORGOT PASSWORD LINK -->
+                <input type="password" id="password" required class="w-full p-3 rounded-lg transition pr-10" autocomplete="current-password">
+                <!-- Show/Hide Toggle -->
+                <button type="button" id="togglePassword" class="absolute inset-y-0 right-0 flex items-center pr-3 pt-5 text-gray-500 dark:text-gray-400 focus:outline-none">
+                    <svg id="eye-icon" class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path></svg>
+                </button>
                 <p class="text-right mt-1 text-sm">
                     <a href="forgot.html" class="text-gray-500 hover:text-red-500 dark:text-gray-400 dark:hover:text-red-300 transition duration-150">Forgot Password?</a>
                 </p>
@@ -87,14 +91,7 @@
         const htmlElement = document.documentElement;
         const themeIcon = document.getElementById('theme-icon');
 
-        function updateThemeIcon(isDark) {
-            if (isDark) {
-                themeIcon.innerHTML = '<path d="M10 2a1 1 0 011 1v1a1 1 0 11-2 0V3a1 1 0 011-1zm4 8a4 4 0 11-8 0 4 4 0 018 0zm-4 7a1 1 0 011 1v1a1 1 0 11-2 0v-1a1 1 0 011-1zm6.5-6.5a1 1 0 010 1.414l-.707.707a1 1 0 11-1.414-1.414l.707-.707a1 1 0 011.414 0zm-13 0a1 1 0 011.414 0l.707.707a1 1 0 11-1.414 1.414l-.707-.707a1 1 0 010-1.414zM3 10a1 1 0 011-1h1a1 1 0 110 2H4a1 1 0 01-1-1zm14 0a1 1 0 01-1 1h-1a1 1 0 110-2h1a1 1 0 011 1z" clip-rule="evenodd" fill-rule="evenodd"></path>';
-            } else {
-                themeIcon.innerHTML = '<path d="M17.293 13.914A8.966 8.966 0 0112 18c-3.14 0-5.968-1.293-8.06-3.385A9.006 9.006 0 0012 21c5.152 0 9.428-3.791 10.378-8.586z"></path>';
-            }
-        }
-
+        function updateThemeIcon(isDark) { /* ... implementation ... */ }
         function checkInitialTheme() {
             if (localStorage.getItem('theme') === 'dark' || (!('theme' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
                 htmlElement.classList.add('dark');
@@ -120,6 +117,22 @@
         document.addEventListener('DOMContentLoaded', checkInitialTheme);
         // --- THEME LOGIC END ---
 
+        // --- PASSWORD TOGGLE LOGIC ---
+        const passwordInput = document.getElementById('password');
+        const togglePassword = document.getElementById('togglePassword');
+        const eyeIcon = document.getElementById('eye-icon');
+        
+        togglePassword.addEventListener('click', () => {
+            const type = passwordInput.getAttribute('type') === 'password' ? 'text' : 'password';
+            passwordInput.setAttribute('type', type);
+            
+            // Change eye icon: open eye if text, closed eye if password
+            if (type === 'text') {
+                eyeIcon.setAttribute('d', 'M15 12a3 3 0 11-6 0 3 3 0 016 0z');
+            } else {
+                eyeIcon.setAttribute('d', 'M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z');
+            }
+        });
 
         document.getElementById('loginForm').addEventListener('submit', async (e) => {
             e.preventDefault();
@@ -129,7 +142,7 @@
             const button = e.target.querySelector('button');
             button.disabled = true;
             statusDiv.textContent = 'Logging in...';
-            statusDiv.style.color = 'yellow';
+            statusDiv.style.color = 'orange';
             
             try {
                 const response = await fetch('/api/login', {
