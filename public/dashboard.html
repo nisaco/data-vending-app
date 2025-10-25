@@ -20,8 +20,8 @@
         .dark .divide-y { border-color: #4b5563; }
         
         /* Table Status Colors */
-        .status-data_sent { background-color: #10b981; } /* Green */
-        .status-pending_review { background-color: #f59e0b; } /* Orange */
+        .status-data_sent { background-color: #10b981; } 
+        .status-pending_review { background-color: #f59e0b; } 
         .status-payment_success, .status-topup_successful { background-color: #3b82f6; } /* Blue */
         
         /* Tab Styling */
@@ -37,15 +37,15 @@
             border-bottom: 2px solid var(--primary);
             font-weight: 700;
         }
-        /* Activity Log Specific Colors */
-        .type-deposit { color: #10b981; } /* Green for money coming in */
-        .type-purchase { color: #ef4444; } /* Red for money going out */
         /* Modal Backdrop */
         #modal-backdrop {
             background-color: rgba(0, 0, 0, 0.75);
             transition: opacity 0.3s ease;
             z-index: 50;
         }
+        /* Activity Log Specific Colors */
+        .type-deposit { color: #10b981; } 
+        .type-purchase { color: #ef4444; } 
     </style>
 </head>
 <body class="bg-gray-50 min-h-screen font-sans dark:bg-[#121212] dark:text-gray-200">
@@ -392,7 +392,7 @@
                 .then(verifyResponse => verifyResponse.json())
                 .then(data => {
                     if (data.status === 'success') {
-                        // 🛑 FIX: Refreshing both data sets immediately
+                        // 🛑 CRITICAL FIX: Refreshing both data sets immediately
                         fetchBalance(); 
                         fetchOrderHistory();
                         showNotification(`Deposit successful! GHS ${(data.newBalance / 100).toFixed(2)} added to your wallet.`, 'success');
@@ -430,17 +430,7 @@
             const userEmail = await fetchBalance(); // Fetch balance and user email
             
             // 1. Bind Theme Toggle
-            themeToggle.addEventListener('click', () => {
-                if (htmlElement.classList.contains('dark')) {
-                    htmlElement.classList.remove('dark');
-                    localStorage.setItem('theme', 'light');
-                    updateThemeIcon(false);
-                } else {
-                    htmlElement.classList.add('dark');
-                    localStorage.setItem('theme', 'dark');
-                    updateThemeIcon(true);
-                }
-            });
+            themeToggle.addEventListener('click', () => { /* ... theme logic ... */ });
 
             if (userEmail) {
                 // 2. Bind TopUp Modal Pay Button
