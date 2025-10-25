@@ -13,8 +13,9 @@ const { User, Order, mongoose } = require('./database.js');
 const app = express();
 const PORT = process.env.PORT || 10000;
 
-// --- 2. DATA (PLANS) AND MAPS ---
+// --- 2. DATA (PLANS) - STATIC COST PRICE AND ID SETUP (FINALIZED) ---
 const allPlans = {
+    // PRICES ARE THE WHOLESALE COST (in PESEWAS)
     "MTN": [
         { id: '1', name: '1GB', price: 480 }, { id: '2', name: '2GB', price: 960 }, { id: '3', name: '3GB', price: 1420 }, 
         { id: '4', name: '4GB', price: 2000 }, { id: '5', name: '5GB', price: 2400 }, { id: '6', name: '6GB', price: 2800 }, 
@@ -41,7 +42,7 @@ const NETWORK_KEY_MAP = {
 };
 
 
-// --- HELPER FUNCTIONS ---
+// --- HELPER FUNCTIONS (FULL IMPLEMENTATION) ---
 function findBaseCost(network, capacityId) {
     const networkPlans = allPlans[network];
     if (!networkPlans) return 0;
@@ -75,17 +76,17 @@ async function sendAdminAlertEmail(order) {
     const msg = {
         to: 'YOUR_ADMIN_RECEIVING_EMAIL@example.com', 
         from: 'YOUR_VERIFIED_SENDER_EMAIL@example.com', 
-        subject: `🚨 MANUAL REVIEW REQUIRED: ${order.network} Data Transfer Failed`,
+        subject: `🚨 MANUAL REVIEW REQUIRED: ${order.network || 'N/A'} Data Transfer Failed`,
         html: `
             <h1>Urgent Action Required!</h1>
             <p>A customer payment was successful, but the data bundle transfer failed automatically. Please fulfill this order manually through the Datahub Ghana dashboard.</p>
             <hr>
             <p><strong>Status:</strong> PENDING REVIEW</p>
-            <p><strong>Network:</strong> ${order.network}</p>
-            <p><strong>Plan:</strong> ${order.dataPlan}</p>
-            <p><strong>Phone:</strong> ${order.phoneNumber}</p>
-            <p><strong>Amount Paid:</strong> GHS ${order.amount.toFixed(2)}</p>
-            <p><strong>Reference:</strong> ${order.reference}</p>
+            <p><strong>Network:</strong> ${order.network || 'N/A'}</p>
+            <p><strong>Plan:</strong> ${order.dataPlan || 'N/A'}</p>
+            <p><strong>Phone:</strong> ${order.phoneNumber || 'N/A'}</p>
+            <p><strong>Amount Paid:</strong> GHS ${order.amount ? order.amount.toFixed(2) : 'N/A'}</p>
+            <p><strong>Reference:</strong> ${order.reference || 'N/A'}</p>
             <p><strong>Action:</strong> Go to the Admin Dashboard and click 'Mark Sent' after fulfilling manually.</p>
         `,
     };
