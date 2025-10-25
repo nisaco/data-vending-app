@@ -40,9 +40,31 @@
         /* Activity Log Specific Colors */
         .type-deposit { color: #10b981; } /* Green for money coming in */
         .type-purchase { color: #ef4444; } /* Red for money going out */
+        /* Modal Backdrop */
+        #modal-backdrop {
+            background-color: rgba(0, 0, 0, 0.75);
+            transition: opacity 0.3s ease;
+            z-index: 50;
+        }
     </style>
 </head>
 <body class="bg-gray-50 min-h-screen font-sans dark:bg-[#121212] dark:text-gray-200">
+    
+    <!-- Modal Backdrop -->
+    <div id="modal-backdrop" class="fixed inset-0 hidden items-center justify-center opacity-0">
+        <!-- Modal Content -->
+        <div id="topup-modal" class="bg-white p-6 rounded-xl shadow-2xl w-full max-w-sm transform scale-95 transition-all duration-300 dark:bg-gray-800">
+            <h3 class="text-xl font-bold text-gray-800 dark:text-white mb-4">Deposit to Wallet</h3>
+            <div id="modal-content-status" class="text-sm font-medium mb-3 text-red-500"></div>
+            <label for="modal-topup-amount" class="block text-gray-700 dark:text-gray-300 mb-2">Amount (GHS, Min 6.00)</label>
+            <input type="number" id="modal-topup-amount" min="6.00" step="0.50" placeholder="e.g., 10.00" value="6.00"
+                   class="w-full p-2 border border-gray-300 rounded-lg text-gray-800 focus:ring-primary focus:border-primary dark:bg-gray-700 dark:text-white">
+            <div class="mt-4 flex justify-end space-x-3">
+                <button id="modal-cancel" type="button" class="py-2 px-4 bg-gray-200 text-gray-800 rounded-lg hover:bg-gray-300 transition">Cancel</button>
+                <button id="modal-pay" type="button" class="py-2 px-4 bg-primary text-white rounded-lg hover:bg-secondary transition">Pay</button>
+            </div>
+        </div>
+    </div>
     
     <!-- Navbar -->
     <nav class="bg-white shadow-lg dark:bg-[#1f1f1f]">
@@ -82,20 +104,9 @@
                 </div>
             </div>
             
-            <!-- Modal Backdrop (omitted for brevity) -->
-            <div id="modal-backdrop" class="fixed inset-0 hidden items-center justify-center opacity-0">
-                <!-- Modal Content (omitted for brevity) -->
-                <div id="topup-modal" class="bg-white p-6 rounded-xl shadow-2xl w-full max-w-sm transform scale-95 transition-all duration-300 dark:bg-gray-800">
-                    <h3 class="text-xl font-bold text-gray-800 dark:text-white mb-4">Deposit to Wallet</h3>
-                    <div id="modal-content-status" class="text-sm font-medium mb-3 text-red-500"></div>
-                    <label for="modal-topup-amount" class="block text-gray-700 dark:text-gray-300 mb-2">Amount (GHS, Min 6.00)</label>
-                    <input type="number" id="modal-topup-amount" min="6.00" step="0.50" placeholder="e.g., 10.00" value="6.00"
-                           class="w-full p-2 border border-gray-300 rounded-lg text-gray-800 focus:ring-primary focus:border-primary dark:bg-gray-700 dark:text-white">
-                    <div class="mt-4 flex justify-end space-x-3">
-                        <button id="modal-cancel" type="button" class="py-2 px-4 bg-gray-200 text-gray-800 rounded-lg hover:bg-gray-300 transition">Cancel</button>
-                        <button id="modal-pay" type="button" class="py-2 px-4 bg-primary text-white rounded-lg hover:bg-secondary transition">Pay</button>
-                    </div>
-                </div>
+            <!-- Notification Area -->
+            <div id="notification-area" class="space-y-3 mb-6">
+                <!-- Notifications will be added here -->
             </div>
 
 
@@ -133,7 +144,7 @@
     <script src="https://js.paystack.co/v1/inline.js"></script>
 
     <script>
-        // --- THEME LOGIC START (omitted for brevity) ---
+        // --- THEME LOGIC START ---
         const themeToggle = document.getElementById('theme-toggle');
         const htmlElement = document.documentElement;
         const themeIcon = document.getElementById('theme-icon');
@@ -200,7 +211,27 @@
         const modalPayBtn = document.getElementById('modal-pay');
         const modalAmountInput = document.getElementById('modal-topup-amount');
         const modalStatus = document.getElementById('modal-content-status');
+        const notificationArea = document.getElementById('notification-area');
 
+
+        // --- NOTIFICATION HANDLER ---
+        function showNotification(message, type = 'success') {
+            const colors = {
+                success: 'bg-green-100 border-green-500 text-green-700 dark:bg-green-900 dark:text-green-300',
+                error: 'bg-red-100 border-red-500 text-red-700 dark:bg-red-900 dark:text-red-300',
+                warning: 'bg-yellow-100 border-yellow-500 text-yellow-700 dark:bg-yellow-900 dark:text-yellow-300'
+            };
+            
+            const alert = document.createElement('div');
+            alert.className = `p-3 border-l-4 rounded-md shadow-sm ${colors[type]}`;
+            alert.innerHTML = `<p class="font-medium">${message}</p>`;
+            
+            notificationArea.prepend(alert); 
+            
+            setTimeout(() => {
+                alert.remove();
+            }, 8000);
+        }
 
         // --- FEE CALCULATION (60/40 split for TopUp) ---
         function calculateClientTopupFee(netDepositPesewas) {
@@ -217,14 +248,17 @@
             return Math.round(finalCharge);
         }
 
-        // --- DATA FETCHING & RENDERING ---
+        // --- DATA FETCHING ---
         async function fetchBalance() {
             try {
                 const response = await fetch('/api/user-info');
                 if (response.ok) {
                     const data = await response.json();
                     balanceDisplay.textContent = `GHS ${(data.walletBalance / 100).toFixed(2)}`;
-                    // NOTE: The user's email is needed for Paystack setup
+                    
+                    if (data.walletBalance < 1000) { // GHS 10.00 threshold
+                        showNotification('Warning: Your wallet balance is running low!', 'warning');
+                    }
                     return data.email; 
                 } else if (response.status === 401) {
                     statusDiv.textContent = 'Session expired. Redirecting to login...';
@@ -277,11 +311,11 @@
                 let source = order.paymentMethod === 'wallet' ? 'Wallet' : 'Paystack';
                 let item = order.dataPlan === 'WALLET TOP-UP' ? 'Wallet Top-up' : `${order.dataPlan} (${order.network})`;
 
-                row.className = 'hover:bg-gray-50 transition duration-150 dark:hover:bg-gray-800';
-
                 // Displaying the financial change using sign convention
                 let amountSign = (order.dataPlan === 'WALLET TOP-UP') ? '+' : '-';
-                let amountColor = (order.dataPlan === 'WALLET TOP-UP') ? 'text-green-500' : 'text-red-500';
+                let amountColor = (order.dataPlan === 'WALLET TOP-UP') ? 'type-deposit' : 'type-purchase';
+
+                row.className = 'hover:bg-gray-50 transition duration-150 dark:hover:bg-gray-800';
 
                 row.innerHTML = `
                     <td class="py-4 px-6 dark:text-gray-400">${safeDateFormatter(order.created_at)}</td>
@@ -358,9 +392,10 @@
                 .then(verifyResponse => verifyResponse.json())
                 .then(data => {
                     if (data.status === 'success') {
+                        // 🛑 FIX: Refreshing both data sets immediately
+                        fetchBalance(); 
+                        fetchOrderHistory();
                         showNotification(`Deposit successful! GHS ${(data.newBalance / 100).toFixed(2)} added to your wallet.`, 'success');
-                         fetchBalance(); 
-                         setTimeout(() => fetchOrderHistory(), 1000); 
                     } else {
                         showNotification(data.message, 'error');
                     }
@@ -376,7 +411,7 @@
             
             PaystackPop.setup({
                 key: PAYSTACK_PUBLIC_KEY, 
-                email: userEmail, // Use the fetched email
+                email: userEmail, 
                 amount: finalChargedAmount, 
                 currency: 'GHS',
                 ref: 'DL-TOPUP-' + Math.floor((Math.random() * 1000000000) + 1),
@@ -392,11 +427,21 @@
 
         // --- INITIALIZATION & LISTENERS ---
         document.addEventListener('DOMContentLoaded', async () => {
-            // 1. Check Initial Theme
-            themeToggle.addEventListener('click', () => { /* ... theme logic ... */ });
-
             const userEmail = await fetchBalance(); // Fetch balance and user email
             
+            // 1. Bind Theme Toggle
+            themeToggle.addEventListener('click', () => {
+                if (htmlElement.classList.contains('dark')) {
+                    htmlElement.classList.remove('dark');
+                    localStorage.setItem('theme', 'light');
+                    updateThemeIcon(false);
+                } else {
+                    htmlElement.classList.add('dark');
+                    localStorage.setItem('theme', 'dark');
+                    updateThemeIcon(true);
+                }
+            });
+
             if (userEmail) {
                 // 2. Bind TopUp Modal Pay Button
                 modalPayBtn.addEventListener('click', () => {
