@@ -13,7 +13,7 @@ const { User, Order, mongoose } = require('./database.js');
 const app = express();
 const PORT = process.env.PORT || 10000;
 
-// --- 2. DATA (PLANS) AND MAPS ---
+// --- 2. DATA (PLANS) - STATIC COST PRICE AND ID SETUP (FINALIZED) ---
 const allPlans = {
     // PRICES ARE THE WHOLESALE COST (in PESEWAS)
     "MTN": [
@@ -24,16 +24,16 @@ const allPlans = {
         { id: '40', name: '40GB', price: 16200 }, { id: '50', name: '50GB', price: 19800 }
     ],
     "AirtelTigo": [
-        { id: '1', name: '1GB', price: 380 }, { id: '2', name: '2GB', price: 750 }, { id: '3', name: '3GB', price: 1150 },  
-        { id: '4', name: '4GB', price: 1600 }, { id: '5', name: '5GB', price: 2000 }, { id: '6', name: '6GB', price: 2420 },  
-        { id: '7', name: '7GB', price: 2800 }, { id: '8', name: '8GB', price: 3200 }, { id: '9', name: '9GB', price: 3600 },  
-        { id: '10', name: '10GB', price: 4200 }, { id: '12', name: '12GB', price: 5000 }, { id: '15', name: '15GB', price: 6000 },
-        { id: '20', name: '20GB', price: 8000 }
+        { id: '1', name: '1GB', price: 370 }, { id: '2', name: '2GB', price: 740 }, { id: '3', name: '3GB', price: 1110 },  
+        { id: '4', name: '4GB', price: 1480 }, { id: '5', name: '5GB', price: 1850 }, { id: '6', name: '6GB', price: 2220 },  
+        { id: '7', name: '7GB', price: 2590 }, { id: '8', name: '8GB', price: 2960 }, { id: '9', name: '9GB', price: 3330 },  
+        { id: '10', name: '10GB', price: 3700 }, { id: '12', name: '12GB', price: 4440 }, { id: '15', name: '15GB', price: 5550 },
+        { id: '20', name: '20GB', price: 7400 }
     ],
     "Telecel": [
-        { id: '5', name: '5GB', price: 2300 }, { id: '10', name: '10GB', price: 4300 }, { id: '15', name: '15GB', price: 6300 }, 
-        { id: '20', name: '20GB', price: 8300 }, { id: '25', name: '25GB', price: 10300 }, { id: '30', name: '30GB', price: 12300 },
-        { id: '40', name: '40GB', price: 15500 }, { id: '50', name: '50GB', price: 19500 }, { id: '100', name: '100GB', price: 38900}
+        { id: '5', name: '5GB', price: 2000 }, { id: '10', name: '10GB', price: 3800 }, { id: '15', name: '15GB', price: 5500 }, 
+        { id: '20', name: '20GB', price: 7300 }, { id: '25', name: '25GB', price: 9000 }, { id: '30', name: '30GB', price: 11000 },
+        { id: '40', name: '40GB', price: 14300 }, { id: '50', name: '50GB', price: 18000 }, { id: '100', name: '100GB', price: 35000}
     ]
 };
 
@@ -42,7 +42,7 @@ const NETWORK_KEY_MAP = {
 };
 
 
-// --- HELPER FUNCTIONS (ALL DEFINED AT THE TOP) ---
+// --- HELPER FUNCTIONS ---
 function findBaseCost(network, capacityId) {
     const networkPlans = allPlans[network];
     if (!networkPlans) return 0;
@@ -55,28 +55,6 @@ function calculatePaystackFee(chargedAmountInPesewas) {
     let totalFeeChargedByPaystack = Math.min(fullFee, TRANSACTION_FEE_CAP);
     return totalFeeChargedByPaystack;
 }
-
-// 🛑 FIX: The missing function for 40/60 Topup split
-function calculateClientTopupFee(netDepositPesewas) {
-    const PAYSTACK_RATE = 0.019;
-    const PAYSTACK_FLAT = 80;
-    
-    // Calculate the total charge Paystack needs to receive to deposit the requested amount
-    const requiredTotalCharge = (netDepositPesewas + PAYSTACK_FLAT) / (1 - PAYSTACK_RATE);
-    
-    // The true Paystack fee for this transaction
-    const truePaystackFee = requiredTotalCharge - netDepositPesewas;
-    
-    // The portion of the fee the client pays (60% of the true Paystack Fee)
-    const feeClientPays = truePaystackFee * 0.60;
-    
-    // The final amount to charge the client for the net deposit
-    const finalCharge = netDepositPesewas + feeClientPays;
-
-    return Math.round(finalCharge);
-}
-
-
 async function sendAdminAlertEmail(order) {
     if (!process.env.SENDGRID_API_KEY) {
         console.error("SENDGRID_API_KEY not set. Cannot send alert email.");
@@ -107,7 +85,6 @@ async function sendAdminAlertEmail(order) {
         console.error('Failed to send admin alert email:', error.response?.body || error);
     }
 }
-
 async function executeDataPurchase(userId, orderDetails, paymentMethod) {
     const { network, dataPlan, amount } = orderDetails;
     
@@ -135,8 +112,6 @@ async function executeDataPurchase(userId, orderDetails, paymentMethod) {
 
         if (transferResponse.data.success === true) {
             finalStatus = 'data_sent';
-            // Send SMS/Email on delivery success
-            // Note: Customer success email logic would be called here
         } else {
             console.error('Data API failed response:', transferResponse.data);
             finalStatus = 'pending_review';
@@ -234,7 +209,6 @@ const isDbReady = (req, res, next) => {
 };
 
 const isAuthenticated = (req, res, next) => req.session.user ? next() : res.redirect('/login.html');
-
 
 // --- USER AUTHENTICATION & INFO ROUTES ---
 app.post('/api/signup', isDbReady, async (req, res) => {
@@ -360,67 +334,10 @@ app.get('/api/my-orders', isDbReady, isAuthenticated, async (req, res) => {
 
 
 // --- WALLET & PAYMENT ROUTES ---
-        // --- In server.js, inside app.post('/api/topup') ---
 app.post('/api/topup', isDbReady, isAuthenticated, async (req, res) => {
     const { reference, amount } = req.body; 
     if (!reference || !amount) {
         return res.status(400).json({ status: 'error', message: 'Reference and amount are required.' });
-    }
-    
-    // NOTE: 'amount' from client is the NET DEPOSIT (e.g., GHS 50.00)
-    let netDepositAmountGHS = amount; 
-    let netDepositPesewas = Math.round(netDepositAmountGHS * 100);
-    const userId = req.session.user.id;
-
-    // Calculate the total amount the client WAS SUPPOSED TO BE CHARGED (Deposit + 60% Fee)
-    const finalChargedAmountPesewas = calculateClientTopupFee(netDepositPesewas);
-
-    try {
-        // --- STEP 1: VERIFY PAYMENT WITH PAYSTACK ---
-        const paystackUrl = `https://api.paystack.co/transaction/verify/${reference}`;
-        const paystackResponse = await axios.get(paystackUrl, { 
-            headers: { Authorization: `Bearer ${process.env.PAYSTACK_SECRET_KEY}` } 
-        });
-        const { status, data } = paystackResponse.data;
-
-        if (!status || data.status !== 'success') {
-            return res.status(400).json({ status: 'error', message: 'Payment verification failed.' });
-        }
-        
-        // 🛑 CRITICAL FIX: Verify against the FINAL CHARGED AMOUNT (what we sent to Paystack)
-        if (Math.abs(data.amount - finalChargedAmountPesewas) > 5) {
-            console.error(`Fraud Alert: Charged ${data.amount} but expected ${finalChargedAmountPesewas}`);
-            return res.status(400).json({ status: 'error', message: 'Amount charged mismatch detected.' });
-        }
-        
-        // --- STEP 2: UPDATE USER WALLET BALANCE (NET DEPOSIT) ---
-        const updatedUser = await User.findByIdAndUpdate(
-            userId,
-            { $inc: { walletBalance: netDepositPesewas } }, // Deposit the net amount (e.g., 5000)
-            { new: true, runValidators: true }
-        );
-        
-        req.session.user.walletBalance = updatedUser.walletBalance; 
-
-        // Log the top-up as a successful order for tracking
-        await Order.create({
-            userId: userId,
-            reference: reference,
-            amount: finalChargedAmountPesewas / 100, // Log the total amount charged
-            status: 'topup_successful',
-            paymentMethod: 'paystack',
-            dataPlan: 'WALLET TOP-UP',
-            network: 'WALLET' // Ensure top-ups have a network for filter stability
-        });
-
-        res.json({ status: 'success', message: `Wallet topped up successfully! GHS ${netDepositPesewas/100} deposited.`, newBalance: updatedUser.walletBalance });
-
-    } catch (error) {
-        console.error('Topup Verification Error:', error);
-        res.status(500).json({ status: 'error', message: 'An internal server error occurred during top-up.' });
-    }
-});
-
     }
     
     let topupAmountPesewas = Math.round(amount * 100);
