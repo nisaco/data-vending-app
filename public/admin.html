@@ -3,6 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="icon" type="image/x-icon" href="apple-touch-icon.png">
     <title>Admin Dashboard - DataLink</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
@@ -13,7 +14,7 @@
         /* Table Status Colors */
         .status-data_sent { background-color: #10b981; } 
         .status-pending_review { background-color: #f59e0b; } 
-        .status-payment_success, .status-topup_successful { background-color: #3b82f6; } 
+        .status-payment_success { background-color: #3b82f6; } 
         .status-online { background-color: #10b981; } 
         .status-offline { background-color: #9ca3af; } 
         
@@ -274,7 +275,7 @@
                     <td class="py-4 px-6 font-mono text-xs">${order.id.substring(0, 8)}...</td>
                     <td class="py-4 px-6 font-medium text-gray-900 dark:text-white">${order.username}</td>
                     <td class="py-4 px-6 dark:text-gray-400">${safeDateFormatter(order.created_at)}</td>
-                    <td class="py-4 px-6 dark:text-gray-400">${order.phone_number}</td>
+                    <td class="py-4 px-6 dark:text-gray-400">${order.phone_number || 'N/A'}</td>
                     <td class="py-4 px-6 dark:text-gray-400">${order.data_plan}</td>
                     <td class="py-4 px-6 text-gray-800 font-semibold dark:text-white">${order.amount.toFixed(2)}</td>
                     <td class="py-4 px-6">
@@ -290,7 +291,8 @@
         function filterAndRenderOrders(network) {
             let filtered = adminOrders;
             if (network !== 'All') {
-                filtered = adminOrders.filter(order => order.network === network);
+                // Filter orders by network OR if it's a wallet transaction (which we flag as network='WALLET' on server)
+                filtered = adminOrders.filter(order => order.network === network || order.network === 'WALLET');
             }
             renderOrders(filtered);
         }
@@ -428,7 +430,7 @@
                     body: JSON.stringify({ 
                         orderId: orderId, 
                         newStatus: 'data_sent', 
-                        adminSecret: secret // Use secret from input
+                        adminSecret: secret 
                     })
                 });
 
