@@ -15,7 +15,6 @@ const PORT = process.env.PORT || 10000;
 
 // --- 2. DATA (PLANS) AND MAPS ---
 const allPlans = {
-    // PRICES ARE THE WHOLESALE COST (in PESEWAS)
     "MTN": [
         { id: '1', name: '1GB', price: 480 }, { id: '2', name: '2GB', price: 960 }, { id: '3', name: '3GB', price: 1420 }, 
         { id: '4', name: '4GB', price: 2000 }, { id: '5', name: '5GB', price: 2400 }, { id: '6', name: '6GB', price: 2800 }, 
@@ -55,8 +54,6 @@ function calculatePaystackFee(chargedAmountInPesewas) {
     let totalFeeChargedByPaystack = Math.min(fullFee, TRANSACTION_FEE_CAP);
     return totalFeeChargedByPaystack;
 }
-
-// 🛑 FINAL FIX: Function definition placed at the top to resolve ReferenceError
 function calculateClientTopupFee(netDepositPesewas) {
     const PAYSTACK_RATE = 0.019;
     const PAYSTACK_FLAT = 80;
@@ -99,6 +96,7 @@ async function sendAdminAlertEmail(order) {
         console.error('Failed to send admin alert email:', error.response?.body || error);
     }
 }
+
 async function executeDataPurchase(userId, orderDetails, paymentMethod) {
     const { network, dataPlan, amount } = orderDetails;
     
@@ -126,6 +124,7 @@ async function executeDataPurchase(userId, orderDetails, paymentMethod) {
 
         if (transferResponse.data.success === true) {
             finalStatus = 'data_sent';
+            // Note: Customer success email logic would be called here
         } else {
             console.error('Data API failed response:', transferResponse.data);
             finalStatus = 'pending_review';
@@ -357,7 +356,7 @@ app.post('/api/topup', isDbReady, isAuthenticated, async (req, res) => {
     let topupAmountPesewas = Math.round(amount * 100);
     const userId = req.session.user.id;
 
-    // 🛑 Calculate the final charged amount using the 40/60 split logic
+    // Calculate the final charged amount using the 40/60 split logic
     const finalChargedAmountPesewas = calculateClientTopupFee(topupAmountPesewas);
 
     try {
@@ -372,7 +371,6 @@ app.post('/api/topup', isDbReady, isAuthenticated, async (req, res) => {
             return res.status(400).json({ status: 'error', message: 'Payment verification failed.' });
         }
         
-        // Security Check: Verify that the amount charged by Paystack matches our calculated final charge (within 5 pesewas tolerance)
         if (Math.abs(data.amount - finalChargedAmountPesewas) > 5) {
             console.error(`Fraud Alert: Charged ${data.amount} but expected ${finalChargedAmountPesewas}`);
             return res.status(400).json({ status: 'error', message: 'Amount charged mismatch detected.' });
@@ -522,7 +520,6 @@ app.get('/api/get-all-orders', async (req, res) => {
         return res.status(403).json({ error: "Unauthorized: Invalid Admin Secret" });
     }
     try {
-        // 🛑 FIX: Add check for DB readiness for Admin routes as well
         if (mongoose.connection.readyState !== 1) {
             return res.status(503).json({ error: 'Database not ready for admin query.' });
         }
@@ -606,7 +603,7 @@ app.post('/api/admin/update-order', async (req, res) => {
     if (req.body.adminSecret !== process.env.ADMIN_SECRET) return res.status(403).json({ error: 'Unauthorized access.' });
     const { orderId, newStatus } = req.body;
     
-    if (!orderId || !newStatus) return res.status(400).json({ error: 'Order ID and new Status are required.' });
+    if (!orderId || !newStatus) return res.status(400).json({ error: 'Order ID and new status are required.' });
 
     try {
         const result = await Order.findByIdAndUpdate(orderId, { status: newStatus }, { new: true });
