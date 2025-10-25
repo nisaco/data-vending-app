@@ -13,7 +13,7 @@ const { User, Order, mongoose } = require('./database.js');
 const app = express();
 const PORT = process.env.PORT || 10000;
 
-// --- 2. DATA (PLANS) - STATIC COST PRICE AND ID SETUP (FINALIZED) ---
+// --- 2. DATA (PLANS) AND MAPS ---
 const allPlans = {
     // PRICES ARE THE WHOLESALE COST (in PESEWAS)
     "MTN": [
@@ -41,8 +41,10 @@ const NETWORK_KEY_MAP = {
     "MTN": 'YELLO', "AirtelTigo": 'AT_PREMIUM', "Telecel": 'TELECEL',
 };
 
+const CHECK_API_ENDPOINT = 'https://console.ckgodsway.com/api/order-status'; 
 
-// --- HELPER FUNCTIONS ---
+
+// --- HELPER FUNCTIONS (ALL DEFINED AT THE TOP) ---
 function findBaseCost(network, capacityId) {
     const networkPlans = allPlans[network];
     if (!networkPlans) return 0;
@@ -55,6 +57,28 @@ function calculatePaystackFee(chargedAmountInPesewas) {
     let totalFeeChargedByPaystack = Math.min(fullFee, TRANSACTION_FEE_CAP);
     return totalFeeChargedByPaystack;
 }
+
+// 🛑 THE FUNCTION THAT WAS UNDEFINED: CALCULATE CLIENT TOPUP FEE
+function calculateClientTopupFee(netDepositPesewas) {
+    const PAYSTACK_RATE = 0.019;
+    const PAYSTACK_FLAT = 80;
+    
+    // The amount Paystack needs to receive to deposit the requested amount
+    const requiredTotalCharge = (netDepositPesewas + PAYSTACK_FLAT) / (1 - PAYSTACK_RATE);
+    
+    // The true Paystack fee for this transaction
+    const truePaystackFee = requiredTotalCharge - netDepositPesewas;
+    
+    // The portion of the fee the client pays (60% of the true Paystack Fee)
+    const feeClientPays = truePaystackFee * 0.60;
+    
+    // The final amount to charge the client for the net deposit
+    const finalCharge = netDepositPesewas + feeClientPays;
+
+    return Math.round(finalCharge);
+}
+
+
 async function sendAdminAlertEmail(order) {
     if (!process.env.SENDGRID_API_KEY) {
         console.error("SENDGRID_API_KEY not set. Cannot send alert email.");
@@ -85,6 +109,7 @@ async function sendAdminAlertEmail(order) {
         console.error('Failed to send admin alert email:', error.response?.body || error);
     }
 }
+
 async function executeDataPurchase(userId, orderDetails, paymentMethod) {
     const { network, dataPlan, amount } = orderDetails;
     
@@ -112,6 +137,7 @@ async function executeDataPurchase(userId, orderDetails, paymentMethod) {
 
         if (transferResponse.data.success === true) {
             finalStatus = 'data_sent';
+            // Note: Customer success email logic would be called here
         } else {
             console.error('Data API failed response:', transferResponse.data);
             finalStatus = 'pending_review';
@@ -143,14 +169,14 @@ async function executeDataPurchase(userId, orderDetails, paymentMethod) {
 
 async function runPendingOrderCheck() {
     console.log('--- CRON: Checking for pending orders needing status update... ---');
-    const CHECK_API_ENDPOINT = 'https://console.ckgodsway.com/api/order-status'; 
+    
+    // Only proceed if database connection is open
+    if (mongoose.connection.readyState !== 1) {
+        console.log('CRON: Skipping check, database not ready (State: ' + mongoose.connection.readyState + ')');
+        return;
+    }
 
     try {
-        if (mongoose.connection.readyState !== 1) {
-            console.log('CRON: Skipping check, database not ready (State: ' + mongoose.connection.readyState + ')');
-            return;
-        }
-
         const pendingOrders = await Order.find({ status: 'pending_review' }).limit(20); 
 
         if (pendingOrders.length === 0) {
@@ -209,6 +235,7 @@ const isDbReady = (req, res, next) => {
 };
 
 const isAuthenticated = (req, res, next) => req.session.user ? next() : res.redirect('/login.html');
+
 
 // --- USER AUTHENTICATION & INFO ROUTES ---
 app.post('/api/signup', isDbReady, async (req, res) => {
