@@ -360,10 +360,67 @@ app.get('/api/my-orders', isDbReady, isAuthenticated, async (req, res) => {
 
 
 // --- WALLET & PAYMENT ROUTES ---
+        // --- In server.js, inside app.post('/api/topup') ---
 app.post('/api/topup', isDbReady, isAuthenticated, async (req, res) => {
     const { reference, amount } = req.body; 
     if (!reference || !amount) {
         return res.status(400).json({ status: 'error', message: 'Reference and amount are required.' });
+    }
+    
+    // NOTE: 'amount' from client is the NET DEPOSIT (e.g., GHS 50.00)
+    let netDepositAmountGHS = amount; 
+    let netDepositPesewas = Math.round(netDepositAmountGHS * 100);
+    const userId = req.session.user.id;
+
+    // Calculate the total amount the client WAS SUPPOSED TO BE CHARGED (Deposit + 60% Fee)
+    const finalChargedAmountPesewas = calculateClientTopupFee(netDepositPesewas);
+
+    try {
+        // --- STEP 1: VERIFY PAYMENT WITH PAYSTACK ---
+        const paystackUrl = `https://api.paystack.co/transaction/verify/${reference}`;
+        const paystackResponse = await axios.get(paystackUrl, { 
+            headers: { Authorization: `Bearer ${process.env.PAYSTACK_SECRET_KEY}` } 
+        });
+        const { status, data } = paystackResponse.data;
+
+        if (!status || data.status !== 'success') {
+            return res.status(400).json({ status: 'error', message: 'Payment verification failed.' });
+        }
+        
+        // 🛑 CRITICAL FIX: Verify against the FINAL CHARGED AMOUNT (what we sent to Paystack)
+        if (Math.abs(data.amount - finalChargedAmountPesewas) > 5) {
+            console.error(`Fraud Alert: Charged ${data.amount} but expected ${finalChargedAmountPesewas}`);
+            return res.status(400).json({ status: 'error', message: 'Amount charged mismatch detected.' });
+        }
+        
+        // --- STEP 2: UPDATE USER WALLET BALANCE (NET DEPOSIT) ---
+        const updatedUser = await User.findByIdAndUpdate(
+            userId,
+            { $inc: { walletBalance: netDepositPesewas } }, // Deposit the net amount (e.g., 5000)
+            { new: true, runValidators: true }
+        );
+        
+        req.session.user.walletBalance = updatedUser.walletBalance; 
+
+        // Log the top-up as a successful order for tracking
+        await Order.create({
+            userId: userId,
+            reference: reference,
+            amount: finalChargedAmountPesewas / 100, // Log the total amount charged
+            status: 'topup_successful',
+            paymentMethod: 'paystack',
+            dataPlan: 'WALLET TOP-UP',
+            network: 'WALLET' // Ensure top-ups have a network for filter stability
+        });
+
+        res.json({ status: 'success', message: `Wallet topped up successfully! GHS ${netDepositPesewas/100} deposited.`, newBalance: updatedUser.walletBalance });
+
+    } catch (error) {
+        console.error('Topup Verification Error:', error);
+        res.status(500).json({ status: 'error', message: 'An internal server error occurred during top-up.' });
+    }
+});
+
     }
     
     let topupAmountPesewas = Math.round(amount * 100);
