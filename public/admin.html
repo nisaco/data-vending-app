@@ -3,8 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-     <link rel="icon" type="image/x-icon" href="apple-touch-icon.png">
-
+    
     <title>Admin Dashboard - DataLink</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
@@ -276,7 +275,7 @@
                     <td class="py-4 px-6 font-mono text-xs">${order.id.substring(0, 8)}...</td>
                     <td class="py-4 px-6 font-medium text-gray-900 dark:text-white">${order.username}</td>
                     <td class="py-4 px-6 dark:text-gray-400">${safeDateFormatter(order.created_at)}</td>
-                    <td class="py-4 px-6 dark:text-gray-400">${order.phone_number}</td>
+                    <td class="py-4 px-6 dark:text-gray-400">${order.phoneNumber || 'N/A'}</td>
                     <td class="py-4 px-6 dark:text-gray-400">${order.data_plan}</td>
                     <td class="py-4 px-6 text-gray-800 font-semibold dark:text-white">${order.amount.toFixed(2)}</td>
                     <td class="py-4 px-6">
@@ -292,7 +291,8 @@
         function filterAndRenderOrders(network) {
             let filtered = adminOrders;
             if (network !== 'All') {
-                filtered = adminOrders.filter(order => order.network === network);
+                // Filter orders by network OR if it's a wallet transaction
+                filtered = adminOrders.filter(order => order.network === network || order.network === 'WALLET');
             }
             renderOrders(filtered);
         }
@@ -393,6 +393,7 @@
                 const response = await fetch(`/api/get-all-orders?secret=${secret}`);
                 
                 if (response.status === 403) throw new Error('Authorization Failed. Check Admin Secret.');
+                if (response.status === 503) throw new Error('Database Not Ready. Try again in 10 seconds.');
                 if (!response.ok) throw new Error('Server error while fetching orders.');
                 
                 const data = await response.json();
