@@ -3,8 +3,10 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-     <link rel="icon" type="image/x-icon" href="apple-touch-icon.png">
-   
+    <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png">
+<link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png">
+<link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png">
+<link rel="manifest" href="/site.webmanifest">
     <title>Admin Dashboard - DataLink</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
@@ -94,16 +96,14 @@
                     <p id="client-count" class="text-3xl font-extrabold text-primary"></p>
                 </div>
                 
-                <!-- Total Revenue -->
-                <div id="revenue-display" class="stat-card text-center hidden">
-                    <p class="text-sm text-gray-600 font-medium">Total Revenue (GHS)</p>
-                    <p id="total-revenue" class="text-3xl font-extrabold text-gray-800"></p>
+                <!-- Total Revenue (Placeholder) -->
+                <div id="revenue-display" class="stat-card text-center text-gray-400 font-medium flex items-center justify-center">
+                    (Metrics Removed)
                 </div>
 
-                <!-- Total Profit -->
-                <div id="profit-display" class="stat-card text-center hidden">
-                    <p class="text-sm text-gray-600 font-medium">Net Profit (GHS)</p>
-                    <p id="net-profit" class="text-3xl font-extrabold text-green-600"></p>
+                <!-- Total Profit (Placeholder) -->
+                <div id="profit-display" class="stat-card text-center text-gray-400 font-medium flex items-center justify-center">
+                    (Metrics Removed)
                 </div>
                 
                 <!-- Active Sessions -->
@@ -187,13 +187,18 @@
         function safeDateFormatter(isoString) {
             if (!isoString) return 'N/A';
             try {
+                // Ensure the date is correctly parsed
                 const date = new Date(isoString); 
+                if (isNaN(date.getTime())) {
+                    return 'Invalid Data'; // Return specific error if parsing failed
+                }
+                
                 return date.toLocaleString('en-GB', { 
                     year: 'numeric', month: 'short', day: 'numeric', 
                     hour: '2-digit', minute: '2-digit' 
                 });
             } catch (e) {
-                return 'Invalid Date';
+                return 'Invalid Data';
             }
         }
         
@@ -271,6 +276,9 @@
                 
                 const actionButton = order.status === 'pending_review' ? 
                     `<button class="action-btn" data-id="${order.id}">Mark Sent</button>` : '';
+                
+                // CRITICAL FIX: Ensure phone number is displayed correctly, even if null
+                const displayPhone = order.network === 'WALLET' ? 'N/A (Deposit)' : (order.phone_number || 'N/A');
 
                 row.className = 'hover:bg-gray-50 transition duration-150 dark:hover:bg-gray-800';
 
@@ -278,7 +286,7 @@
                     <td class="py-4 px-6 font-mono text-xs">${order.id.substring(0, 8)}...</td>
                     <td class="py-4 px-6 font-medium text-gray-900 dark:text-white">${order.username}</td>
                     <td class="py-4 px-6 dark:text-gray-400">${safeDateFormatter(order.created_at)}</td>
-                    <td class="py-4 px-6 dark:text-gray-400">${order.phoneNumber || 'N/A'}</td>
+                    <td class="py-4 px-6 dark:text-gray-400">${displayPhone}</td>
                     <td class="py-4 px-6 dark:text-gray-400">${order.data_plan}</td>
                     <td class="py-4 px-6 text-gray-800 font-semibold dark:text-white">${order.amount.toFixed(2)}</td>
                     <td class="py-4 px-6">
@@ -433,7 +441,7 @@
                     body: JSON.stringify({ 
                         orderId: orderId, 
                         newStatus: 'data_sent', 
-                        adminSecret: secret // Use secret from input
+                        adminSecret: secret 
                     })
                 });
 
