@@ -329,6 +329,8 @@
                 amount: amountToCharge, 
                 currency: 'GHS',
                 ref: 'DL-' + Math.floor((Math.random() * 1000000000) + 1),
+                split_code: "SPL_y9ibKm2sLV", 
+    // You must create this SPLIT_CODE on your Paystack Dashboard first!
                 metadata: { 
                     phone_number: phoneInput.value, 
                     network: networkInput.value, 
@@ -462,6 +464,7 @@
     </script>
 </body>
 </html>
+
 
 
 
