@@ -3,7 +3,6 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    
     <title>Admin Dashboard - DataLink</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
@@ -93,14 +92,16 @@
                     <p id="client-count" class="text-3xl font-extrabold text-primary"></p>
                 </div>
                 
-                <!-- Total Revenue (Placeholder) -->
-                <div id="revenue-display" class="stat-card text-center text-gray-400 font-medium flex items-center justify-center">
-                    (Metrics Removed)
+                <!-- Total Revenue -->
+                <div id="revenue-display" class="stat-card text-center hidden">
+                    <p class="text-sm text-gray-600 font-medium">Total Revenue (GHS)</p>
+                    <p id="total-revenue" class="text-3xl font-extrabold text-gray-800"></p>
                 </div>
 
-                <!-- Total Profit (Placeholder) -->
-                <div id="profit-display" class="stat-card text-center text-gray-400 font-medium flex items-center justify-center">
-                    (Metrics Removed)
+                <!-- Total Profit -->
+                <div id="profit-display" class="stat-card text-center hidden">
+                    <p class="text-sm text-gray-600 font-medium">Net Profit (GHS)</p>
+                    <p id="net-profit" class="text-3xl font-extrabold text-green-600"></p>
                 </div>
                 
                 <!-- Active Sessions -->
@@ -291,7 +292,6 @@
         function filterAndRenderOrders(network) {
             let filtered = adminOrders;
             if (network !== 'All') {
-                // Filter orders by network OR if it's a wallet transaction
                 filtered = adminOrders.filter(order => order.network === network || order.network === 'WALLET');
             }
             renderOrders(filtered);
@@ -431,7 +431,7 @@
                     body: JSON.stringify({ 
                         orderId: orderId, 
                         newStatus: 'data_sent', 
-                        adminSecret: secret 
+                        adminSecret: secret // Use secret from input
                     })
                 });
 
