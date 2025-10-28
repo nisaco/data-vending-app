@@ -13,27 +13,26 @@ const { User, Order, mongoose } = require('./database.js');
 const app = express();
 const PORT = process.env.PORT || 10000;
 
-// --- 2. DATA (PLANS) - STATIC COST PRICE AND ID SETUP (FINALIZED) ---
+// --- 2. DATA (PLANS) AND MAPS ---
 const allPlans = {
-    // PRICES ARE THE WHOLESALE COST (in PESEWAS)
     "MTN": [
         { id: '1', name: '1GB', price: 480 }, { id: '2', name: '2GB', price: 960 }, { id: '3', name: '3GB', price: 1420 }, 
         { id: '4', name: '4GB', price: 2000 }, { id: '5', name: '5GB', price: 2400 }, { id: '6', name: '6GB', price: 2800 }, 
         { id: '8', name: '8GB', price: 3600 }, { id: '10', name: '10GB', price: 4400 }, { id: '15', name: '15GB', price: 6400 },
-        { id: '20', name: '20GB', price: 8200 }, { id: '25', name: '25GB', price: 10200 }, { id: '30', name: '30GB', price: 12500 },
-        { id: '40', name: '40GB', price: 16500 }, { id: '50', name: '50GB', price: 19800 }
+        { id: '20', name: '20GB', price: 8200 }, { id: '25', name: '25GB', price: 10200 }, { id: '30', name: '30GB', price: 12200 },
+        { id: '40', name: '40GB', price: 16200 }, { id: '50', name: '50GB', price: 19800 }
     ],
     "AirtelTigo": [
-        { id: '1', name: '1GB', price: 400 }, { id: '2', name: '2GB', price: 800 }, { id: '3', name: '3GB', price: 1200 },  
-        { id: '4', name: '4GB', price: 1600 }, { id: '5', name: '5GB', price: 2000 }, { id: '6', name: '6GB', price: 2400 },  
-        { id: '7', name: '7GB', price: 2790 }, { id: '8', name: '8GB', price: 3200 }, { id: '9', name: '9GB', price: 3600 },  
-        { id: '10', name: '10GB', price: 4200 }, { id: '12', name: '12GB', price: 5000 }, { id: '15', name: '15GB', price: 6150 },
-        { id: '20', name: '20GB', price: 8250 }
+        { id: '1', name: '1GB', price: 370 }, { id: '2', name: '2GB', price: 740 }, { id: '3', name: '3GB', price: 1110 },  
+        { id: '4', name: '4GB', price: 1480 }, { id: '5', name: '5GB', price: 1850 }, { id: '6', name: '6GB', price: 2220 },  
+        { id: '7', name: '7GB', price: 2590 }, { id: '8', name: '8GB', price: 2960 }, { id: '9', name: '9GB', price: 3330 },  
+        { id: '10', name: '10GB', price: 3700 }, { id: '12', name: '12GB', price: 4440 }, { id: '15', name: '15GB', price: 5550 },
+        { id: '20', name: '20GB', price: 7400 }
     ],
     "Telecel": [
-        { id: '5', name: '5GB', price: 2300 }, { id: '10', name: '10GB', price: 4300 }, { id: '15', name: '15GB', price: 6250 }, 
-        { id: '20', name: '20GB', price: 8300 }, { id: '25', name: '25GB', price: 10300 }, { id: '30', name: '30GB', price: 12500 },
-        { id: '40', name: '40GB', price: 15500 }, { id: '50', name: '50GB', price: 19500 }, { id: '100', name: '100GB', price: 40000}
+        { id: '5', name: '5GB', price: 2000 }, { id: '10', name: '10GB', price: 3800 }, { id: '15', name: '15GB', price: 5500 }, 
+        { id: '20', name: '20GB', price: 7300 }, { id: '25', name: '25GB', price: 9000 }, { id: '30', name: '30GB', price: 11000 },
+        { id: '40', name: '40GB', price: 14300 }, { id: '50', name: '50GB', price: 18000 }, { id: '100', name: '100GB', price: 35000}
     ]
 };
 
@@ -41,8 +40,10 @@ const NETWORK_KEY_MAP = {
     "MTN": 'YELLO', "AirtelTigo": 'AT_PREMIUM', "Telecel": 'TELECEL',
 };
 
+const CHECK_API_ENDPOINT = 'https://console.ckgodsway.com/api/order-status'; 
 
-// --- HELPER FUNCTIONS (FULL IMPLEMENTATION) ---
+
+// --- HELPER FUNCTIONS (ALL DEFINED AT THE TOP TO FIX REFERENCE ERROR) ---
 function findBaseCost(network, capacityId) {
     const networkPlans = allPlans[network];
     if (!networkPlans) return 0;
@@ -56,7 +57,7 @@ function calculatePaystackFee(chargedAmountInPesewas) {
     return totalFeeChargedByPaystack;
 }
 function calculateClientTopupFee(netDepositPesewas) {
-    const PAYSTACK_RATE = 0.019;
+    const PAYSTACK_RATE = 0.019; 
     const PAYSTACK_FLAT = 80;
     
     const requiredTotalCharge = (netDepositPesewas + PAYSTACK_FLAT) / (1 - PAYSTACK_RATE);
@@ -157,7 +158,6 @@ async function executeDataPurchase(userId, orderDetails, paymentMethod) {
 
 async function runPendingOrderCheck() {
     console.log('--- CRON: Checking for pending orders needing status update... ---');
-    const CHECK_API_ENDPOINT = 'https://console.ckgodsway.com/api/order-status'; 
 
     try {
         if (mongoose.connection.readyState !== 1) {
@@ -354,10 +354,11 @@ app.post('/api/topup', isDbReady, isAuthenticated, async (req, res) => {
         return res.status(400).json({ status: 'error', message: 'Reference and amount are required.' });
     }
     
-    let topupAmountPesewas = Math.round(amount * 100);
+    let netDepositAmountGHS = amount; 
+    let topupAmountPesewas = Math.round(netDepositAmountGHS * 100);
     const userId = req.session.user.id;
 
-    // Calculate the final charged amount using the 40/60 split logic
+    // 🛑 Calculate the final charged amount using the 40/60 split logic
     const finalChargedAmountPesewas = calculateClientTopupFee(topupAmountPesewas);
 
     try {
@@ -372,6 +373,7 @@ app.post('/api/topup', isDbReady, isAuthenticated, async (req, res) => {
             return res.status(400).json({ status: 'error', message: 'Payment verification failed.' });
         }
         
+        // Security Check: Verify that the amount charged by Paystack matches our calculated final charge (within 5 pesewas tolerance)
         if (Math.abs(data.amount - finalChargedAmountPesewas) > 5) {
             console.error(`Fraud Alert: Charged ${data.amount} but expected ${finalChargedAmountPesewas}`);
             return res.status(400).json({ status: 'error', message: 'Amount charged mismatch detected.' });
