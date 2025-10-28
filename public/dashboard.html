@@ -146,318 +146,324 @@
 
         </div>
     </div>
-    
     <script src="https://js.paystack.co/v1/inline.js"></script>
 
-    <script>
-        // --- THEME LOGIC START (omitted for brevity) ---
-        const themeToggle = document.getElementById('theme-toggle');
-        const htmlElement = document.documentElement;
-        const themeIcon = document.getElementById('theme-icon');
+<script>
+    // --- THEME LOGIC START (omitted for brevity) ---
+    const themeToggle = document.getElementById('theme-toggle');
+    const htmlElement = document.documentElement;
+    const themeIcon = document.getElementById('theme-icon');
 
-        function updateThemeIcon(isDark) {
-            if (isDark) {
-                themeIcon.innerHTML = '<path d="M10 2a1 1 0 011 1v1a1 1 0 11-2 0V3a1 1 0 011-1zm4 8a4 4 0 11-8 0 4 4 0 018 0zm-4 7a1 1 0 011 1v1a1 1 0 11-2 0v-1a1 1 0 011-1zm6.5-6.5a1 1 0 010 1.414l-.707.707a1 1 0 11-1.414-1.414l.707-.707a1 1 0 011.414 0zm-13 0a1 1 0 011.414 0l.707.707a1 1 0 11-1.414 1.414l-.707-.707a1 1 0 010-1.414zM3 10a1 1 0 011-1h1a1 1 0 110 2H4a1 1 0 01-1-1zm14 0a1 1 0 01-1 1h-1a1 1 0 110-2h1a1 1 0 011 1z" clip-rule="evenodd" fill-rule="evenodd"></path>';
-            } else {
-                themeIcon.innerHTML = '<path d="M17.293 13.914A8.966 8.966 0 0112 18c-3.14 0-5.968-1.293-8.06-3.385A9.006 9.006 0 0012 21c5.152 0 9.428-3.791 10.378-8.586z"></path>';
-            }
-        }
-
-        if (localStorage.getItem('theme') === 'dark' || (!('theme' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
-            htmlElement.classList.add('dark');
-            updateThemeIcon(true);
+    function updateThemeIcon(isDark) {
+        if (isDark) {
+            themeIcon.innerHTML = '<path d="M10 2a1 1 0 011 1v1a1 1 0 11-2 0V3a1 1 0 011-1zm4 8a4 4 0 11-8 0 4 4 0 018 0zm-4 7a1 1 0 011 1v1a1 1 0 11-2 0v-1a1 1 0 011-1zm6.5-6.5a1 1 0 010 1.414l-.707.707a1 1 0 11-1.414-1.414l.707-.707a1 1 0 011.414 0zm-13 0a1 1 0 011.414 0l.707.707a1 1 0 11-1.414 1.414l-.707-.707a1 1 0 010-1.414zM3 10a1 1 0 011-1h1a1 1 0 110 2H4a1 1 0 01-1-1zm14 0a1 1 0 01-1 1h-1a1 1 0 110-2h1a1 1 0 011 1z" clip-rule="evenodd" fill-rule="evenodd"></path>';
         } else {
+            themeIcon.innerHTML = '<path d="M17.293 13.914A8.966 8.966 0 0112 18c-3.14 0-5.968-1.293-8.06-3.385A9.006 9.006 0 0012 21c5.152 0 9.428-3.791 10.378-8.586z"></path>';
+        }
+    }
+
+    if (localStorage.getItem('theme') === 'dark' || (!('theme' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+        htmlElement.classList.add('dark');
+        updateThemeIcon(true);
+    } else {
+        htmlElement.classList.remove('dark');
+        updateThemeIcon(false);
+    }
+
+    themeToggle.addEventListener('click', () => {
+        if (htmlElement.classList.contains('dark')) {
             htmlElement.classList.remove('dark');
+            localStorage.setItem('theme', 'light');
             updateThemeIcon(false);
+        } else {
+            htmlElement.classList.add('dark');
+            localStorage.setItem('theme', 'dark');
+            updateThemeIcon(true);
         }
-
-        themeToggle.addEventListener('click', () => {
-            if (htmlElement.classList.contains('dark')) {
-                htmlElement.classList.remove('dark');
-                localStorage.setItem('theme', 'light');
-                updateThemeIcon(false);
-            } else {
-                htmlElement.classList.add('dark');
-                localStorage.setItem('theme', 'dark');
-                updateThemeIcon(true);
-            }
-        });
-        // --- THEME LOGIC END ---
+    });
+    // --- THEME LOGIC END ---
 
 
-        // CRITICAL FIX: Date formatter to prevent "Invalid Date" errors
-        function safeDateFormatter(isoString) {
-            if (!isoString) return 'N/A';
-            try {
-                const date = new Date(isoString); 
-                if (isNaN(date.getTime())) return 'Invalid Data';
+    // CRITICAL FIX: Date formatter to prevent "Invalid Date" errors
+    function safeDateFormatter(isoString) {
+        if (!isoString) return 'N/A';
+        try {
+            const date = new Date(isoString); 
+            if (isNaN(date.getTime())) return 'Invalid Date';
+            
+            return date.toLocaleString('en-GB', { 
+                year: 'numeric', month: 'short', day: 'numeric', 
+                hour: '2-digit', minute: '2-digit' 
+            });
+        } catch (e) {
+            return 'Invalid Date';
+        }
+    }
+    
+    // --- GLOBAL STATE & CONSTANTS ---
+    let userOrders = []; 
+    let userEmail = null; 
+    const MIN_TOPUP_GHS = 6.00;
+    const PAYSTACK_PUBLIC_KEY = 'pk_live_62dc43eeea153c81c216b75e3967f8a44ee94fc3'; 
+    
+    // --- DOM ELEMENTS ---
+    const statusDiv = document.getElementById('status');
+    const tableBody = document.getElementById('ordersTableBody');
+    const filterContainer = document.getElementById('network-filters');
+    const balanceDisplay = document.getElementById('wallet-balance-dashboard');
+    const openTopupModalBtn = document.getElementById('open-topup-modal');
+    const modalBackdrop = document.getElementById('modal-backdrop');
+    const modalPayBtn = document.getElementById('modal-pay');
+    const modalAmountInput = document.getElementById('modal-topup-amount');
+    const modalStatus = document.getElementById('modal-content-status');
+    const notificationArea = document.getElementById('notification-area');
+
+
+    // --- NOTIFICATION HANDLER ---
+    function showNotification(message, type = 'success') {
+        const colors = {
+            success: 'bg-green-100 border-green-500 text-green-700 dark:bg-green-900 dark:text-green-300',
+            error: 'bg-red-100 border-red-500 text-red-700 dark:bg-red-900 dark:text-red-300',
+            warning: 'bg-yellow-100 border-yellow-500 text-yellow-700 dark:bg-yellow-900 dark:text-yellow-300'
+        };
+        
+        const alert = document.createElement('div');
+        alert.className = `p-3 border-l-4 rounded-md shadow-sm ${colors[type]}`;
+        alert.innerHTML = `<p class="font-medium">${message}</p>`;
+        
+        notificationArea.prepend(alert); 
+        
+        setTimeout(() => {
+            alert.remove();
+        }, 8000);
+    }
+
+    // --- FEE CALCULATION (60/40 split for TopUp) ---
+    function calculateClientTopupFee(netDepositPesewas) {
+        const PAYSTACK_RATE = 0.019;
+        const PAYSTACK_FLAT = 80;
+        
+        const requiredTotalCharge = (netDepositPesewas + PAYSTACK_FLAT) / (1 - PAYSTACK_RATE);
+        const truePaystackFee = requiredTotalCharge - netDepositPesewas;
+        
+        // Client pays 60% of the true fee
+        const feeClientPays = truePaystackFee * 0.60;
+        
+        const finalCharge = netDepositPesewas + feeClientPays;
+        return Math.round(finalCharge);
+    }
+
+    // --- DATA FETCHING ---
+    async function fetchBalance() {
+        try {
+            const response = await fetch('/api/user-info');
+            if (response.ok) {
+                const data = await response.json();
                 
-                return date.toLocaleString('en-GB', { 
-                    year: 'numeric', month: 'short', day: 'numeric', 
-                    hour: '2-digit', minute: '2-digit' 
-                });
-            } catch (e) {
-                return 'Invalid Data';
-            }
-        }
-        
-        // --- GLOBAL STATE & CONSTANTS ---
-        let userOrders = []; 
-        let userEmail = null; 
-        const MIN_TOPUP_GHS = 6.00;
-        const PAYSTACK_PUBLIC_KEY = 'pk_live_62dc43eeea153c81c216b75e3967f8a44ee94fc3'; 
-        
-        // --- DOM ELEMENTS ---
-        const statusDiv = document.getElementById('status');
-        const tableBody = document.getElementById('ordersTableBody');
-        const filterContainer = document.getElementById('network-filters');
-        const balanceDisplay = document.getElementById('wallet-balance-dashboard');
-        const openTopupModalBtn = document.getElementById('open-topup-modal');
-        const modalBackdrop = document.getElementById('modal-backdrop');
-        const modalPayBtn = document.getElementById('modal-pay');
-        const modalAmountInput = document.getElementById('modal-topup-amount');
-        const modalStatus = document.getElementById('modal-content-status');
-        const notificationArea = document.getElementById('notification-area');
-
-
-        // --- NOTIFICATION HANDLER (omitted for brevity) ---
-        function showNotification(message, type = 'success') {
-             /* ... implementation ... */
-        }
-
-        // --- FEE CALCULATION (60/40 split for TopUp) ---
-        function calculateClientTopupFee(netDepositPesewas) {
-            const PAYSTACK_RATE = 0.019;
-            const PAYSTACK_FLAT = 80;
-            
-            const requiredTotalCharge = (netDepositPesewas + PAYSTACK_FLAT) / (1 - PAYSTACK_RATE);
-            const truePaystackFee = requiredTotalCharge - netDepositPesewas;
-            
-            // Client pays 60% of the true fee
-            const feeClientPays = truePaystackFee * 0.60;
-            
-            const finalCharge = netDepositPesewas + feeClientPays;
-            return Math.round(finalCharge);
-        }
-
-        // --- DATA FETCHING ---
-        async function fetchBalance() {
-            try {
-                const response = await fetch('/api/user-info');
-                if (response.ok) {
-                    const data = await response.json();
-                    balanceDisplay.textContent = `GHS ${(data.walletBalance / 100).toFixed(2)}`;
-                    
-                    if (data.walletBalance < 1000) { // GHS 10.00 threshold
-                        showNotification('Warning: Your wallet balance is running low!', 'warning');
-                    }
-                    return data.email; 
-                } else if (response.status === 401) {
-                    statusDiv.textContent = 'Session expired. Redirecting to login...';
-                    statusDiv.style.color = 'red';
-                    setTimeout(() => window.location.href = '/login.html', 1000);
-                    return null;
+                // 🛑 CRITICAL FIX: Ensure global variable is updated with latest balance
+                userEmail = data.email; 
+                balanceDisplay.textContent = `GHS ${(data.walletBalance / 100).toFixed(2)}`;
+                
+                if (data.walletBalance < 1000) { // GHS 10.00 threshold
+                    showNotification('Warning: Your wallet balance is running low!', 'warning');
                 }
-            } catch (error) {
-                balanceDisplay.textContent = 'GHS Err';
+                return data.email; 
+            } else if (response.status === 401) {
+                statusDiv.textContent = 'Session expired. Redirecting to login...';
+                statusDiv.style.color = 'red';
+                setTimeout(() => window.location.href = '/login.html', 1000);
                 return null;
             }
+        } catch (error) {
+            balanceDisplay.textContent = 'GHS Err';
+            return null;
         }
+    }
 
-        async function fetchOrderHistory() {
-            try {
-                const response = await fetch('/api/my-orders');
-                
-                if (response.status === 401) return;
-                if (!response.ok) throw new Error('Could not fetch orders.');
-                
-                const data = await response.json();
-                userOrders = data.orders || [];
-
-                if (userOrders.length === 0) { 
-                    statusDiv.textContent = "You haven't made any transactions yet."; 
-                    return; 
-                }
-                
-                filterAndRenderOrders(filterContainer.querySelector('.filter-tab.active').dataset.network);
-
-            } catch (error) {
-                statusDiv.textContent = `Error: ${error.message}`;
-            }
-        }
-
-        // --- RENDERING ---
-        function renderOrders(orders) {
-            tableBody.innerHTML = '';
-            if (orders.length === 0) {
-                statusDiv.textContent = "No orders found for this network.";
-                return;
-            }
-
-            statusDiv.textContent = ''; 
+    async function fetchOrderHistory() {
+        try {
+            const response = await fetch('/api/my-orders');
             
-            orders.forEach(order => {
-                const row = tableBody.insertRow();
-                const statusText = order.status.replace(/_/g, ' '); 
-                const statusClass = `status-${order.status}`;
-                
-                let source = order.paymentMethod === 'wallet' ? 'Wallet' : 'Paystack';
-                // Details now handle both network and general topup text
-                let item = order.dataPlan === 'WALLET TOP-UP' ? 'Wallet Top-up' : `${order.dataPlan} (${order.network || 'N/A'})`;
+            if (response.status === 401) return;
+            if (!response.ok) throw new Error('Could not fetch orders.');
+            
+            const data = await response.json();
+            userOrders = data.orders || [];
 
-                // Displaying the financial change using sign convention
-                let amountSign = (order.dataPlan === 'WALLET TOP-UP') ? '+' : '-';
-                let amountColor = (order.dataPlan === 'WALLET TOP-UP') ? 'type-deposit' : 'type-purchase';
+            if (userOrders.length === 0) { 
+                statusDiv.textContent = "You haven't made any transactions yet."; 
+                return; 
+            }
+            
+            filterAndRenderOrders(filterContainer.querySelector('.filter-tab.active').dataset.network);
 
-                row.className = 'hover:bg-gray-50 transition duration-150 dark:hover:bg-gray-800';
-
-                row.innerHTML = `
-                    <!-- 1. Time (Date Fix) -->
-                    <td class="py-4 px-6 dark:text-gray-400">${safeDateFormatter(order.created_at)}</td>
-                    <!-- 2. Action Source -->
-                    <td class="py-4 px-6 font-medium text-gray-800 dark:text-gray-300">${source}</td>
-                    <!-- 3. Recipient/Reference (NEW COLUMN) -->
-                    <td class="py-4 px-6 dark:text-gray-400">
-                        ${order.phoneNumber ? order.phoneNumber : 'N/A'}
-                    </td>
-                    <!-- 4. Details -->
-                    <td class="py-4 px-6 dark:text-gray-400">${item}</td>
-                    <!-- 5. Change (Amount Fix) -->
-                    <td class="py-4 px-6 font-semibold ${amountColor}">
-                        ${amountSign} GHS ${order.amount.toFixed(2)}
-                    </td>
-                    <!-- 6. Status -->
-                    <td class="py-4 px-6">
-                        <span class="px-3 py-1 text-white text-xs font-bold uppercase rounded-full ${statusClass}">
-                            ${statusText}
-                        </span>
-                    </td>
-                `;
-            });
+        } catch (error) {
+            statusDiv.textContent = `Error: ${error.message}`;
         }
+    }
+
+    function renderOrders(orders) {
+        tableBody.innerHTML = '';
+        if (orders.length === 0) {
+            statusDiv.textContent = "No orders found for this network.";
+            return;
+        }
+
+        statusDiv.textContent = ''; 
         
-        function filterAndRenderOrders(network) {
-            let filtered = userOrders;
-            if (network !== 'All') {
-                filtered = userOrders.filter(order => order.network === network || order.dataPlan === 'WALLET TOP-UP');
-            }
-            renderOrders(filtered);
-        }
-
-        // --- TOP-UP MODAL LOGIC (omitted for brevity) ---
-        function openModal() {
-            modalBackdrop.style.display = 'flex';
-            setTimeout(() => {
-                modalBackdrop.style.opacity = 1;
-                topupModal.style.transform = 'scale(1)';
-            }, 10);
-            modalAmountInput.focus();
-        }
-
-        function closeModal() {
-            modalBackdrop.style.opacity = 0;
-            topupModal.style.transform = 'scale(0.95)';
-            setTimeout(() => {
-                modalBackdrop.style.display = 'none';
-                modalStatus.textContent = '';
-                modalAmountInput.value = MIN_TOPUP_GHS.toFixed(2);
-            }, 300);
-        }
-
-        // --- PAYSTACK INTEGRATION (omitted for brevity) ---
-        const initiatePaystackTopup = (amountInGHS, userEmail) => {
-            const amountInPesewas = Math.round(amountInGHS * 100);
+        orders.forEach(order => {
+            const row = tableBody.insertRow();
+            const statusText = order.status.replace(/_/g, ' '); 
+            const statusClass = `status-${order.status}`;
             
-            const PAYSTACK_RATE = 0.019;
-            const PAYSTACK_FLAT = 80;
-            const netDepositPesewas = amountInPesewas;
-            
-            const requiredTotalCharge = (netDepositPesewas + PAYSTACK_FLAT) / (1 - PAYSTACK_RATE);
-            const truePaystackFee = requiredTotalCharge - netDepositPesewas;
-            const feeClientPays = truePaystackFee * 0.60; 
-            const finalChargedAmount = Math.round(netDepositPesewas + feeClientPays);
+            let source = order.paymentMethod === 'wallet' ? 'Wallet' : 'Paystack';
+            let item = order.dataPlan === 'WALLET TOP-UP' ? 'Wallet Top-up' : `${order.dataPlan} (${order.network || 'N/A'})`;
 
-            modalPayBtn.disabled = true;
-            modalPayBtn.textContent = 'Processing...';
+            // Displaying the financial change using sign convention
+            let amountSign = (order.dataPlan === 'WALLET TOP-UP') ? '+' : '-';
+            let amountColor = (order.dataPlan === 'WALLET TOP-UP') ? 'type-deposit' : 'type-purchase';
 
-            const paymentCallback = function(response) {
-                showNotification("Verifying top-up...", 'warning');
-                
-                fetch('/api/topup', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ 
-                        reference: response.reference, 
-                        amount: amountInGHS 
-                    }),
-                })
-                .then(verifyResponse => verifyResponse.json())
-                .then(data => {
-                    if (data.status === 'success') {
-                        showNotification(`Deposit successful! GHS ${(data.newBalance / 100).toFixed(2)} added to your wallet.`, 'success');
-                         fetchBalance(); 
-                         setTimeout(() => fetchOrderHistory(), 1000); 
-                    } else {
-                        showNotification(data.message, 'error');
-                    }
-                })
-                .catch(err => {
-                    showNotification("Top-up verification failed.", 'error');
-                })
-                .finally(() => {
-                    modalPayBtn.disabled = false;
-                    modalPayBtn.textContent = 'Pay';
-                });
-            };
-            
-            PaystackPop.setup({
-                key: PAYSTACK_PUBLIC_KEY, 
-                email: userEmail, 
-                amount: finalChargedAmount, 
-                currency: 'GHS',
-                ref: 'DL-TOPUP-' + Math.floor((Math.random() * 1000000000) + 1),
-                callback: paymentCallback,
-                onClose: function() { 
-                    showNotification("Top-up cancelled.", 'error');
-                    modalPayBtn.disabled = false;
-                    modalPayBtn.textContent = 'Pay';
-                }
-            }).openIframe();
-        };
+            row.className = 'hover:bg-gray-50 transition duration-150 dark:hover:bg-gray-800';
 
-
-        // --- INITIALIZATION & LISTENERS ---
-        document.addEventListener('DOMContentLoaded', async () => {
-            const userDataEmail = await fetchBalance(); 
-            userEmail = userDataEmail; // Set global user email
-            
-            // 1. Bind Theme Toggle
-            themeToggle.addEventListener('click', () => { /* ... theme logic ... */ });
-
-            if (userEmail) {
-                // 2. Bind TopUp Modal Pay Button
-                modalPayBtn.addEventListener('click', () => {
-                    const amount = parseFloat(modalAmountInput.value);
-                    if (isNaN(amount) || amount < MIN_TOPUP_GHS) {
-                        modalStatus.textContent = `Please enter a valid amount (Min GHS ${MIN_TOPUP_GHS.toFixed(2)}).`;
-                        return;
-                    }
-                    modalStatus.textContent = ''; 
-                    initiatePaystackTopup(amount, userEmail);
-                });
-            }
-            fetchOrderHistory(); // Load initial history
-
-            // 3. Attach UI listeners
-            openTopupModalBtn.addEventListener('click', openModal);
-            document.getElementById('modal-cancel').addEventListener('click', closeModal);
-            filterContainer.addEventListener('click', (e) => {
-                const target = e.target.closest('.filter-tab');
-                if (target) {
-                    document.querySelectorAll('.filter-tab').forEach(tab => tab.classList.remove('active'));
-                    target.classList.add('active');
-                    filterAndRenderOrders(target.dataset.network);
-                }
-            });
+            row.innerHTML = `
+                <td class="py-4 px-6 dark:text-gray-400">${safeDateFormatter(order.created_at)}</td>
+                <td class="py-4 px-6 font-medium text-gray-800 dark:text-gray-300">${source}</td>
+                <td class="py-4 px-6 dark:text-gray-400">${item}</td>
+                <td class="py-4 px-6 font-semibold ${amountColor}">
+                    ${amountSign} GHS ${order.amount.toFixed(2)}
+                </td>
+                <td class="py-4 px-6">
+                    <span class="px-3 py-1 text-white text-xs font-bold uppercase rounded-full ${statusClass}">
+                        ${statusText}
+                    </span>
+                </td>
+            `;
         });
-    </script>
+    }
+    
+    function filterAndRenderOrders(network) {
+        let filtered = userOrders;
+        if (network !== 'All') {
+            filtered = userOrders.filter(order => order.network === network || order.dataPlan === 'WALLET TOP-UP');
+        }
+        renderOrders(filtered);
+    }
+
+    // --- TOP-UP MODAL LOGIC ---
+    function openModal() {
+        modalBackdrop.style.display = 'flex';
+        setTimeout(() => {
+            modalBackdrop.style.opacity = 1;
+            topupModal.style.transform = 'scale(1)';
+        }, 10);
+        modalAmountInput.focus();
+    }
+
+    function closeModal() {
+        modalBackdrop.style.opacity = 0;
+        topupModal.style.transform = 'scale(0.95)';
+        setTimeout(() => {
+            modalBackdrop.style.display = 'none';
+            modalStatus.textContent = '';
+            modalAmountInput.value = MIN_TOPUP_GHS.toFixed(2);
+        }, 300);
+    }
+
+    // --- PAYSTACK INTEGRATION ---
+    const initiatePaystackTopup = (amountInGHS, userEmail) => {
+        const amountInPesewas = Math.round(amountInGHS * 100);
+        
+        // 🛑 Calculate the final charged amount (Deposit + 60% Fee)
+        const PAYSTACK_RATE = 0.019;
+        const PAYSTACK_FLAT = 80;
+        const netDepositPesewas = amountInPesewas;
+        
+        const requiredTotalCharge = (netDepositPesewas + PAYSTACK_FLAT) / (1 - PAYSTACK_RATE);
+        const truePaystackFee = requiredTotalCharge - netDepositPesewas;
+        const feeClientPays = truePaystackFee * 0.60; 
+        const finalChargedAmount = Math.round(netDepositPesewas + feeClientPays);
+
+        modalPayBtn.disabled = true;
+        modalPayBtn.textContent = 'Processing...';
+
+        const paymentCallback = function(response) {
+            showNotification("Verifying top-up...", 'warning');
+            
+            fetch('/api/topup', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ 
+                    reference: response.reference, 
+                    amount: amountInGHS // Send the net deposit amount for server verification
+                }),
+            })
+            .then(verifyResponse => verifyResponse.json())
+            .then(data => {
+                if (data.status === 'success') {
+                    // 🛑 CRITICAL FIX: Refreshing both data sets immediately
+                    fetchBalance(); 
+                    fetchOrderHistory();
+                    showNotification(`Deposit successful! GHS ${(data.newBalance / 100).toFixed(2)} added to your wallet.`, 'success');
+                } else {
+                    showNotification(data.message, 'error');
+                }
+            })
+            .catch(err => {
+                showNotification("Top-up verification failed.", 'error');
+            })
+            .finally(() => {
+                modalPayBtn.disabled = false;
+                modalPayBtn.textContent = 'Pay';
+            });
+        };
+        
+        PaystackPop.setup({
+            key: PAYSTACK_PUBLIC_KEY, 
+            email: userEmail, 
+            amount: finalChargedAmount, 
+            currency: 'GHS',
+            ref: 'DL-TOPUP-' + Math.floor((Math.random() * 1000000000) + 1),
+            callback: paymentCallback,
+            onClose: function() { 
+                showNotification("Top-up cancelled.", 'error');
+                modalPayBtn.disabled = false;
+                modalPayBtn.textContent = 'Pay';
+            }
+        }).openIframe();
+    };
+
+
+    // --- INITIALIZATION & LISTENERS ---
+    document.addEventListener('DOMContentLoaded', async () => {
+        const userData = await fetchBalance(); // Fetch balance and user data
+
+        if (userData) {
+            // 2. Bind TopUp Modal Pay Button
+            modalPayBtn.addEventListener('click', () => {
+                const amount = parseFloat(modalAmountInput.value);
+                if (isNaN(amount) || amount < MIN_TOPUP_GHS) {
+                    modalStatus.textContent = `Please enter a valid amount (Min GHS ${MIN_TOPUP_GHS.toFixed(2)}).`;
+                    return;
+                }
+                modalStatus.textContent = ''; 
+                initiatePaystackTopup(amount, userData); // Pass the email directly
+            });
+        }
+        fetchOrderHistory(); // Load initial history
+
+        // 3. Attach UI listeners
+        openTopupModalBtn.addEventListener('click', openModal);
+        document.getElementById('modal-cancel').addEventListener('click', closeModal);
+        filterContainer.addEventListener('click', (e) => {
+            const target = e.target.closest('.filter-tab');
+            if (target) {
+                document.querySelectorAll('.filter-tab').forEach(tab => tab.classList.remove('active'));
+                target.classList.add('active');
+                filterAndRenderOrders(target.dataset.network);
+            }
+        });
+    });
+</script>
+</body>
+</html>
+  
