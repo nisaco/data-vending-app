@@ -1,15 +1,15 @@
 const mongoose = require('mongoose');
 
 // --- 1. CONNECTION ---
-// This function attempts to connect but does not wait for Express to start
 async function connectDB() {
     try {
         await mongoose.connect(process.env.MONGO_URI);
         console.log('Connected to MongoDB successfully.');
     } catch (err) {
         console.error('MongoDB connection error:', err);
-        // Exits process if the primary connection fails (prevents infinite loop/crash)
-        process.exit(1); 
+        // 🛑 CRITICAL FIX: REMOVED process.exit(1)
+        // The server will now start even if the connection fails initially.
+        // The isDbReady middleware will handle access restriction.
     }
 }
 
@@ -42,4 +42,4 @@ const User = mongoose.model('User', userSchema);
 const Order = mongoose.model('Order', orderSchema);
 
 // Export models AND the mongoose instance
-module.exports = { User, Order, mongoose };
+module.exports = { User, Order, mongoose }; 
