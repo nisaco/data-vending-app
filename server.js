@@ -19,16 +19,16 @@ const allPlans = {
     "MTN": [
         { id: '1', name: '1GB', price: 480 }, { id: '2', name: '2GB', price: 960 }, { id: '3', name: '3GB', price: 1420 }, 
         { id: '4', name: '4GB', price: 2000 }, { id: '5', name: '5GB', price: 2400 }, { id: '6', name: '6GB', price: 2800 }, 
-        { id: '8', name: '8GB', price: 3600 }, { id: '10', name: '10GB', price: 4380 }, { id: '15', name: '15GB', price: 6400 },
-        { id: '20', name: '20GB', price: 8500 }, { id: '25', name: '25GB', price: 10500 }, { id: '30', name: '30GB', price: 12450 },
-        { id: '40', name: '40GB', price: 16500 }, { id: '50', name: '50GB', price: 19800 }
+        { id: '8', name: '8GB', price: 3600 }, { id: '10', name: '10GB', price: 4400 }, { id: '15', name: '15GB', price: 6400 },
+        { id: '20', name: '20GB', price: 8400 }, { id: '25', name: '25GB', price: 10300 }, { id: '30', name: '30GB', price: 12500 },
+        { id: '40', name: '40GB', price: 16200 }, { id: '50', name: '50GB', price: 19800 }
     ],
     "AirtelTigo": [
         { id: '1', name: '1GB', price: 400 }, { id: '2', name: '2GB', price: 800 }, { id: '3', name: '3GB', price: 1200 },  
-        { id: '4', name: '4GB', price: 1600 }, { id: '5', name: '5GB', price: 2000 }, { id: '6', name: '6GB', price: 2400 },  
-        { id: '7', name: '7GB', price: 2790 }, { id: '8', name: '8GB', price: 3200 }, { id: '9', name: '9GB', price: 3600 },  
-        { id: '10', name: '10GB', price: 4200 }, { id: '12', name: '12GB', price: 5000 }, { id: '15', name: '15GB', price: 6130 },
-        { id: '20', name: '20GB', price: 8210 }
+        { id: '4', name: '4GB', price: 1600 }, { id: '5', name: '5GB', price: 2000 }, { id: '6', name: '6GB', price: 2420 },  
+        { id: '7', name: '7GB', price: 2780 }, { id: '8', name: '8GB', price: 3200 }, { id: '9', name: '9GB', price: 3600 },  
+        { id: '10', name: '10GB', price: 4200 }, { id: '12', name: '12GB', price: 5000 }, { id: '15', name: '15GB', price: 6200 },
+        { id: '20', name: '20GB', price: 8200 }
     ],
     "Telecel": [
         { id: '5', name: '5GB', price: 2300 }, { id: '10', name: '10GB', price: 4300 }, { id: '15', name: '15GB', price: 6220 }, 
@@ -38,11 +38,13 @@ const allPlans = {
 };
 
 const NETWORK_KEY_MAP = {
-    "MTN": 'YELLO', "AirtelTigo": 'AT_PREMIUM', "Telecel": 'TELECEL',
+    "MTN": 'YELLO',
+    "AirtelTigo": 'AT_PREMIUM', 
+    "Telecel": 'TELECEL',
 };
 
 
-// --- HELPER FUNCTIONS (FULL IMPLEMENTATION) ---
+// --- HELPER FUNCTIONS ---
 function findBaseCost(network, capacityId) {
     const networkPlans = allPlans[network];
     if (!networkPlans) return 0;
@@ -380,7 +382,7 @@ app.post('/api/topup', isDbReady, isAuthenticated, async (req, res) => {
         // --- STEP 2: UPDATE USER WALLET BALANCE (NET DEPOSIT) ---
         const updatedUser = await User.findByIdAndUpdate(
             userId,
-            { $inc: { walletBalance: topupAmountPesewas } }, // Deposit the net amount (e.g., 5000)
+            { $inc: { walletBalance: netDepositPesewas } }, // Deposit the net amount (e.g., 5000)
             { new: true, runValidators: true }
         );
         
@@ -397,7 +399,7 @@ app.post('/api/topup', isDbReady, isAuthenticated, async (req, res) => {
             network: 'WALLET' // CRITICAL FIX: Add network field for filtering
         });
 
-        res.json({ status: 'success', message: `Wallet topped up successfully! GHS ${topupAmountPesewas/100} deposited.`, newBalance: updatedUser.walletBalance });
+        res.json({ status: 'success', message: `Wallet topped up successfully! GHS ${netDepositAmountGHS.toFixed(2)} deposited.`, newBalance: updatedUser.walletBalance });
 
     } catch (error) {
         console.error('Topup Verification Error:', error);
@@ -673,5 +675,4 @@ app.listen(PORT, '0.0.0.0', () => {
     console.log('Database connection is initializing...');
 });
 
-// Start the cron job after the server is listening
 cron.schedule('*/5 * * * *', runPendingOrderCheck);
