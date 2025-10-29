@@ -43,7 +43,7 @@ const NETWORK_KEY_MAP = {
 const CHECK_API_ENDPOINT = 'https://console.ckgodsway.com/api/order-status'; 
 
 
-// --- HELPER FUNCTIONS (ALL DEFINED AT THE TOP TO FIX REFERENCE ERROR) ---
+// --- HELPER FUNCTIONS ---
 function findBaseCost(network, capacityId) {
     const networkPlans = allPlans[network];
     if (!networkPlans) return 0;
@@ -138,7 +138,6 @@ async function executeDataPurchase(userId, orderDetails, paymentMethod) {
     }
 
     // --- STEP 2: SAVE FINAL ORDER STATUS TO MONGODB & SEND ALERT ---
-    // 🛑 CRITICAL FIX: The Order is created here
     await Order.create({
         userId: userId,
         reference: reference,
@@ -159,7 +158,7 @@ async function executeDataPurchase(userId, orderDetails, paymentMethod) {
 
 async function runPendingOrderCheck() {
     console.log('--- CRON: Checking for pending orders needing status update... ---');
-
+    
     try {
         if (mongoose.connection.readyState !== 1) {
             console.log('CRON: Skipping check, database not ready (State: ' + mongoose.connection.readyState + ')');
@@ -355,8 +354,7 @@ app.post('/api/topup', isDbReady, isAuthenticated, async (req, res) => {
         return res.status(400).json({ status: 'error', message: 'Reference and amount are required.' });
     }
     
-    let netDepositAmountGHS = amount; 
-    let topupAmountPesewas = Math.round(netDepositAmountGHS * 100);
+    let topupAmountPesewas = Math.round(amount * 100);
     const userId = req.session.user.id;
 
     // Calculate the final charged amount using the 40/60 split logic
@@ -382,10 +380,11 @@ app.post('/api/topup', isDbReady, isAuthenticated, async (req, res) => {
         // --- STEP 2: UPDATE USER WALLET BALANCE (NET DEPOSIT) ---
         const updatedUser = await User.findByIdAndUpdate(
             userId,
-            { $inc: { walletBalance: netDepositPesewas } }, // Deposit the net amount (e.g., 5000)
+            { $inc: { walletBalance: topupAmountPesewas } }, // Deposit the net amount (e.g., 5000)
             { new: true, runValidators: true }
         );
         
+        // 🛑 CRITICAL FIX: Update the session balance HERE immediately after the DB update
         req.session.user.walletBalance = updatedUser.walletBalance; 
 
         // Log the top-up as a successful order for tracking
@@ -396,7 +395,7 @@ app.post('/api/topup', isDbReady, isAuthenticated, async (req, res) => {
             status: 'topup_successful',
             paymentMethod: 'paystack',
             dataPlan: 'WALLET TOP-UP',
-            network: 'WALLET' // CRITICAL FIX: Add network field for filtering
+            network: 'WALLET' 
         });
 
         res.json({ status: 'success', message: `Wallet topped up successfully! GHS ${netDepositAmountGHS.toFixed(2)} deposited.`, newBalance: updatedUser.walletBalance });
@@ -548,10 +547,116 @@ app.get('/api/get-all-orders', async (req, res) => {
     }
 });
 
-app.get('/api/admin/all-users-status', async (req, res) => { /* ... implementation ... */ });
-app.get('/api/admin/user-count', async (req, res) => { /* ... implementation ... */ });
-app.post('/api/admin/update-order', async (req, res) => { /* ... implementation ... */ });
-app.get('/api/admin/metrics', async (req, res) => { /* ... implementation ... */ });
+app.get('/api/admin/all-users-status', async (req, res) => {
+    if (req.query.secret !== process.env.ADMIN_SECRET) return res.status(403).json({ error: "Unauthorized" });
+    
+    try {
+        if (mongoose.connection.readyState !== 1) return res.status(503).json({ error: 'Database not ready.' });
+
+        const registeredUsers = await User.find({}).select('username email createdAt').lean();
+
+        const sessionsCollection = mongoose.connection.db.collection('sessions');
+        const rawSessions = await sessionsCollection.find({}).toArray();
+
+        const activeUserIds = new Set();
+        rawSessions.forEach(sessionDoc => {
+            try {
+                const sessionData = JSON.parse(sessionDoc.session);
+                if (sessionData.user && sessionData.user.id) {
+                    let sessionId = sessionData.user.id.toString().replace(/['"]+/g, '');
+                    activeUserIds.add(sessionId);
+                }
+            } catch (e) { }
+        });
+
+        const userListWithStatus = registeredUsers.map(user => {
+            const userIdString = user._id.toString();
+            
+            return {
+                username: user.username,
+                email: user.email,
+                signedUp: user.createdAt,
+                isOnline: activeUserIds.has(userIdString)
+            };
+        });
+
+        res.json({ users: userListWithStatus });
+    } catch (error) {
+        console.error('All users status error:', error);
+        res.status(500).json({ error: 'Failed to fetch user list and status' });
+    }
+});
+
+app.get('/api/admin/user-count', async (req, res) => {
+    if (req.query.secret !== process.env.ADMIN_SECRET) {
+        return res.status(403).json({ error: 'Unauthorized' });
+    }
+    try {
+        if (mongoose.connection.readyState !== 1) return res.status(503).json({ error: 'Database not ready.' });
+
+        const count = await User.countDocuments({});
+        res.json({ count: count });
+    } catch (error) {
+        res.status(500).json({ error: 'Failed to fetch user count' });
+    }
+});
+
+app.post('/api/admin/update-order', async (req, res) => {
+    if (req.body.adminSecret !== process.env.ADMIN_SECRET) return res.status(403).json({ error: 'Unauthorized access.' });
+    const { orderId, newStatus } = req.body;
+    
+    if (!orderId || !newStatus) return res.status(400).json({ error: 'Order ID and new status are required.' });
+
+    try {
+        const result = await Order.findByIdAndUpdate(orderId, { status: newStatus }, { new: true });
+        if (!result) return res.status(404).json({ message: 'Order not found.' });
+        
+        res.json({ status: 'success', message: `Order ${orderId} status updated to ${newStatus}.` });
+
+    } catch (error) {
+        res.status(500).json({ error: 'Failed to update order status.' });
+    }
+});
+
+app.get('/api/admin/metrics', async (req, res) => {
+    if (req.query.secret !== process.env.ADMIN_SECRET) return res.status(403).json({ error: 'Unauthorized' });
+
+    try {
+        if (mongoose.connection.readyState !== 1) return res.status(503).json({ error: 'Database not ready.' });
+
+        const successfulOrders = await Order.find({ status: 'data_sent' });
+        
+        let totalRevenueGHS = 0;
+        let totalCostGHS = 0;
+        let totalPaystackFeeGHS = 0;
+
+        successfulOrders.forEach(order => {
+            const chargedAmountInPesewas = Math.round(order.amount * 100);
+            
+            const resellerCostInPesewas = findBaseCost(order.network, order.dataPlan);
+            const paystackFeeInPesewas = calculatePaystackFee(chargedAmountInPesewas);
+            
+            totalRevenueGHS += order.amount; 
+            totalPaystackFeeGHS += (paystackFeeInPesewas / 100);
+            totalCostGHS += (resellerCostInPesewas / 100); 
+        });
+        
+        const totalNetCostGHS = totalCostGHS + totalPaystackFeeGHS;
+        const totalNetProfitGHS = totalRevenueGHS - totalNetCostGHS;
+
+        res.json({
+            revenue: totalRevenueGHS.toFixed(2),
+            cost: totalCostGHS.toFixed(2),
+            paystackFee: totalPaystackFeeGHS.toFixed(2),
+            netProfit: totalNetProfitGHS.toFixed(2),
+            totalOrders: successfulOrders.length
+        });
+
+    } catch (error) {
+        console.error('Metrics error:', error);
+        res.status(500).json({ error: 'Failed to calculate metrics' });
+    }
+});
 
 
 // --- SERVE HTML FILES ---
