@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Purchase Data - DataLink</title>
+    <title>Purchase Data - Agent</title>
     <!-- FAVICON LINK -->
     <link rel="icon" type="image/png" href="apple-touch-icon.png">
     <!-- Load Tailwind CSS for modern styling -->
@@ -45,12 +45,12 @@
 </head>
 <body class="bg-gray-50 min-h-screen font-sans">
 
-    <!-- Navbar (Fixed for Mobile View) -->
+    <!-- Navbar -->
     <nav class="bg-white shadow-lg">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex justify-between items-center h-24 sm:h-16 flex-col sm:flex-row py-2">
             
             <!-- Logo Area -->
-            <a href="/purchase" class="text-xl font-bold text-primary w-full sm:w-auto text-center sm:text-left">DataLink</a>
+            <a href="/purchase" class="text-xl font-bold text-primary w-full sm:w-auto text-center sm:text-left">DataLink (Agent Wholesale)</a>
             
             <!-- Links and Wallet Area -->
             <div class="flex space-x-4 items-center w-full justify-center sm:w-auto mt-2 sm:mt-0">
@@ -69,8 +69,8 @@
     <!-- Main Content Container -->
     <div class="container mx-auto p-4 max-w-2xl">
         <div class="bg-white p-6 md:p-8 rounded-2xl shadow-xl mt-8 border border-gray-100">
-            <h1 class="text-3xl font-extrabold text-center text-gray-800 mb-2">Buy Mobile Data</h1>
-            <p class="text-center text-gray-500 mb-8">Select your network and plan below.</p>
+            <h1 class="text-3xl font-extrabold text-center text-gray-800 mb-2">Buy Mobile Data (Wholesale)</h1>
+            <p class="text-center text-gray-500 mb-8">Access your zero-markup reseller prices.</p>
 
             <form id="paymentForm">
                 
@@ -121,7 +121,6 @@
                 <!-- Email for Receipt -->
                 <div class="form-group mb-6">
                     <label for="email" class="block text-gray-700 font-medium mb-2">Email for Receipt (Optional)</label>
-                    <!-- 🛑 FIX: Removed required attribute to make email optional -->
                     <input type="email" id="email" placeholder="your.email@example.com" class="w-full p-3 border border-gray-300 rounded-lg focus:ring-primary focus:border-primary transition">
                 </div>
                 
@@ -229,8 +228,9 @@
         const fetchPlansForNetwork = (network) => {
             dataplanSelect.innerHTML = '<option value="" data-amount="0" selected disabled>Loading plans...</option>';
             payButton.disabled = true;
-
-            fetch(`/api/data-plans?network=${network}`)
+            
+            // 🛑 CRITICAL FIX: Call the WHOLESALE pricing API for this specific Agent page
+            fetch(`/api/data-plans-wholesale?network=${network}`)
                 .then(response => response.json())
                 .then(plans => {
                     dataplanSelect.innerHTML = '<option value="" data-amount="0" selected disabled>Select a Plan...</option>';
@@ -273,8 +273,6 @@
         
         // --- PURCHASE LOGIC (Handles transaction outcome) ---
         const handlePaystackTransaction = (transactionType) => {
-            const isTopup = transactionType === 'topup';
-            
             const selected = dataplanSelect.options[dataplanSelect.selectedIndex];
             const priceInPesewas = parseInt(selected.dataset.amount);
             
@@ -283,7 +281,7 @@
             payButton.disabled = true;
             payButton.textContent = 'Initiating Checkout...';
             
-            const transactionUrl = '/paystack/verify'; 
+            const transactionUrl = '/paystack/verify'; // Only verify purchase from this page
 
             const paymentCallback = function(response) {
                 statusDiv.textContent = "Verifying payment, please wait...";
@@ -322,25 +320,27 @@
                 });
             };
             
-            PaystackPop.setup({
-                key: PAYSTACK_PUBLIC_KEY, 
-                email: document.getElementById('email').value,
-                amount: amountToCharge, 
-                currency: 'GHS',
-                ref: 'DL-' + Math.floor((Math.random() * 1000000000) + 1),
-                metadata: { 
-                    phone_number: phoneInput.value, 
-                    network: networkInput.value, 
-                    data_plan: selected.value,
-                },
-                callback: paymentCallback,
-                onClose: function() { 
-                    statusDiv.textContent = "Transaction cancelled."; 
-                    statusDiv.style.color = "red"; 
-                    payButton.disabled = false;
-                    updatePayButton(selected);
-                }
-            }).openIframe();
+            fetchUserInfo().then(userEmail => {
+                PaystackPop.setup({
+                    key: PAYSTACK_PUBLIC_KEY, 
+                    email: document.getElementById('email').value || userEmail, 
+                    amount: amountToCharge, 
+                    currency: 'GHS',
+                    ref: 'DL-' + Math.floor((Math.random() * 1000000000) + 1),
+                    metadata: { 
+                        phone_number: phoneInput.value, 
+                        network: networkInput.value, 
+                        data_plan: selected.value,
+                    },
+                    callback: paymentCallback,
+                    onClose: function() { 
+                        statusDiv.textContent = "Transaction cancelled."; 
+                        statusDiv.style.color = "red"; 
+                        payButton.disabled = false;
+                        updatePayButton(selected);
+                    }
+                }).openIframe();
+            });
         };
         
         const handleWalletPurchase = async () => {
@@ -459,5 +459,3 @@
             });
         });
     </script>
-</body>
-</html>
