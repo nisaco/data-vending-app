@@ -3,9 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-     <link rel="icon" type="image/x-icon" href="apple-touch-icon.png">
-       
-    <title>Purchase Data - AJEnterprise</title>
+    <title>Purchase Data - DataLink</title>
+    <!-- FAVICON LINK -->
+    <link rel="icon" type="image/png" href="apple-touch-icon.png">
     <!-- Load Tailwind CSS for modern styling -->
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
@@ -16,15 +16,16 @@
         .bg-safe-button { background-color: #006400; }
         .hover\:bg-safe-button-darker:hover { background-color: #004d00; } 
         
-        /* Active Tab Styling */
-        .network-tab.active { 
-            box-shadow: 0 0 0 3px var(--primary), 0 1px 3px 0 rgba(0, 0, 0, 0.1);
-            transform: scale(1.05);
-        }
+        /* Tab Styling */
         .network-tab {
             transition: all 0.2s ease-in-out;
             border-radius: 0.75rem; 
             border: 2px solid transparent;
+        }
+        .network-tab.active { 
+            box-shadow: 0 0 0 3px var(--primary), 0 1px 3px 0 rgba(0, 0, 0, 0.1);
+            transform: scale(1.05);
+            background-color: #f0fff0; /* Light green highlight */
         }
         /* Pay Option Styling */
         .pay-option {
@@ -37,6 +38,9 @@
             border: 3px solid #009879; 
             box-shadow: 0 4px 6px rgba(0, 152, 121, 0.2);
         }
+        /* Dark Mode Styling (for consistency) */
+        .dark { background-color: #121212; color: #e0e0e0; }
+        .dark .bg-white { background-color: #1f1f1f; color: #e0e0e0; }
     </style>
 </head>
 <body class="bg-gray-50 min-h-screen font-sans">
@@ -58,8 +62,6 @@
                 
                 <a href="/dashboard" class="text-gray-600 hover:text-primary transition font-medium">Dashboard</a>
                 <a href="/api/logout" class="text-red-500 hover:text-red-700 transition font-medium">Logout</a>
-                
-                <!-- Theme Toggle REMOVED -->
             </div>
         </div>
     </nav>
@@ -118,8 +120,9 @@
                 
                 <!-- Email for Receipt -->
                 <div class="form-group mb-6">
-                    <label for="email" class="block text-gray-700 font-medium mb-2">Email for Receipt</label>
-                    <input type="email" id="email" placeholder="your.email@example.com" required class="w-full p-3 border border-gray-300 rounded-lg focus:ring-primary focus:border-primary transition">
+                    <label for="email" class="block text-gray-700 font-medium mb-2">Email for Receipt (Optional)</label>
+                    <!-- 🛑 FIX: Removed required attribute to make email optional -->
+                    <input type="email" id="email" placeholder="your.email@example.com" class="w-full p-3 border border-gray-300 rounded-lg focus:ring-primary focus:border-primary transition">
                 </div>
                 
                 <!-- Payment Method Selection -->
@@ -145,7 +148,7 @@
                 </button>
             </form>
             
-            <div id="status" class="text-center mt-4 font-semibold min-h-[20px] text-gray-800"></div>
+            <div id="status" class="text-center mt-4 font-semibold min-h-[20px]"></div>
         </div>
     </div>
 
@@ -173,7 +176,6 @@
         function clearForm() {
             phoneInput.value = '';
             document.getElementById('email').value = '';
-            // Reset the dataplan dropdown to the disabled "Select a Plan" option
             const defaultOption = dataplanSelect.querySelector('option[data-amount="0"][disabled]');
             if (defaultOption) {
                 dataplanSelect.value = defaultOption.value;
@@ -276,14 +278,12 @@
             const selected = dataplanSelect.options[dataplanSelect.selectedIndex];
             const priceInPesewas = parseInt(selected.dataset.amount);
             
-            // Amount to charge: This page is only for PURCHASE, so we charge the calculated fee.
-            // (The top-up logic should be on the dashboard.)
             let amountToCharge = calculateTotalCharge(priceInPesewas); 
             
             payButton.disabled = true;
             payButton.textContent = 'Initiating Checkout...';
             
-            const transactionUrl = '/paystack/verify'; // Only verify purchase from this page
+            const transactionUrl = '/paystack/verify'; 
 
             const paymentCallback = function(response) {
                 statusDiv.textContent = "Verifying payment, please wait...";
@@ -294,7 +294,6 @@
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ 
                         reference: response.reference, 
-                        // Send the full charged amount for server verification
                         amount: amountToCharge / 100 
                     }),
                 })
@@ -329,8 +328,6 @@
                 amount: amountToCharge, 
                 currency: 'GHS',
                 ref: 'DL-' + Math.floor((Math.random() * 1000000000) + 1),
-                split_code: "SPL_y9ibKm2sLV", 
-    // You must create this SPLIT_CODE on your Paystack Dashboard first!
                 metadata: { 
                     phone_number: phoneInput.value, 
                     network: networkInput.value, 
@@ -464,8 +461,3 @@
     </script>
 </body>
 </html>
-
-
-
-
-
