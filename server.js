@@ -15,13 +15,14 @@ const PORT = process.env.PORT || 10000;
 
 // --- 2. DATA (PLANS) AND MAPS ---
 const allPlans = {
-    "MTN": [
-        { id: '1', name: '1GB', price: 480 }, { id: '2', name: '2GB', price: 960 }, { id: '3', name: '3GB', price: 1420 }, 
-        { id: '4', name: '4GB', price: 2000 }, { id: '5', name: '5GB', price: 2400 }, { id: '6', name: '6GB', price: 2800 }, 
-        { id: '8', name: '8GB', price: 3600 }, { id: '10', name: '10GB', price: 4400 }, { id: '15', name: '15GB', price: 6400 },
-        { id: '20', name: '20GB', price: 8200 }, { id: '25', name: '25GB', price: 10200 }, { id: '30', name: '30GB', price: 12200 },
-        { id: '40', name: '40GB', price: 16200 }, { id: '50', name: '50GB', price: 19800 }
+     "MTN": [
+        { id: '1', name: '1GB', price: 490 }, { id: '2', name: '2GB', price: 980 }, { id: '3', name: '3GB', price: 1470 }, 
+        { id: '4', name: '4GB', price: 2000 }, { id: '5', name: '5GB', price: 2460 }, { id: '6', name: '6GB', price: 2800 }, 
+        { id: '8', name: '8GB', price: 3600 }, { id: '10', name: '10GB', price: 4380 }, { id: '15', name: '15GB', price: 6400 },
+        { id: '20', name: '20GB', price: 8500 }, { id: '25', name: '25GB', price: 10500 }, { id: '30', name: '30GB', price: 12450 },
+        { id: '40', name: '40GB', price: 16500 }, { id: '50', name: '50GB', price: 19800 }
     ],
+
     "AirtelTigo": [
         { id: '1', name: '1GB', price: 370 }, { id: '2', name: '2GB', price: 740 }, { id: '3', name: '3GB', price: 1110 },  
         { id: '4', name: '4GB', price: 1480 }, { id: '5', name: '5GB', price: 1850 }, { id: '6', name: '6GB', price: 2220 },  
