@@ -155,7 +155,7 @@
     <script src="https://js.paystack.co/v1/inline.js"></script>
     
     <!-- JavaScript Logic -->
-    <script>
+                <script>
         // --- FINAL GLOBAL CONSTANTS & ELEMENTS ---
         const networkTabs = document.getElementById('network-tabs');
         const networkInput = document.getElementById('network');
@@ -229,7 +229,7 @@
             dataplanSelect.innerHTML = '<option value="" data-amount="0" selected disabled>Loading plans...</option>';
             payButton.disabled = true;
             
-            // 🛑 CRITICAL FIX: Call the WHOLESALE pricing API
+            // 🛑 FINAL FIX: Call the WHOLESALE pricing API
             fetch(`/api/data-plans-wholesale?network=${network}`)
                 .then(response => response.json())
                 .then(plans => {
@@ -459,6 +459,8 @@
             });
         });
     </script>
+
 </body>
 </html>
+
 
