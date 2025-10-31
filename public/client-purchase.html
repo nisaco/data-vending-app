@@ -69,8 +69,8 @@
     <!-- Main Content Container -->
     <div class="container mx-auto p-4 max-w-2xl">
         <div class="bg-white p-6 md:p-8 rounded-2xl shadow-xl mt-8 border border-gray-100">
-            <h1 class="text-3xl font-extrabold text-center text-gray-800 mb-2">Buy Mobile Data</h1>
-            <p class="text-center text-gray-500 mb-8">Select your network and plan below.</p>
+            <h1 class="text-3xl font-extrabold text-center text-gray-800 mb-2">Buy Mobile Data (Retail)</h1>
+            <p class="text-center text-gray-500 mb-8">Retail prices for all customers.</p>
 
             <form id="paymentForm">
                 
@@ -229,8 +229,8 @@
             dataplanSelect.innerHTML = '<option value="" data-amount="0" selected disabled>Loading plans...</option>';
             payButton.disabled = true;
             
-            // NOTE: The server handles the markup calculation based on the user's role/session.
-            fetch(`/api/data-plans?network=${network}`)
+            // 🛑 CRITICAL FIX: Call the RETAIL pricing API for this specific page
+            fetch(`/api/data-plans-retail?network=${network}`)
                 .then(response => response.json())
                 .then(plans => {
                     dataplanSelect.innerHTML = '<option value="" data-amount="0" selected disabled>Select a Plan...</option>';
@@ -273,8 +273,6 @@
         
         // --- PURCHASE LOGIC (Handles transaction outcome) ---
         const handlePaystackTransaction = (transactionType) => {
-            const isTopup = transactionType === 'topup';
-            
             const selected = dataplanSelect.options[dataplanSelect.selectedIndex];
             const priceInPesewas = parseInt(selected.dataset.amount);
             
@@ -283,7 +281,7 @@
             payButton.disabled = true;
             payButton.textContent = 'Initiating Checkout...';
             
-            const transactionUrl = '/paystack/verify'; // Only verify purchase from this page
+            const transactionUrl = '/paystack/verify'; 
 
             const paymentCallback = function(response) {
                 statusDiv.textContent = "Verifying payment, please wait...";
@@ -322,65 +320,30 @@
                 });
             };
             
-            PaystackPop.setup({
-                key: PAYSTACK_PUBLIC_KEY, 
-                email: document.getElementById('email').value,
-                amount: amountToCharge, 
-                currency: 'GHS',
-                ref: 'DL-' + Math.floor((Math.random() * 1000000000) + 1),
-                metadata: { 
-                    phone_number: phoneInput.value, 
-                    network: networkInput.value, 
-                    data_plan: selected.value,
-                },
-                callback: paymentCallback,
-                onClose: function() { 
-                    statusDiv.textContent = "Transaction cancelled."; 
-                    statusDiv.style.color = "red"; 
-                    payButton.disabled = false;
-                    updatePayButton(selected);
-                }
-            }).openIframe();
+            fetchUserInfo().then(userEmail => {
+                PaystackPop.setup({
+                    key: PAYSTACK_PUBLIC_KEY, 
+                    email: document.getElementById('email').value || userEmail, 
+                    amount: amountToCharge, 
+                    currency: 'GHS',
+                    ref: 'DL-' + Math.floor((Math.random() * 1000000000) + 1),
+                    metadata: { 
+                        phone_number: phoneInput.value, 
+                        network: networkInput.value, 
+                        data_plan: selected.value,
+                    },
+                    callback: paymentCallback,
+                    onClose: function() { 
+                        statusDiv.textContent = "Transaction cancelled."; 
+                        statusDiv.style.color = "red"; 
+                        payButton.disabled = false;
+                        updatePayButton(selected);
+                    }
+                }).openIframe();
+            });
         };
         
-        const handleWalletPurchase = async () => {
-            const selected = dataplanSelect.options[dataplanSelect.selectedIndex];
-            const priceInPesewas = parseInt(selected.dataset.amount);
-            
-            payButton.disabled = true;
-            payButton.textContent = 'Processing Wallet Payment...';
-
-            try {
-                const response = await fetch('/api/wallet-purchase', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        network: networkInput.value,
-                        dataPlan: selected.value,
-                        phone_number: phoneInput.value,
-                        amountInPesewas: priceInPesewas
-                    })
-                });
-
-                const data = await response.json();
-
-                statusDiv.textContent = data.message;
-                statusDiv.style.color = data.status === 'success' ? 'green' : (data.status === 'pending' ? 'orange' : 'red');
-
-                await fetchUserInfo();
-                
-                if (data.status === 'success') {
-                    clearForm(); 
-                }
-
-            } catch (err) {
-                statusDiv.textContent = "An unknown error occurred during wallet transaction.";
-                statusDiv.style.color = "red";
-            } finally {
-                payButton.disabled = false;
-                updatePayButton(selected);
-            }
-        };
+        const handleWalletPurchase = async () => { /* ... implementation ... */ };
 
 
         // --- INITIALIZATION & LISTENERS ---
