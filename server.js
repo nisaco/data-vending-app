@@ -15,7 +15,8 @@ const PORT = process.env.PORT || 10000;
 
 // --- 2. DATA (PLANS) AND MAPS ---
 const allPlans = {
-     "MTN": [
+    // PRICES ARE THE WHOLESALE COST (in PESEWAS)
+       "MTN": [
         { id: '1', name: '1GB', price: 490 }, { id: '2', name: '2GB', price: 980 }, { id: '3', name: '3GB', price: 1470 }, 
         { id: '4', name: '4GB', price: 2000 }, { id: '5', name: '5GB', price: 2460 }, { id: '6', name: '6GB', price: 2800 }, 
         { id: '8', name: '8GB', price: 3600 }, { id: '10', name: '10GB', price: 4380 }, { id: '15', name: '15GB', price: 6400 },
@@ -42,9 +43,10 @@ const NETWORK_KEY_MAP = {
 };
 
 const CHECK_API_ENDPOINT = 'https://console.ckgodsway.com/api/order-status'; 
+const AGENT_REGISTRATION_FEE_PESEWAS = 2000; // GHS 20.00
 
 
-// --- HELPER FUNCTIONS ---
+// --- HELPER FUNCTIONS (FULL IMPLEMENTATION) ---
 function findBaseCost(network, capacityId) {
     const networkPlans = allPlans[network];
     if (!networkPlans) return 0;
@@ -231,8 +233,11 @@ app.post('/api/signup', isDbReady, async (req, res) => {
     if (!username || !email || !password) return res.status(400).json({ message: 'All fields are required.' });
     try {
         const hashedPassword = await bcrypt.hash(password, 10);
-        await User.create({ username, email, password: hashedPassword, walletBalance: 0 }); 
-        res.status(201).json({ message: 'User created successfully! Please log in.' });
+        
+        // Default role is 'Client'
+        await User.create({ username, email, password: hashedPassword, walletBalance: 0, role: 'Client' }); 
+        
+        res.status(201).json({ message: 'Client account created successfully! Please log in.' });
     } catch (error) { 
         if (error.code === 11000) return res.status(400).json({ message: 'Username or email already exists.' });
         res.status(500).json({ message: 'Server error during signup.' }); 
@@ -247,7 +252,14 @@ app.post('/api/login', isDbReady, async (req, res) => {
         if (!user || !await bcrypt.compare(password, user.password)) {
             return res.status(401).json({ message: 'Invalid credentials.' });
         }
-        req.session.user = { id: user._id, username: user.username, walletBalance: user.walletBalance }; 
+        
+        // Ensure legacy users (who have no role) are defaulted to 'Agent'
+        if (!user.role) {
+            user.role = 'Agent';
+            await user.save();
+        }
+        
+        req.session.user = { id: user._id, username: user.username, walletBalance: user.walletBalance, role: user.role }; 
         res.json({ message: 'Logged in successfully!' });
     } catch (error) {
         res.status(500).json({ message: 'Server error during login.' });
@@ -260,13 +272,13 @@ app.get('/api/logout', (req, res) => {
 
 app.get('/api/user-info', isDbReady, isAuthenticated, async (req, res) => {
     try {
-        const user = await User.findById(req.session.user.id).select('username walletBalance email');
+        const user = await User.findById(req.session.user.id).select('username walletBalance email role');
         if (!user) {
             req.session.destroy(() => res.status(404).json({ error: 'User not found' }));
             return;
         }
         req.session.user.walletBalance = user.walletBalance; 
-        res.json({ username: user.username, walletBalance: user.walletBalance, email: user.email });
+        res.json({ username: user.username, walletBalance: user.walletBalance, email: user.email, role: user.role });
     } catch (error) {
         res.status(500).json({ error: 'Failed to fetch user data' });
     }
@@ -321,13 +333,88 @@ app.post('/api/reset-password', isDbReady, async (req, res) => {
     }
 });
 
+app.post('/api/agent-signup', isDbReady, async (req, res) => {
+    const { username, email, password } = req.body;
+    if (!username || !email || !password) return res.status(400).json({ message: 'All fields are required.' });
+    
+    const existingUser = await User.findOne({ $or: [{ username }, { email }] });
+    if (existingUser) {
+        return res.status(400).json({ message: 'User already exists.' });
+    }
+
+    try {
+        const hashedPassword = await bcrypt.hash(password, 10);
+        
+        // Calculate Paystack amount needed for the GHS 20.00 fee
+        const finalRegistrationCharge = calculateClientTopupFee(AGENT_REGISTRATION_FEE_PESEWAS);
+        
+        // Create a temporary user record to store details during payment initiation
+        const tempUser = await User.create({ 
+            username, 
+            email, 
+            password: hashedPassword, 
+            walletBalance: 0, 
+            role: 'Agent_Pending' // Temporary status
+        });
+
+        res.status(200).json({ 
+            message: 'Initiate payment for registration.',
+            userId: tempUser._id,
+            amountPesewas: finalRegistrationCharge 
+        });
+
+    } catch (error) {
+        console.error('Agent signup initiation error:', error);
+        res.status(500).json({ message: 'Server error during agent signup initiation.' }); 
+    }
+});
+
+app.post('/api/verify-agent-payment', async (req, res) => {
+    const { reference, userId } = req.body;
+    
+    const expectedCharge = calculateClientTopupFee(AGENT_REGISTRATION_FEE_PESEWAS);
+
+    try {
+        const paystackUrl = `https://api.paystack.co/transaction/verify/${reference}`;
+        const paystackResponse = await axios.get(paystackUrl, { 
+            headers: { Authorization: `Bearer ${process.env.PAYSTACK_SECRET_KEY}` } 
+        });
+        const { status, data } = paystackResponse.data;
+        
+        if (data.status === 'success' && Math.abs(data.amount - expectedCharge) <= 5) {
+            
+            const user = await User.findByIdAndUpdate(
+                userId, 
+                { role: 'Agent' }, 
+                { new: true }
+            );
+
+            if (user) {
+                return res.json({ message: 'Registration successful! You are now an Agent.', role: 'Agent' });
+            }
+        }
+        
+        res.status(400).json({ message: 'Payment verification failed. Please try again.' });
+
+    } catch (error) {
+        console.error('Agent payment verification error:', error);
+        await User.findByIdAndDelete(userId);
+        res.status(500).json({ message: 'Verification failed. Contact support.' });
+    }
+});
+
 
 // --- DATA & PROTECTED PAGES ---
-app.get('/api/data-plans', isDbReady, (req, res) => {
+app.get('/api/data-plans', isDbReady, async (req, res) => { // ⬅️ Async for database check
     const costPlans = allPlans[req.query.network] || [];
     
+    // Check if the user is logged in and is an Agent
+    const isAgent = req.session.user && req.session.user.role === 'Agent';
+    // Retail Markup for Clients/Guests (GHS 1.00 = 100 pesewas)
+    const markupPesewas = isAgent ? 0 : 100; // Agent gets 0 markup. Client/Guest gets GHS 1.00 markup.
+
     const sellingPlans = costPlans.map(p => {
-        const FIXED_MARKUP = 0; 
+        const FIXED_MARKUP = markupPesewas; 
         const rawSellingPrice = p.price + FIXED_MARKUP;
         const sellingPrice = Math.ceil(rawSellingPrice / 5) * 5; 
         
@@ -355,7 +442,8 @@ app.post('/api/topup', isDbReady, isAuthenticated, async (req, res) => {
         return res.status(400).json({ status: 'error', message: 'Reference and amount are required.' });
     }
     
-    let topupAmountPesewas = Math.round(amount * 100);
+    let netDepositAmountGHS = amount; 
+    let topupAmountPesewas = Math.round(netDepositAmountGHS * 100);
     const userId = req.session.user.id;
 
     // Calculate the final charged amount using the 40/60 split logic
@@ -381,11 +469,10 @@ app.post('/api/topup', isDbReady, isAuthenticated, async (req, res) => {
         // --- STEP 2: UPDATE USER WALLET BALANCE (NET DEPOSIT) ---
         const updatedUser = await User.findByIdAndUpdate(
             userId,
-            { $inc: { walletBalance: topupAmountPesewas } }, // Deposit the net amount (e.g., 5000)
+            { $inc: { walletBalance: netDepositPesewas } }, // Deposit the net amount (e.g., 5000)
             { new: true, runValidators: true }
         );
         
-        // 🛑 CRITICAL FIX: Update the session balance HERE immediately after the DB update
         req.session.user.walletBalance = updatedUser.walletBalance; 
 
         // Log the top-up as a successful order for tracking
@@ -396,7 +483,7 @@ app.post('/api/topup', isDbReady, isAuthenticated, async (req, res) => {
             status: 'topup_successful',
             paymentMethod: 'paystack',
             dataPlan: 'WALLET TOP-UP',
-            network: 'WALLET' 
+            network: 'WALLET' // CRITICAL FIX: Add network field for filtering
         });
 
         res.json({ status: 'success', message: `Wallet topped up successfully! GHS ${netDepositAmountGHS.toFixed(2)} deposited.`, newBalance: updatedUser.walletBalance });
@@ -570,16 +657,12 @@ app.get('/api/admin/all-users-status', async (req, res) => {
             } catch (e) { }
         });
 
-        const userListWithStatus = registeredUsers.map(user => {
-            const userIdString = user._id.toString();
-            
-            return {
-                username: user.username,
-                email: user.email,
-                signedUp: user.createdAt,
-                isOnline: activeUserIds.has(userIdString)
-            };
-        });
+        const userListWithStatus = registeredUsers.map(user => ({
+            username: user.username,
+            email: user.email,
+            signedUp: user.createdAt,
+            isOnline: activeUserIds.has(user._id.toString())
+        }));
 
         res.json({ users: userListWithStatus });
     } catch (error) {
