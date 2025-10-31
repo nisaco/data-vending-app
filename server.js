@@ -16,7 +16,7 @@ const PORT = process.env.PORT || 10000;
 // --- 2. DATA (PLANS) AND MAPS ---
 const allPlans = {
     // PRICES ARE THE WHOLESALE COST (in PESEWAS)
-       "MTN": [
+        "MTN": [
         { id: '1', name: '1GB', price: 490 }, { id: '2', name: '2GB', price: 980 }, { id: '3', name: '3GB', price: 1470 }, 
         { id: '4', name: '4GB', price: 2000 }, { id: '5', name: '5GB', price: 2460 }, { id: '6', name: '6GB', price: 2800 }, 
         { id: '8', name: '8GB', price: 3600 }, { id: '10', name: '10GB', price: 4380 }, { id: '15', name: '15GB', price: 6400 },
@@ -78,8 +78,8 @@ async function sendAdminAlertEmail(order) {
     }
     sgMail.setApiKey(process.env.SENDGRID_API_KEY);
     const msg = {
-        to: 'YOUR_ADMIN_RECEIVING_EMAIL@example.com', 
-        from: 'YOUR_VERIFIED_SENDER_EMAIL@example.com', 
+        to: 'jnkpappoe@gmail.com', 
+        from: 'jeffreypappoe@yahoo.com', 
         subject: `🚨 MANUAL REVIEW REQUIRED: ${order.network || 'N/A'} Data Transfer Failed`,
         html: `
             <h1>Urgent Action Required!</h1>
