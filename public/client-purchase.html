@@ -50,7 +50,7 @@
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex justify-between items-center h-24 sm:h-16 flex-col sm:flex-row py-2">
             
             <!-- Logo Area -->
-            <a href="/client-purchase.html" class="text-xl font-bold text-primary w-full sm:w-auto text-center sm:text-left">DataLink (Retail)</a>
+            <a href="/client-purchase.html" class="text-xl font-bold text-primary w-full sm:w-auto text-center sm:text-left">AJENTERPRISE (Client)</a>
             
             <!-- Links and Wallet Area -->
             <div class="flex space-x-4 items-center w-full justify-center sm:w-auto mt-2 sm:mt-0">
@@ -343,7 +343,44 @@
             });
         };
         
-        const handleWalletPurchase = async () => { /* ... implementation ... */ };
+        const handleWalletPurchase = async () => {
+            const selected = dataplanSelect.options[dataplanSelect.selectedIndex];
+            const priceInPesewas = parseInt(selected.dataset.amount);
+            
+            payButton.disabled = true;
+            payButton.textContent = 'Processing Wallet Payment...';
+
+            try {
+                const response = await fetch('/api/wallet-purchase', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        network: networkInput.value,
+                        dataPlan: selected.value,
+                        phone_number: phoneInput.value,
+                        amountInPesewas: priceInPesewas
+                    })
+                });
+
+                const data = await response.json();
+
+                statusDiv.textContent = data.message;
+                statusDiv.style.color = data.status === 'success' ? 'green' : (data.status === 'pending' ? 'orange' : 'red');
+
+                await fetchUserInfo();
+                
+                if (data.status === 'success') {
+                    clearForm(); 
+                }
+
+            } catch (err) {
+                statusDiv.textContent = "An unknown error occurred during wallet transaction.";
+                statusDiv.style.color = "red";
+            } finally {
+                payButton.disabled = false;
+                updatePayButton(selected);
+            }
+        };
 
 
         // --- INITIALIZATION & LISTENERS ---
@@ -422,3 +459,5 @@
             });
         });
     </script>
+</body>
+</html>
