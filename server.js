@@ -13,7 +13,7 @@ const { User, Order, mongoose } = require('./database.js');
 const app = express();
 const PORT = process.env.PORT || 10000;
 
-// --- 2. DATA (PLANS) AND MAPS ---
+// --- 2. DATA (PLANS) - STATIC COST PRICE AND ID SETUP (FINALIZED) ---
 const allPlans = {
     // PRICES ARE THE WHOLESALE COST (in PESEWAS)
         "MTN": [
@@ -78,8 +78,8 @@ async function sendAdminAlertEmail(order) {
     }
     sgMail.setApiKey(process.env.SENDGRID_API_KEY);
     const msg = {
-        to: 'jnkpappoe@gmail.com', 
-        from: 'jeffreypappoe@yahoo.com', 
+        to: 'YOUR_ADMIN_RECEIVING_EMAIL@example.com', 
+        from: 'YOUR_VERIFIED_SENDER_EMAIL@example.com', 
         subject: `🚨 MANUAL REVIEW REQUIRED: ${order.network || 'N/A'} Data Transfer Failed`,
         html: `
             <h1>Urgent Action Required!</h1>
@@ -256,7 +256,7 @@ app.post('/api/login', isDbReady, async (req, res) => {
         // Ensure legacy users (who have no role) are defaulted to 'Agent'
         if (!user.role) {
             user.role = 'Agent';
-            await user.save();
+            await User.findByIdAndUpdate(user._id, { role: 'Agent' });
         }
         
         req.session.user = { id: user._id, username: user.username, walletBalance: user.walletBalance, role: user.role }; 
@@ -405,10 +405,10 @@ app.post('/api/verify-agent-payment', async (req, res) => {
 
 
 // --- DATA & PROTECTED PAGES ---
-app.get('/api/data-plans', isDbReady, async (req, res) => { // ⬅️ Async for database check
+app.get('/api/data-plans', isDbReady, async (req, res) => { 
     const costPlans = allPlans[req.query.network] || [];
     
-    // Check if the user is logged in and is an Agent
+    // Determine markup based on session role
     const isAgent = req.session.user && req.session.user.role === 'Agent';
     // Retail Markup for Clients/Guests (GHS 1.00 = 100 pesewas)
     const markupPesewas = isAgent ? 0 : 100; // Agent gets 0 markup. Client/Guest gets GHS 1.00 markup.
@@ -641,7 +641,7 @@ app.get('/api/admin/all-users-status', async (req, res) => {
     try {
         if (mongoose.connection.readyState !== 1) return res.status(503).json({ error: 'Database not ready.' });
 
-        const registeredUsers = await User.find({}).select('username email createdAt').lean();
+        const registeredUsers = await User.find({}).select('username email createdAt role').lean();
 
         const sessionsCollection = mongoose.connection.db.collection('sessions');
         const rawSessions = await sessionsCollection.find({}).toArray();
@@ -661,7 +661,8 @@ app.get('/api/admin/all-users-status', async (req, res) => {
             username: user.username,
             email: user.email,
             signedUp: user.createdAt,
-            isOnline: activeUserIds.has(user._id.toString())
+            isOnline: activeUserIds.has(user._id.toString()),
+            role: user.role
         }));
 
         res.json({ users: userListWithStatus });
