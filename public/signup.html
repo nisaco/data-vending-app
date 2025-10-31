@@ -3,10 +3,10 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="icon" type="image/x-icon" href="apple-touch-icon.png">
     <title>Sign Up - DataLink</title>
     <!-- FAVICON LINK -->
-     <link rel="icon" type="image/x-icon" href="apple-touch-icon.png">
-       
+    <link rel="icon" type="image/png" href="apple-touch-icon.png">
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         /* Custom CSS for base colors and card styling */
@@ -23,7 +23,7 @@
         /* Glassmorphism Card Styling */
         .glass-card {
             background: white;
-            color: #1f2937;
+            color: #1f2937; /* Dark text */
             border: 1px solid #d1d5db;
             box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
             position: relative; 
@@ -72,17 +72,22 @@
             <div class="mb-4 text-left relative">
                 <label for="password" class="block mb-2 font-medium">Password</label>
                 <input type="password" id="password" required class="w-full p-3 rounded-lg transition pr-10" autocomplete="new-password">
-                <!-- Show/Hide Toggle -->
                 <button type="button" id="togglePassword" class="absolute inset-y-0 right-0 flex items-center pr-3 pt-5 text-gray-500 dark:text-gray-400 focus:outline-none">
                     <svg id="eye-icon" class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path></svg>
                 </button>
             </div>
+            
+            <!-- Account Role Selection -->
             <div class="mb-6 text-left">
-                <label for="referralCode" class="block mb-2 font-medium">Referral Code (Optional)</label>
-                <input type="text" id="referralCode" class="w-full p-3 rounded-lg transition" placeholder="Enter friend's code">
+                <label for="role" class="block mb-2 font-medium">Account Type</label>
+                <select id="role" class="w-full p-3 border border-gray-300 rounded-lg transition">
+                    <option value="Client">Client (Free Signup, Retail Prices)</option>
+                    <option value="Agent">Agent/Reseller (GHS 20.00 Fee, Wholesale Prices)</option>
+                </select>
+                <p id="role-fee-info" class="text-xs mt-1 text-red-500 font-medium hidden">GHS 20.00 Registration Fee Required.</p>
             </div>
 
-            <button type="submit" class="w-full py-3 bg-primary text-white font-bold rounded-lg text-lg transition duration-300 hover:bg-secondary shadow-xl">
+            <button type="submit" id="submit-btn" class="w-full py-3 bg-primary text-white font-bold rounded-lg text-lg transition duration-300 hover:bg-secondary shadow-xl">
                 Sign Up
             </button>
         </form>
@@ -92,12 +97,39 @@
             <a href="login.html" class="font-bold underline hover:text-primary dark:text-white">Log In</a>
         </p>
     </div>
+    <script src="https://js.paystack.co/v1/inline.js"></script>
     <script>
-        // --- THEME LOGIC START ---
-        const themeToggle = document.getElementById('theme-toggle');
+        // --- CONSTANTS ---
+        const AGENT_REGISTRATION_FEE_PESEWAS = 2000; // GHS 20.00
+        const PAYSTACK_PUBLIC_KEY = 'pk_test_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxx'; 
+        
+        // --- DOM ELEMENTS ---
         const htmlElement = document.documentElement;
+        const themeToggle = document.getElementById('theme-toggle');
         const themeIcon = document.getElementById('theme-icon');
+        const passwordInput = document.getElementById('password');
+        const togglePassword = document.getElementById('togglePassword');
+        const roleSelect = document.getElementById('role');
+        const roleFeeInfo = document.getElementById('role-fee-info');
+        const submitBtn = document.getElementById('submit-btn');
+        const statusDiv = document.getElementById('status');
+        const emailInput = document.getElementById('email');
 
+
+        // --- HELPER: Fee Calculator (same as server-side logic) ---
+        function calculateClientTopupFee(netDepositPesewas) {
+            const PAYSTACK_RATE = 0.019;
+            const PAYSTACK_FLAT = 80;
+            
+            const requiredTotalCharge = (netDepositPesewas + PAYSTACK_FLAT) / (1 - PAYSTACK_RATE);
+            const truePaystackFee = requiredTotalCharge - netDepositPesewas;
+            const feeClientPays = truePaystackFee * 0.60;
+            const finalCharge = netDepositPesewas + feeClientPays;
+
+            return Math.round(finalCharge);
+        }
+        
+        // --- THEME LOGIC START ---
         function updateThemeIcon(isDark) {
             if (isDark) {
                 themeIcon.innerHTML = '<path d="M10 2a1 1 0 011 1v1a1 1 0 11-2 0V3a1 1 0 011-1zm4 8a4 4 0 11-8 0 4 4 0 018 0zm-4 7a1 1 0 011 1v1a1 1 0 11-2 0v-1a1 1 0 011-1zm6.5-6.5a1 1 0 010 1.414l-.707.707a1 1 0 11-1.414-1.414l.707-.707a1 1 0 011.414 0zm-13 0a1 1 0 011.414 0l.707.707a1 1 0 11-1.414 1.414l-.707-.707a1 1 0 010-1.414zM3 10a1 1 0 011-1h1a1 1 0 110 2H4a1 1 0 01-1-1zm14 0a1 1 0 01-1 1h-1a1 1 0 110-2h1a1 1 0 011 1z" clip-rule="evenodd" fill-rule="evenodd"></path>';
@@ -132,14 +164,10 @@
         // --- THEME LOGIC END ---
 
         // --- PASSWORD TOGGLE LOGIC ---
-        const passwordInput = document.getElementById('password');
-        const togglePassword = document.getElementById('togglePassword');
-        
         togglePassword.addEventListener('click', () => {
             const type = passwordInput.getAttribute('type') === 'password' ? 'text' : 'password';
             passwordInput.setAttribute('type', type);
             
-            // Change eye icon: open eye if text, closed eye if password
             const eyeIcon = document.getElementById('eye-icon');
             if (type === 'text') {
                 eyeIcon.setAttribute('d', 'M15 12a3 3 0 11-6 0 3 3 0 016 0z');
@@ -148,50 +176,131 @@
             }
         });
 
+        // --- ROLE CHANGE HANDLER ---
+        roleSelect.addEventListener('change', () => {
+            const role = roleSelect.value;
+            if (role === 'Agent') {
+                roleFeeInfo.classList.remove('hidden');
+                submitBtn.textContent = `Pay GHS 20.00 & Register`;
+            } else {
+                roleFeeInfo.classList.add('hidden');
+                submitBtn.textContent = 'Sign Up';
+            }
+        });
+
+        // --- SUBMISSION HANDLER ---
         document.getElementById('signupForm').addEventListener('submit', async (e) => {
             e.preventDefault();
-            const statusDiv = document.getElementById('status');
-            const [username, email, password, referralCode] = [
+            
+            const role = roleSelect.value;
+            const [username, email, password] = [
                 document.getElementById('username').value, 
                 document.getElementById('email').value, 
-                document.getElementById('password').value,
-                document.getElementById('referralCode').value
+                document.getElementById('password').value
             ];
             
-            const button = e.target.querySelector('button');
-            button.disabled = true;
-            statusDiv.textContent = 'Creating account...';
+            submitBtn.disabled = true;
+            statusDiv.textContent = 'Processing...';
             statusDiv.style.color = 'orange';
 
-            try {
-                const response = await fetch('/api/signup', {
-                    method: 'POST', headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ 
-                        username, 
-                        email, 
-                        password, 
-                        referralCode: referralCode.toUpperCase() 
-                    })
-                });
-                const result = await response.json();
-                
-                statusDiv.textContent = result.message;
-                statusDiv.style.color = response.ok ? 'green' : 'red';
-                
-                if (response.ok) {
-                    setTimeout(() => window.location.href = 'login.html', 1500);
+            if (role === 'Client') {
+                // 1. CLIENT SIGNUP (FREE)
+                try {
+                    const response = await fetch('/api/signup', {
+                        method: 'POST', headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ username, email, password })
+                    });
+                    const result = await response.json();
+                    
+                    statusDiv.textContent = result.message;
+                    statusDiv.style.color = response.ok ? 'green' : 'red';
+                    
+                    if (response.ok) {
+                        setTimeout(() => window.location.href = 'login.html', 1500);
+                    }
+                } catch (err) {
+                    statusDiv.textContent = 'Network error. Could not connect to server.';
+                    statusDiv.style.color = 'red';
+                } finally {
+                    submitBtn.disabled = false;
+                    submitBtn.textContent = 'Sign Up';
                 }
-            } catch (err) {
-                statusDiv.textContent = 'Network error. Could not connect to server.';
-                statusDiv.style.color = 'red';
-            } finally {
-                if (!statusDiv.textContent.includes('Success')) {
-                    button.disabled = false;
+
+            } else if (role === 'Agent') {
+                // 2. AGENT SIGNUP (PAID) - Initiate Server Request
+                try {
+                    const initResponse = await fetch('/api/agent-signup', {
+                        method: 'POST', headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ username, email, password })
+                    });
+                    const initResult = await initResponse.json();
+
+                    if (!initResponse.ok) {
+                        statusDiv.textContent = initResult.message || 'Agent signup failed.';
+                        statusDiv.style.color = 'red';
+                        return;
+                    }
+
+                    // Calculate final charged amount using server's fee logic
+                    const finalChargedAmount = calculateClientTopupFee(AGENT_REGISTRATION_FEE_PESEWAS);
+
+                    // Initiate Paystack Checkout
+                    PaystackPop.setup({
+                        key: PAYSTACK_PUBLIC_KEY, 
+                        email: email, 
+                        amount: finalChargedAmount, // Amount calculated using GHS 20.00 + fee
+                        currency: 'GHS',
+                        ref: 'AGENT-REG-' + Math.floor((Math.random() * 1000000000) + 1),
+                        metadata: { userId: initResult.userId }, // Pass temporary user ID for verification
+                        callback: function(response) {
+                            statusDiv.textContent = "Verifying payment...";
+                            
+                            // 3. Verify Payment
+                            fetch('/api/verify-agent-payment', {
+                                method: 'POST', headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({ 
+                                    reference: response.reference, 
+                                    userId: initResult.userId // Use user ID from initiation step
+                                })
+                            })
+                            .then(verifyResponse => verifyResponse.json())
+                            .then(verifyResult => {
+                                statusDiv.textContent = verifyResult.message;
+                                statusDiv.style.color = verifyResult.role === 'Agent' ? 'green' : 'red';
+                                if (verifyResult.role === 'Agent') {
+                                    setTimeout(() => window.location.href = 'login.html', 2000);
+                                }
+                            })
+                            .catch(err => {
+                                statusDiv.textContent = 'Verification error. Contact support.';
+                                statusDiv.style.color = 'red';
+                            })
+                            .finally(() => {
+                                submitBtn.disabled = false;
+                                submitBtn.textContent = `Pay GHS 20.00 & Register`;
+                            });
+                        },
+                        onClose: function() { 
+                            statusDiv.textContent = "Payment cancelled."; 
+                            submitBtn.disabled = false;
+                            submitBtn.textContent = `Pay GHS 20.00 & Register`;
+                        }
+                    }).openIframe();
+
+                } catch (err) {
+                    statusDiv.textContent = 'Network error. Could not connect to server.';
+                    statusDiv.style.color = 'red';
+                } finally {
+                    // Reset button state if the process failed before Paystack launched
+                    if (statusDiv.textContent.includes('Processing...')) {
+                       // Do nothing, let the Paystack callback handle final status
+                    } else {
+                       submitBtn.disabled = false;
+                       submitBtn.textContent = submitBtn.textContent.includes('Pay') ? submitBtn.textContent : 'Sign Up';
+                    }
                 }
             }
         });
     </script>
 </body>
 </html>
-
-
