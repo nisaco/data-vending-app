@@ -16,7 +16,7 @@ const PORT = process.env.PORT || 10000;
 // --- 2. DATA (PLANS) AND MAPS ---
 const allPlans = {
     "MTN": [
-        { id: '1', name: '1GB', price: 480 }, { id: '2', name: '2GB', price: 960 }, { id: '3', name: '3GB', price: 1420 }, 
+        { id: '1', name: '1GB', price: 490 }, { id: '2', name: '2GB', price: 960 }, { id: '3', name: '3GB', price: 1420 }, 
         { id: '4', name: '4GB', price: 2000 }, { id: '5', name: '5GB', price: 2400 }, { id: '6', name: '6GB', price: 2800 }, 
         { id: '8', name: '8GB', price: 3600 }, { id: '10', name: '10GB', price: 4400 }, { id: '15', name: '15GB', price: 6400 },
         { id: '20', name: '20GB', price: 8200 }, { id: '25', name: '25GB', price: 10200 }, { id: '30', name: '30GB', price: 12200 },
@@ -257,10 +257,13 @@ app.post('/api/login', isDbReady, async (req, res) => {
             await User.findByIdAndUpdate(user._id, { role: 'Agent' });
         }
         
-        req.session.user = { id: user._id, username: user.username, walletBalance: user.walletBalance, role: user.role }; 
+        // Fetch fresh user data with updated role for the session
+        const freshUser = await User.findById(user._id).select('username walletBalance role'); 
+        
+        req.session.user = { id: user._id, username: freshUser.username, walletBalance: freshUser.walletBalance, role: freshUser.role }; 
         
         // 🛑 CRITICAL FIX: Dynamic Redirection based on Role
-        const redirectUrl = user.role === 'Agent' ? '/purchase' : '/client-purchase.html'; 
+        const redirectUrl = freshUser.role === 'Agent' ? '/purchase' : '/client-purchase.html'; 
         
         res.json({ message: 'Logged in successfully!', redirect: redirectUrl });
         
@@ -298,7 +301,6 @@ app.post('/api/forgot-password', isDbReady, async (req, res) => {
         const resetToken = crypto.randomBytes(20).toString('hex');
         
         user.resetToken = resetToken;
-        user.resetTokenExpires = Date.now() + 3600000; // 1 hour
         await user.save();
         
         // Note: sendResetEmail logic is excluded for brevity but would be called here.
@@ -408,13 +410,11 @@ app.post('/api/verify-agent-payment', async (req, res) => {
 
 
 // --- DATA & PROTECTED PAGES ---
-app.get('/api/data-plans', isDbReady, async (req, res) => { 
+app.get('/api/data-plans-wholesale', isDbReady, async (req, res) => { 
     const costPlans = allPlans[req.query.network] || [];
     
-    // Determine markup based on session role
-    const isAgent = req.session.user && req.session.user.role === 'Agent';
-    // Retail Markup for Clients/Guests (GHS 1.00 = 100 pesewas)
-    const markupPesewas = isAgent ? 0 : 100; // Agent gets 0 markup. Client/Guest gets GHS 1.00 markup.
+    // Wholesale Markup is always 0
+    const markupPesewas = 0; 
 
     const sellingPlans = costPlans.map(p => {
         const FIXED_MARKUP = markupPesewas; 
@@ -426,6 +426,22 @@ app.get('/api/data-plans', isDbReady, async (req, res) => {
 
     res.json(sellingPlans);
 });
+
+app.get('/api/data-plans-retail', isDbReady, async (req, res) => { 
+    const costPlans = allPlans[req.query.network] || [];
+    const RETAIL_MARKUP_PESEWAS = 100; // GHS 1.00
+
+    const sellingPlans = costPlans.map(p => {
+        const FIXED_MARKUP = RETAIL_MARKUP_PESEWAS; 
+        const rawSellingPrice = p.price + FIXED_MARKUP;
+        const sellingPrice = Math.ceil(rawSellingPrice / 5) * 5; 
+        
+        return { id: p.id, name: p.name, price: sellingPrice };
+    });
+
+    res.json(sellingPlans);
+});
+
 
 app.get('/api/my-orders', isDbReady, isAuthenticated, async (req, res) => {
     try {
@@ -446,7 +462,7 @@ app.post('/api/topup', isDbReady, isAuthenticated, async (req, res) => {
     }
     
     let netDepositAmountGHS = amount; 
-    let topupAmountPesewas = Math.round(amount * 100);
+    let topupAmountPesewas = Math.round(netDepositAmountGHS * 100);
     const userId = req.session.user.id;
 
     // Calculate the final charged amount using the 40/60 split logic
