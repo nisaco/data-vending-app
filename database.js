@@ -7,9 +7,8 @@ async function connectDB() {
         console.log('Connected to MongoDB successfully.');
     } catch (err) {
         console.error('MongoDB connection error:', err);
-        // 🛑 CRITICAL FIX: REMOVED process.exit(1)
-        // The server will now start even if the connection fails initially.
-        // The isDbReady middleware will handle access restriction.
+        // Exits process if the primary connection fails (prevents infinite loop/crash)
+        process.exit(1); 
     }
 }
 
@@ -21,6 +20,8 @@ const userSchema = new mongoose.Schema({
     email: { type: String, required: true, unique: true },
     password: { type: String, required: true },
     walletBalance: { type: Number, default: 0 }, 
+    // ⬅️ CRITICAL FIX: Added Role Field
+    role: { type: String, enum: ['Client', 'Agent', 'Agent_Pending'], default: 'Client' }, 
     resetToken: String,         
     resetTokenExpires: Date,    
     createdAt: { type: Date, default: Date.now }
@@ -42,4 +43,4 @@ const User = mongoose.model('User', userSchema);
 const Order = mongoose.model('Order', orderSchema);
 
 // Export models AND the mongoose instance
-module.exports = { User, Order, mongoose }; 
+module.exports = { User, Order, mongoose };
