@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Purchase Data - Agent</title>
+    <title>Purchase Data - Agent Wholesale</title>
     <!-- FAVICON LINK -->
     <link rel="icon" type="image/png" href="apple-touch-icon.png">
     <!-- Load Tailwind CSS for modern styling -->
@@ -50,7 +50,7 @@
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex justify-between items-center h-24 sm:h-16 flex-col sm:flex-row py-2">
             
             <!-- Logo Area -->
-            <a href="/purchase" class="text-xl font-bold text-primary w-full sm:w-auto text-center sm:text-left">DataLink (Agent Wholesale)</a>
+            <a href="/purchase" class="text-xl font-bold text-primary w-full sm:w-auto text-center sm:text-left">AJEnterprise (Agent)</a>
             
             <!-- Links and Wallet Area -->
             <div class="flex space-x-4 items-center w-full justify-center sm:w-auto mt-2 sm:mt-0">
@@ -229,7 +229,7 @@
             dataplanSelect.innerHTML = '<option value="" data-amount="0" selected disabled>Loading plans...</option>';
             payButton.disabled = true;
             
-            // 🛑 CRITICAL FIX: Call the WHOLESALE pricing API for this specific Agent page
+            // 🛑 CRITICAL FIX: Call the WHOLESALE pricing API
             fetch(`/api/data-plans-wholesale?network=${network}`)
                 .then(response => response.json())
                 .then(plans => {
@@ -281,7 +281,7 @@
             payButton.disabled = true;
             payButton.textContent = 'Initiating Checkout...';
             
-            const transactionUrl = '/paystack/verify'; // Only verify purchase from this page
+            const transactionUrl = '/paystack/verify'; 
 
             const paymentCallback = function(response) {
                 statusDiv.textContent = "Verifying payment, please wait...";
@@ -459,3 +459,6 @@
             });
         });
     </script>
+</body>
+</html>
+
