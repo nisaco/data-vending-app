@@ -7,8 +7,7 @@ async function connectDB() {
         console.log('Connected to MongoDB successfully.');
     } catch (err) {
         console.error('MongoDB connection error:', err);
-        // Exits process if the primary connection fails (prevents infinite loop/crash)
-        process.exit(1); 
+        // We removed process.exit(1) to let Express start, but the error will still be logged.
     }
 }
 
@@ -20,8 +19,7 @@ const userSchema = new mongoose.Schema({
     email: { type: String, required: true, unique: true },
     password: { type: String, required: true },
     walletBalance: { type: Number, default: 0 }, 
-    // ⬅️ CRITICAL FIX: Added Role Field
-    role: { type: String, enum: ['Client', 'Agent', 'Agent_Pending'], default: 'Client' }, 
+    role: { type: String, enum: ['Client', 'Agent', 'Agent_Pending'], default: 'Client' }, // CRITICAL: Final Roles
     resetToken: String,         
     resetTokenExpires: Date,    
     createdAt: { type: Date, default: Date.now }
