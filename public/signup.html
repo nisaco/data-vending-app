@@ -3,7 +3,6 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <link rel="icon" type="image/x-icon" href="apple-touch-icon.png">
     <title>Sign Up - DataLink</title>
     <!-- FAVICON LINK -->
     <link rel="icon" type="image/png" href="apple-touch-icon.png">
@@ -47,6 +46,14 @@
             background: #f3f4f6;
             border: 1px solid #d1d5db;
             color: #1f2937;
+        }
+        /* 🛑 CRITICAL UI FIX: Ensure select box text is readable */
+        .glass-card select {
+            color: #1f2937; 
+        }
+        .dark .glass-card select {
+            background: #374151;
+            color: #f3f4f6;
         }
         .glass-card input:focus { outline: none; border-color: var(--primary-color); }
         .text-primary { color: var(--primary-color); }
@@ -242,13 +249,14 @@
                     }
 
                     // Calculate final charged amount using server's fee logic
-                    const finalChargedAmount = calculateClientTopupFee(AGENT_REGISTRATION_FEE_PESEWAS);
+                    // NOTE: We assume the server returns the final charged amount in initResult.amountPesewas
+                    const finalChargedAmount = initResult.amountPesewas;
 
                     // Initiate Paystack Checkout
                     PaystackPop.setup({
                         key: PAYSTACK_PUBLIC_KEY, 
                         email: email, 
-                        amount: finalChargedAmount, // Amount calculated using GHS 20.00 + fee
+                        amount: finalChargedAmount, // Amount calculated on server (GHS 20.00 + fee)
                         currency: 'GHS',
                         ref: 'AGENT-REG-' + Math.floor((Math.random() * 1000000000) + 1),
                         metadata: { userId: initResult.userId }, // Pass temporary user ID for verification
@@ -302,6 +310,3 @@
             }
         });
     </script>
-</body>
-</html>
-
