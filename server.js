@@ -17,23 +17,23 @@ const PORT = process.env.PORT || 10000;
 const allPlans = {
      "MTN": [
         { id: '1', name: '1GB', price: 490 }, { id: '2', name: '2GB', price: 980 }, { id: '3', name: '3GB', price: 1470 }, 
-        { id: '4', name: '4GB', price: 2000 }, { id: '5', name: '5GB', price: 2460 }, { id: '6', name: '6GB', price: 2800 }, 
-        { id: '8', name: '8GB', price: 3600 }, { id: '10', name: '10GB', price: 4380 }, { id: '15', name: '15GB', price: 6400 },
-        { id: '20', name: '20GB', price: 8500 }, { id: '25', name: '25GB', price: 10500 }, { id: '30', name: '30GB', price: 12450 },
-        { id: '40', name: '40GB', price: 16500 }, { id: '50', name: '50GB', price: 19800 }
+        { id: '4', name: '4GB', price: 2050 }, { id: '5', name: '5GB', price: 2460 }, { id: '6', name: '6GB', price: 2850 }, 
+        { id: '8', name: '8GB', price: 3700 }, { id: '10', name: '10GB', price: 4400 }, { id: '15', name: '15GB', price: 6600 },
+        { id: '20', name: '20GB', price: 8600 }, { id: '25', name: '25GB', price: 10700 }, { id: '30', name: '30GB', price: 12700 },
+        { id: '40', name: '40GB', price: 16700 }, { id: '50', name: '50GB', price: 20000 }
     ],
 
     "AirtelTigo": [
-        { id: '1', name: '1GB', price: 370 }, { id: '2', name: '2GB', price: 740 }, { id: '3', name: '3GB', price: 1110 },  
-        { id: '4', name: '4GB', price: 1480 }, { id: '5', name: '5GB', price: 1850 }, { id: '6', name: '6GB', price: 2220 },  
-        { id: '7', name: '7GB', price: 2590 }, { id: '8', name: '8GB', price: 2960 }, { id: '9', name: '9GB', price: 3330 },  
-        { id: '10', name: '10GB', price: 3700 }, { id: '12', name: '12GB', price: 4440 }, { id: '15', name: '15GB', price: 5550 },
-        { id: '20', name: '20GB', price: 7400 }
+        { id: '1', name: '1GB', price: 420 }, { id: '2', name: '2GB', price: 840 }, { id: '3', name: '3GB', price: 1250 },  
+        { id: '4', name: '4GB', price: 1680 }, { id: '5', name: '5GB', price: 2050 }, { id: '6', name: '6GB', price: 2220 },  
+        { id: '7', name: '7GB', price: 2850 }, { id: '8', name: '8GB', price: 3240 }, { id: '9', name: '9GB', price: 3650 },  
+        { id: '10', name: '10GB', price: 4250 }, { id: '12', name: '12GB', price: 5100 }, { id: '15', name: '15GB', price: 6400 },
+        { id: '20', name: '20GB', price: 8500 }
     ],
     "Telecel": [
-        { id: '5', name: '5GB', price: 2000 }, { id: '10', name: '10GB', price: 3800 }, { id: '15', name: '15GB', price: 5500 }, 
-        { id: '20', name: '20GB', price: 7300 }, { id: '25', name: '25GB', price: 9000 }, { id: '30', name: '30GB', price: 11000 },
-        { id: '40', name: '40GB', price: 14300 }, { id: '50', name: '50GB', price: 18000 }, { id: '100', name: '100GB', price: 35000}
+        { id: '5', name: '5GB', price: 2300 }, { id: '10', name: '10GB', price: 4300 }, { id: '15', name: '15GB', price: 6300 }, 
+        { id: '20', name: '20GB', price: 8300 }, { id: '25', name: '25GB', price: 10300 }, { id: '30', name: '30GB', price: 12300 },
+        { id: '40', name: '40GB', price: 15500 }, { id: '50', name: '50GB', price: 19500 }, { id: '100', name: '100GB', price: 39000}
     ]
 };
 
@@ -63,7 +63,7 @@ function calculateClientTopupFee(netDepositPesewas) {
     
     const requiredTotalCharge = (netDepositPesewas + PAYSTACK_FLAT) / (1 - PAYSTACK_RATE);
     const truePaystackFee = requiredTotalCharge - netDepositPesewas;
-    const feeClientPays = truePaystackFee * 0.60;
+    const feeClientPays = truePaystackFee * 0.58;
     const finalCharge = netDepositPesewas + feeClientPays;
 
     return Math.round(finalCharge);
@@ -76,8 +76,8 @@ async function sendAdminAlertEmail(order) {
     }
     sgMail.setApiKey(process.env.SENDGRID_API_KEY);
     const msg = {
-        to: 'YOUR_ADMIN_RECEIVING_EMAIL@example.com', 
-        from: 'YOUR_VERIFIED_SENDER_EMAIL@example.com', 
+        to: 'jeffreypappoe@yahoo.com', 
+        from: 'jnkpappoe@gmail.com', 
         subject: `🚨 MANUAL REVIEW REQUIRED: ${order.network || 'N/A'} Data Transfer Failed`,
         html: `
             <h1>Urgent Action Required!</h1>
