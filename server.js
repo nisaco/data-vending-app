@@ -15,7 +15,7 @@ const PORT = process.env.PORT || 10000;
 
 // --- 2. DATA (PLANS) AND MAPS ---
 const allPlans = {
-   "MTN": [
+     "MTN": [
         { id: '1', name: '1GB', price: 490 }, { id: '2', name: '2GB', price: 980 }, { id: '3', name: '3GB', price: 1470 }, 
         { id: '4', name: '4GB', price: 2000 }, { id: '5', name: '5GB', price: 2460 }, { id: '6', name: '6GB', price: 2800 }, 
         { id: '8', name: '8GB', price: 3600 }, { id: '10', name: '10GB', price: 4380 }, { id: '15', name: '15GB', price: 6400 },
@@ -37,7 +37,6 @@ const allPlans = {
     ]
 };
 
-
 const NETWORK_KEY_MAP = {
     "MTN": 'YELLO', "AirtelTigo": 'AT_PREMIUM', "Telecel": 'TELECEL',
 };
@@ -53,13 +52,13 @@ function findBaseCost(network, capacityId) {
     return plan ? plan.price : 0; 
 }
 function calculatePaystackFee(chargedAmountInPesewas) {
-    const TRANSACTION_FEE_RATE = 0.00205; const TRANSACTION_FEE_CAP = 2000;
+    const TRANSACTION_FEE_RATE = 0.0205; const TRANSACTION_FEE_CAP = 2000;
     let fullFee = (chargedAmountInPesewas * TRANSACTION_FEE_RATE) + 80;
     let totalFeeChargedByPaystack = Math.min(fullFee, TRANSACTION_FEE_CAP);
     return totalFeeChargedByPaystack;
 }
 function calculateClientTopupFee(netDepositPesewas) {
-    const PAYSTACK_RATE = 0.019;
+    const PAYSTACK_RATE = 0.017;
     const PAYSTACK_FLAT = 80;
     
     const requiredTotalCharge = (netDepositPesewas + PAYSTACK_FLAT) / (1 - PAYSTACK_RATE);
