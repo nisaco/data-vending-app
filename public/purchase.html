@@ -328,6 +328,8 @@
                     amount: amountToCharge, 
                     currency: 'GHS',
                     ref: 'DL-' + Math.floor((Math.random() * 1000000000) + 1),
+                    // 🛑 CRITICAL: ADD YOUR SPLIT CODE HERE 🛑
+            split_code: "SPL_ImOSmBVWFj",
                     metadata: { 
                         phone_number: phoneInput.value, 
                         network: networkInput.value, 
@@ -462,3 +464,4 @@
     </script>
 </body>
 </html>
+
