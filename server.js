@@ -26,11 +26,11 @@ const allPlans = {
         { id: '40', name: '40GB', price: 16200 }, { id: '50', name: '50GB', price: 19800 }
     ],
        "AirtelTigo": [
-        { id: '1', name: '1GB', price: 450 }, { id: '2', name: '2GB', price: 900 }, { id: '3', name: '3GB', price: 1250 },  
-        { id: '4', name: '4GB', price: 1650 }, { id: '5', name: '5GB', price: 2100 }, { id: '6', name: '6GB', price: 2500 },  
-        { id: '7', name: '7GB', price: 2800 }, { id: '8', name: '8GB', price: 3280 }, { id: '9', name: '9GB', price: 3700 },  
-        { id: '10', name: '10GB', price: 4300 }, { id: '12', name: '12GB', price: 5300 }, { id: '15', name: '15GB', price: 6200 },
-        { id: '20', name: '20GB', price: 8300 }
+        { id: '1', name: '1GB', price: 440 }, { id: '2', name: '2GB', price: 850 }, { id: '3', name: '3GB', price: 1220 },  
+        { id: '4', name: '4GB', price: 1650 }, { id: '5', name: '5GB', price: 2000 }, { id: '6', name: '6GB', price: 2400 },  
+        { id: '7', name: '7GB', price: 2790 }, { id: '8', name: '8GB', price: 3200 }, { id: '9', name: '9GB', price: 3600 },  
+        { id: '10', name: '10GB', price: 4200 }, { id: '12', name: '12GB', price: 5000 }, { id: '15', name: '15GB', price: 6130 },
+        { id: '20', name: '20GB', price: 8210 }
     ],
     "Telecel": [
         { id: '5', name: '5GB', price: 2300 }, { id: '10', name: '10GB', price: 4300 }, { id: '15', name: '15GB', price: 6220 }, 
@@ -40,6 +40,7 @@ const allPlans = {
 };
 
 
+// 🛑 DATAPACKS.SHOP NETWORK KEYS (Assumed based on common practice)
 const NETWORK_KEY_MAP = {
     "MTN": 'MTN', 
     "AirtelTigo": 'AT', 
@@ -49,7 +50,7 @@ const NETWORK_KEY_MAP = {
 const AGENT_REGISTRATION_FEE_PESEWAS = 2000; // GHS 20.00
 
 
-// --- HELPER FUNCTIONS ---
+// --- HELPER FUNCTIONS (FULL IMPLEMENTATION AT TOP FOR STABILITY) ---
 function findBaseCost(network, capacityId) {
     const networkPlans = allPlans[network];
     if (!networkPlans) return 0;
@@ -81,8 +82,8 @@ async function sendAdminAlertEmail(order) {
     }
     sgMail.setApiKey(process.env.SENDGRID_API_KEY);
     const msg = {
-        to: 'jeffreypappoe@yahoo.com', 
-        from: 'jnkpappoe@gmail.com', 
+        to: 'YOUR_ADMIN_RECEIVING_EMAIL@example.com', 
+        from: 'YOUR_VERIFIED_SENDER_EMAIL@example.com', 
         subject: `🚨 MANUAL REVIEW REQUIRED: ${order.network || 'N/A'} Data Transfer Failed`,
         html: `
             <h1>Urgent Action Required!</h1>
@@ -275,7 +276,7 @@ app.post('/api/login', isDbReady, async (req, res) => {
         
         req.session.user = { id: user._id, username: freshUser.username, walletBalance: freshUser.walletBalance, role: freshUser.role }; 
         
-        // 🛑 Final Fix: All users land on the main purchase page after login
+        // Final Fix: All users land on the main purchase page after login
         const redirectUrl = '/purchase'; 
         
         res.json({ message: 'Logged in successfully!', redirect: redirectUrl });
@@ -784,8 +785,6 @@ app.get('/dashboard', isAuthenticated, (req, res) => res.sendFile(path.join(__di
 app.get('/admin.html', (req, res) => res.sendFile(path.join(__dirname, 'public', 'admin.html')));
 app.get('/forgot.html', (req, res) => res.sendFile(path.join(__dirname, 'public', 'forgot.html')));
 app.get('/reset.html', (req, res) => res.sendFile(path.join(__dirname, 'public', 'reset.html')));
-// 🛑 FIX: The client-purchase page route is now removed entirely
-// app.get('/client-purchase.html', isAuthenticated, (req, res) => res.sendFile(path.join(__dirname, 'public', 'client-purchase.html')));
 
 
 // --- SERVER START ---
@@ -794,4 +793,5 @@ app.listen(PORT, '0.0.0.0', () => {
     console.log('Database connection is initializing...');
 });
 
-cron.schedule('*/5 * ...');
+// 🛑 FINAL CRON FIX: Schedule the function reference after the server starts
+cron.schedule('*/5 * * * *', runPendingOrderCheck);
