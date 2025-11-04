@@ -13,37 +13,45 @@ const { User, Order, mongoose } = require('./database.js');
 const app = express();
 const PORT = process.env.PORT || 10000;
 
-// --- 2. DATA (PLANS) - STATIC COST PRICE AND ID SETUP (FINALIZED) ---
+// 🛑 NEW API BASE URL 🛑
+const RESELLER_API_BASE_URL = 'https://datapacks.shop/api.php'; 
+
+// --- 2. DATA (PLANS) AND MAPS ---
 const allPlans = {
-    // PRICES ARE THE WHOLESALE COST (in PESEWAS)
-     "MTN": [
+        "MTN": [
         { id: '1', name: '1GB', price: 490 }, { id: '2', name: '2GB', price: 980 }, { id: '3', name: '3GB', price: 1470 }, 
         { id: '4', name: '4GB', price: 2000 }, { id: '5', name: '5GB', price: 2460 }, { id: '6', name: '6GB', price: 2800 }, 
         { id: '8', name: '8GB', price: 3600 }, { id: '10', name: '10GB', price: 4380 }, { id: '15', name: '15GB', price: 6400 },
         { id: '20', name: '20GB', price: 8500 }, { id: '25', name: '25GB', price: 10500 }, { id: '30', name: '30GB', price: 12450 },
         { id: '40', name: '40GB', price: 16500 }, { id: '50', name: '50GB', price: 19800 }
     ],
- 
-     "AirtelTigo": [
-        { id: '1', name: '1GB', price: 420 }, { id: '2', name: '2GB', price: 820 }, { id: '3', name: '3GB', price: 1250 },  
-        { id: '4', name: '4GB', price: 1600 }, { id: '5', name: '5GB', price: 2000 }, { id: '6', name: '6GB', price: 2500 },  
-        { id: '7', name: '7GB', price: 2800 }, { id: '8', name: '8GB', price: 3230 }, { id: '9', name: '9GB', price: 3650 },  
-        { id: '10', name: '10GB', price: 4200 }, { id: '12', name: '12GB', price: 5100 }, { id: '15', name: '15GB', price: 6300 },
-        { id: '20', name: '20GB', price: 8400 }
+
+       "AirtelTigo": [
+        { id: '1', name: '1GB', price: 400 }, { id: '2', name: '2GB', price: 800 }, { id: '3', name: '3GB', price: 1200 },  
+        { id: '4', name: '4GB', price: 1600 }, { id: '5', name: '5GB', price: 2000 }, { id: '6', name: '6GB', price: 2400 },  
+        { id: '7', name: '7GB', price: 2790 }, { id: '8', name: '8GB', price: 3200 }, { id: '9', name: '9GB', price: 3600 },  
+        { id: '10', name: '10GB', price: 4200 }, { id: '12', name: '12GB', price: 5000 }, { id: '15', name: '15GB', price: 6130 },
+        { id: '20', name: '20GB', price: 8210 }
     ],
     "Telecel": [
-        { id: '5', name: '5GB', price: 2300 }, { id: '10', name: '10GB', price: 4300 }, { id: '15', name: '15GB', price: 6300 }, 
+        { id: '5', name: '5GB', price: 2300 }, { id: '10', name: '10GB', price: 4300 }, { id: '15', name: '15GB', price: 6220 }, 
         { id: '20', name: '20GB', price: 8300 }, { id: '25', name: '25GB', price: 10300 }, { id: '30', name: '30GB', price: 12300 },
         { id: '40', name: '40GB', price: 15500 }, { id: '50', name: '50GB', price: 19500 }, { id: '100', name: '100GB', price: 40000}
     ]
 };
 
+
+// 🛑 DATAPACKS.SHOP NETWORK KEYS (Assumed based on common practice)
 const NETWORK_KEY_MAP = {
-    "MTN": 'YELLO', "AirtelTigo": 'AT_PREMIUM', "Telecel": 'TELECEL',
+    "MTN": 'MTN', 
+    "AirtelTigo": 'AT', 
+    "Telecel": 'VOD', // VOD for Vodafone/Telecel
 };
 
+const AGENT_REGISTRATION_FEE_PESEWAS = 2000; // GHS 20.00
 
-// --- HELPER FUNCTIONS (FULL IMPLEMENTATION) ---
+
+// --- HELPER FUNCTIONS ---
 function findBaseCost(network, capacityId) {
     const networkPlans = allPlans[network];
     if (!networkPlans) return 0;
@@ -80,7 +88,7 @@ async function sendAdminAlertEmail(order) {
         subject: `🚨 MANUAL REVIEW REQUIRED: ${order.network || 'N/A'} Data Transfer Failed`,
         html: `
             <h1>Urgent Action Required!</h1>
-            <p>A customer payment was successful, but the data bundle transfer failed automatically. Please fulfill this order manually through the Datahub Ghana dashboard.</p>
+            <p>A customer payment was successful, but the data bundle transfer failed automatically. Please fulfill this order manually through the Datapacks.shop dashboard.</p>
             <hr>
             <p><strong>Status:</strong> PENDING REVIEW</p>
             <p><strong>Network:</strong> ${order.network || 'N/A'}</p>
@@ -106,27 +114,30 @@ async function executeDataPurchase(userId, orderDetails, paymentMethod) {
     const reference = `${paymentMethod.toUpperCase()}-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`; 
 
     // --- STEP 1: TRANSFER DATA VIA RESELLER API ---
-    const resellerApiUrl = 'https://console.ckgodsway.com/api/data-purchase';
+    const resellerApiUrl = RESELLER_API_BASE_URL;
     const networkKey = NETWORK_KEY_MAP[network];
     
+    // 🛑 DATAPACKS.SHOP API Payload Structure (GET Request/Bearer Auth)
     const resellerPayload = {
-        networkKey: networkKey,       
-        recipient: orderDetails.phoneNumber,      
+        action: 'order',
+        network: networkKey,       
         capacity: dataPlan,          
-        reference: reference          
+        recipient: orderDetails.phoneNumber,      
+        client_ref: reference      
     };
     
     try {
-        const transferResponse = await axios.post(resellerApiUrl, resellerPayload, {
+        // Use GET request for Datapacks.shop
+        const transferResponse = await axios.get(re-sellerApiUrl, {
+            params: resellerPayload,
             headers: {
-                'Content-Type': 'application/json',
-                'X-API-Key': process.env.DATA_API_SECRET
+                'Authorization': `Bearer ${process.env.DATA_API_SECRET}` 
             }
         });
 
-        if (transferResponse.data.success === true) {
+        // Assuming a successful response structure (status code 200 + success/status field)
+        if (transferResponse.data.status === 'success' || transferResponse.data.status === 'SUCCESSFUL') {
             finalStatus = 'data_sent';
-            // Note: Customer success email logic would be called here
         } else {
             console.error('Data API failed response:', transferResponse.data);
             finalStatus = 'pending_review';
@@ -158,8 +169,7 @@ async function executeDataPurchase(userId, orderDetails, paymentMethod) {
 
 async function runPendingOrderCheck() {
     console.log('--- CRON: Checking for pending orders needing status update... ---');
-    const CHECK_API_ENDPOINT = 'https://console.ckgodsway.com/api/order-status'; 
-
+    
     try {
         if (mongoose.connection.readyState !== 1) {
             console.log('CRON: Skipping check, database not ready (State: ' + mongoose.connection.readyState + ')');
@@ -175,17 +185,25 @@ async function runPendingOrderCheck() {
 
         for (const order of pendingOrders) {
             try {
-                const statusResponse = await axios.get(`${CHECK_API_ENDPOINT}?reference=${order.reference}`, {
-                    headers: { 'X-API-Key': process.env.DATA_API_SECRET }
+                // 🛑 DATAPACKS.SHOP STATUS CHECK LOGIC
+                const statusPayload = {
+                    action: 'status', 
+                    token: process.env.DATA_API_SECRET,
+                    ref: order.reference
+                };
+
+                const statusResponse = await axios.get(RESELLER_API_BASE_URL, {
+                    params: statusPayload,
+                    headers: { 'Authorization': `Bearer ${process.env.DATA_API_SECRET}` }
                 });
 
                 const apiData = statusResponse.data;
-
-                if (apiData.success && apiData.data.status === 'SUCCESSFUL') {
+                // Assuming "SUCCESSFUL" or "DELIVERED" is a positive status
+                if (apiData.status === 'SUCCESSFUL' || apiData.status === 'DELIVERED') {
                     await Order.findByIdAndUpdate(order._id, { status: 'data_sent' });
                     console.log(`CRON SUCCESS: Order ${order.reference} automatically marked 'data_sent'.`);
 
-                } else if (apiData.success && apiData.data.status === 'FAILED') {
+                } else if (apiData.status === 'FAILED' || apiData.status === 'REJECTED') {
                     await Order.findByIdAndUpdate(order._id, { status: 'data_failed' });
                     console.log(`CRON FAILURE: Order ${order.reference} marked 'data_failed'.`);
                 }
@@ -231,8 +249,11 @@ app.post('/api/signup', isDbReady, async (req, res) => {
     if (!username || !email || !password) return res.status(400).json({ message: 'All fields are required.' });
     try {
         const hashedPassword = await bcrypt.hash(password, 10);
-        await User.create({ username, email, password: hashedPassword, walletBalance: 0 }); 
-        res.status(201).json({ message: 'User created successfully! Please log in.' });
+        
+        // Default role is 'Client'
+        await User.create({ username, email, password: hashedPassword, walletBalance: 0, role: 'Client' }); 
+        
+        res.status(201).json({ message: 'Client account created successfully! Please log in.' });
     } catch (error) { 
         if (error.code === 11000) return res.status(400).json({ message: 'Username or email already exists.' });
         res.status(500).json({ message: 'Server error during signup.' }); 
@@ -247,8 +268,23 @@ app.post('/api/login', isDbReady, async (req, res) => {
         if (!user || !await bcrypt.compare(password, user.password)) {
             return res.status(401).json({ message: 'Invalid credentials.' });
         }
-        req.session.user = { id: user._id, username: user.username, walletBalance: user.walletBalance }; 
-        res.json({ message: 'Logged in successfully!' });
+        
+        // Ensure legacy users (who have no role) are defaulted to 'Agent'
+        if (!user.role) {
+            user.role = 'Agent';
+            await User.findByIdAndUpdate(user._id, { role: 'Agent' });
+        }
+        
+        // Fetch fresh user data with updated role for the session
+        const freshUser = await User.findById(user._id).select('username walletBalance role'); 
+        
+        req.session.user = { id: user._id, username: freshUser.username, walletBalance: freshUser.walletBalance, role: freshUser.role }; 
+        
+        // Dynamic Redirection based on Role
+        const redirectUrl = freshUser.role === 'Agent' ? '/purchase' : '/client-purchase.html'; 
+        
+        res.json({ message: 'Logged in successfully!', redirect: redirectUrl });
+        
     } catch (error) {
         res.status(500).json({ message: 'Server error during login.' });
     }
@@ -260,13 +296,13 @@ app.get('/api/logout', (req, res) => {
 
 app.get('/api/user-info', isDbReady, isAuthenticated, async (req, res) => {
     try {
-        const user = await User.findById(req.session.user.id).select('username walletBalance email');
+        const user = await User.findById(req.session.user.id).select('username walletBalance email role');
         if (!user) {
             req.session.destroy(() => res.status(404).json({ error: 'User not found' }));
             return;
         }
         req.session.user.walletBalance = user.walletBalance; 
-        res.json({ username: user.username, walletBalance: user.walletBalance, email: user.email });
+        res.json({ username: user.username, walletBalance: user.walletBalance, email: user.email, role: user.role });
     } catch (error) {
         res.status(500).json({ error: 'Failed to fetch user data' });
     }
@@ -321,13 +357,86 @@ app.post('/api/reset-password', isDbReady, async (req, res) => {
     }
 });
 
+app.post('/api/agent-signup', isDbReady, async (req, res) => {
+    const { username, email, password } = req.body;
+    if (!username || !email || !password) return res.status(400).json({ message: 'All fields are required.' });
+    
+    const existingUser = await User.findOne({ $or: [{ username }, { email }] });
+    if (existingUser) {
+        return res.status(400).json({ message: 'User already exists.' });
+    }
+
+    try {
+        const hashedPassword = await bcrypt.hash(password, 10);
+        
+        // Calculate Paystack amount needed for the GHS 20.00 fee
+        const finalRegistrationCharge = calculateClientTopupFee(AGENT_REGISTRATION_FEE_PESEWAS);
+        
+        // Create a temporary user record to store details during payment initiation
+        const tempUser = await User.create({ 
+            username, 
+            email, 
+            password: hashedPassword, 
+            walletBalance: 0, 
+            role: 'Agent_Pending' // Temporary status
+        });
+
+        res.status(200).json({ 
+            message: 'Initiate payment for registration.',
+            userId: tempUser._id,
+            amountPesewas: finalRegistrationCharge 
+        });
+
+    } catch (error) {
+        console.error('Agent signup initiation error:', error);
+        res.status(500).json({ message: 'Server error during agent signup initiation.' }); 
+    }
+});
+
+app.post('/api/verify-agent-payment', async (req, res) => {
+    const { reference, userId } = req.body;
+    
+    const expectedCharge = calculateClientTopupFee(AGENT_REGISTRATION_FEE_PESEWAS);
+
+    try {
+        const paystackUrl = `https://api.paystack.co/transaction/verify/${reference}`;
+        const paystackResponse = await axios.get(paystackUrl, { 
+            headers: { Authorization: `Bearer ${process.env.PAYSTACK_SECRET_KEY}` } 
+        });
+        const { status, data } = paystackResponse.data;
+        
+        if (data.status === 'success' && Math.abs(data.amount - expectedCharge) <= 5) {
+            
+            const user = await User.findByIdAndUpdate(
+                userId, 
+                { role: 'Agent' }, 
+                { new: true }
+            );
+
+            if (user) {
+                return res.json({ message: 'Registration successful! You are now an Agent.', role: 'Agent' });
+            }
+        }
+        
+        res.status(400).json({ message: 'Payment verification failed. Please try again.' });
+
+    } catch (error) {
+        console.error('Agent payment verification error:', error);
+        await User.findByIdAndDelete(userId);
+        res.status(500).json({ message: 'Verification failed. Contact support.' });
+    }
+});
+
 
 // --- DATA & PROTECTED PAGES ---
-app.get('/api/data-plans', isDbReady, (req, res) => {
+app.get('/api/data-plans-wholesale', isDbReady, async (req, res) => { 
     const costPlans = allPlans[req.query.network] || [];
     
+    // Wholesale Markup is always 0
+    const markupPesewas = 0; 
+
     const sellingPlans = costPlans.map(p => {
-        const FIXED_MARKUP = 0; 
+        const FIXED_MARKUP = markupPesewas; 
         const rawSellingPrice = p.price + FIXED_MARKUP;
         const sellingPrice = Math.ceil(rawSellingPrice / 5) * 5; 
         
@@ -336,6 +445,22 @@ app.get('/api/data-plans', isDbReady, (req, res) => {
 
     res.json(sellingPlans);
 });
+
+app.get('/api/data-plans-retail', isDbReady, async (req, res) => { 
+    const costPlans = allPlans[req.query.network] || [];
+    const RETAIL_MARKUP_PESEWAS = 100; // GHS 1.00
+
+    const sellingPlans = costPlans.map(p => {
+        const FIXED_MARKUP = RETAIL_MARKUP_PESEWAS; 
+        const rawSellingPrice = p.price + FIXED_MARKUP;
+        const sellingPrice = Math.ceil(rawSellingPrice / 5) * 5; 
+        
+        return { id: p.id, name: p.name, price: sellingPrice };
+    });
+
+    res.json(sellingPlans);
+});
+
 
 app.get('/api/my-orders', isDbReady, isAuthenticated, async (req, res) => {
     try {
@@ -355,7 +480,8 @@ app.post('/api/topup', isDbReady, isAuthenticated, async (req, res) => {
         return res.status(400).json({ status: 'error', message: 'Reference and amount are required.' });
     }
     
-    let topupAmountPesewas = Math.round(amount * 100);
+    let netDepositAmountGHS = amount; 
+    let topupAmountPesewas = Math.round(netDepositAmountGHS * 100);
     const userId = req.session.user.id;
 
     // Calculate the final charged amount using the 40/60 split logic
@@ -553,7 +679,7 @@ app.get('/api/admin/all-users-status', async (req, res) => {
     try {
         if (mongoose.connection.readyState !== 1) return res.status(503).json({ error: 'Database not ready.' });
 
-        const registeredUsers = await User.find({}).select('username email createdAt').lean();
+        const registeredUsers = await User.find({}).select('username email createdAt role').lean();
 
         const sessionsCollection = mongoose.connection.db.collection('sessions');
         const rawSessions = await sessionsCollection.find({}).toArray();
@@ -569,16 +695,13 @@ app.get('/api/admin/all-users-status', async (req, res) => {
             } catch (e) { }
         });
 
-        const userListWithStatus = registeredUsers.map(user => {
-            const userIdString = user._id.toString();
-            
-            return {
-                username: user.username,
-                email: user.email,
-                signedUp: user.createdAt,
-                isOnline: activeUserIds.has(userIdString)
-            };
-        });
+        const userListWithStatus = registeredUsers.map(user => ({
+            username: user.username,
+            email: user.email,
+            signedUp: user.createdAt,
+            isOnline: activeUserIds.has(user._id.toString()),
+            role: user.role
+        }));
 
         res.json({ users: userListWithStatus });
     } catch (error) {
@@ -666,6 +789,7 @@ app.get('/dashboard', isAuthenticated, (req, res) => res.sendFile(path.join(__di
 app.get('/admin.html', (req, res) => res.sendFile(path.join(__dirname, 'public', 'admin.html')));
 app.get('/forgot.html', (req, res) => res.sendFile(path.join(__dirname, 'public', 'forgot.html')));
 app.get('/reset.html', (req, res) => res.sendFile(path.join(__dirname, 'public', 'reset.html')));
+app.get('/client-purchase.html', isAuthenticated, (req, res) => res.sendFile(path.join(__dirname, 'public', 'client-purchase.html')));
 
 
 // --- SERVER START ---
@@ -674,4 +798,4 @@ app.listen(PORT, '0.0.0.0', () => {
     console.log('Database connection is initializing...');
 });
 
-cron.schedule('*/5 * * * *', runPendingOrderCheck);
+cron.schedule('*/5 * * ...');
