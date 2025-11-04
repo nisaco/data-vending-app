@@ -18,6 +18,7 @@ const RESELLER_API_BASE_URL = 'https://datapacks.shop/api.php';
 
 // --- 2. DATA (PLANS) AND MAPS ---
 const allPlans = {
+    // PRICES ARE THE WHOLESALE COST (in PESEWAS)
     "MTN": [
         { id: '1', name: '1GB', price: 480 }, { id: '2', name: '2GB', price: 960 }, { id: '3', name: '3GB', price: 1420 }, 
         { id: '4', name: '4GB', price: 2000 }, { id: '5', name: '5GB', price: 2400 }, { id: '6', name: '6GB', price: 2800 }, 
@@ -25,10 +26,10 @@ const allPlans = {
         { id: '20', name: '20GB', price: 8200 }, { id: '25', name: '25GB', price: 10200 }, { id: '30', name: '30GB', price: 12200 },
         { id: '40', name: '40GB', price: 16200 }, { id: '50', name: '50GB', price: 19800 }
     ],
-       "AirtelTigo": [
-        { id: '1', name: '1GB', price: 440 }, { id: '2', name: '2GB', price: 850 }, { id: '3', name: '3GB', price: 1220 },  
-        { id: '4', name: '4GB', price: 1650 }, { id: '5', name: '5GB', price: 2000 }, { id: '6', name: '6GB', price: 2400 },  
-        { id: '7', name: '7GB', price: 2790 }, { id: '8', name: '8GB', price: 3200 }, { id: '9', name: '9GB', price: 3600 },  
+        "AirtelTigo": [
+        { id: '1', name: '1GB', price: 450 }, { id: '2', name: '2GB', price: 870 }, { id: '3', name: '3GB', price: 1290 },  
+        { id: '4', name: '4GB', price: 1700 }, { id: '5', name: '5GB', price: 2030 }, { id: '6', name: '6GB', price: 2500 },  
+        { id: '7', name: '7GB', price: 2800 }, { id: '8', name: '8GB', price: 3300 }, { id: '9', name: '9GB', price: 3600 },  
         { id: '10', name: '10GB', price: 4200 }, { id: '12', name: '12GB', price: 5000 }, { id: '15', name: '15GB', price: 6130 },
         { id: '20', name: '20GB', price: 8210 }
     ],
@@ -50,7 +51,7 @@ const NETWORK_KEY_MAP = {
 const AGENT_REGISTRATION_FEE_PESEWAS = 2000; // GHS 20.00
 
 
-// --- HELPER FUNCTIONS (FULL IMPLEMENTATION AT TOP FOR STABILITY) ---
+// --- HELPER FUNCTIONS ---
 function findBaseCost(network, capacityId) {
     const networkPlans = allPlans[network];
     if (!networkPlans) return 0;
@@ -116,7 +117,7 @@ async function executeDataPurchase(userId, orderDetails, paymentMethod) {
     const resellerApiUrl = RESELLER_API_BASE_URL;
     const networkKey = NETWORK_KEY_MAP[network];
     
-    // DATAPACKS.SHOP API Payload Structure (GET Request/Bearer Auth)
+    // 🛑 DATAPACKS.SHOP API Payload Structure (GET Request/Bearer Auth)
     const resellerPayload = {
         action: 'order',
         network: networkKey,       
@@ -129,10 +130,12 @@ async function executeDataPurchase(userId, orderDetails, paymentMethod) {
         const transferResponse = await axios.get(resellerApiUrl, {
             params: resellerPayload,
             headers: {
+                // 🛑 CRITICAL FIX: Send Bearer Token in Authorization header
                 'Authorization': `Bearer ${process.env.DATA_API_SECRET}` 
             }
         });
 
+        // Assuming a successful response structure (status code 200 + success/status field)
         if (transferResponse.data.status === 'success' || transferResponse.data.status === 'SUCCESSFUL') {
             finalStatus = 'data_sent';
         } else {
@@ -182,7 +185,7 @@ async function runPendingOrderCheck() {
 
         for (const order of pendingOrders) {
             try {
-                // DATAPACKS.SHOP STATUS CHECK LOGIC
+                // 🛑 DATAPACKS.SHOP STATUS CHECK LOGIC
                 const statusPayload = {
                     action: 'status', 
                     ref: order.reference
@@ -563,7 +566,7 @@ app.post('/api/wallet-purchase', isDbReady, isAuthenticated, async (req, res) =>
         }, 'wallet');
         
         if (result.status === 'data_sent') {
-            return res.json({ status: 'success', message: 'Data successfully sent from wallet!' });
+            return res.json({ status: 'success', message: `Data successfully sent from wallet!` });
         } else {
             return res.status(202).json({ 
                 status: 'pending', 
@@ -785,6 +788,8 @@ app.get('/dashboard', isAuthenticated, (req, res) => res.sendFile(path.join(__di
 app.get('/admin.html', (req, res) => res.sendFile(path.join(__dirname, 'public', 'admin.html')));
 app.get('/forgot.html', (req, res) => res.sendFile(path.join(__dirname, 'public', 'forgot.html')));
 app.get('/reset.html', (req, res) => res.sendFile(path.join(__dirname, 'public', 'reset.html')));
+// 🛑 Final Fix: Removed route that was crashing the server
+// app.get('/client-purchase.html', isAuthenticated, (req, res) => res.sendFile(path.join(__dirname, 'public', 'client-purchase.html')));
 
 
 // --- SERVER START ---
@@ -793,5 +798,4 @@ app.listen(PORT, '0.0.0.0', () => {
     console.log('Database connection is initializing...');
 });
 
-// 🛑 FINAL CRON FIX: Schedule the function reference after the server starts
 cron.schedule('*/5 * * * *', runPendingOrderCheck);
