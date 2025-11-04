@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Purchase Data - Agent</title>
+    <title>Purchase Data - AJEnterprise</title>
     <!-- FAVICON LINK -->
     <link rel="icon" type="image/png" href="apple-touch-icon.png">
     <!-- Load Tailwind CSS for modern styling -->
@@ -45,12 +45,12 @@
 </head>
 <body class="bg-gray-50 min-h-screen font-sans">
 
-    <!-- Navbar -->
+    <!-- Navbar (Fixed for Mobile View) -->
     <nav class="bg-white shadow-lg">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex justify-between items-center h-24 sm:h-16 flex-col sm:flex-row py-2">
             
             <!-- Logo Area -->
-            <a href="/purchase" class="text-xl font-bold text-primary w-full sm:w-auto text-center sm:text-left">AJENTERPRISE(Agent)</a>
+            <a href="/purchase" class="text-xl font-bold text-primary w-full sm:w-auto text-center sm:text-left">AJENTERPRISE</a>
             
             <!-- Links and Wallet Area -->
             <div class="flex space-x-4 items-center w-full justify-center sm:w-auto mt-2 sm:mt-0">
@@ -69,7 +69,8 @@
     <!-- Main Content Container -->
     <div class="container mx-auto p-4 max-w-2xl">
         <div class="bg-white p-6 md:p-8 rounded-2xl shadow-xl mt-8 border border-gray-100">
-            <h1 class="text-3xl font-extrabold text-center text-gray-800 mb-2">Buy Mobile Data </h1>
+            <h1 class="text-3xl font-extrabold text-center text-gray-800 mb-2">Buy Mobile Data</h1>
+            <p class="text-center text-gray-500 mb-8">Select your network and plan to get started.</p>
 
             <form id="paymentForm">
                 
@@ -181,19 +182,20 @@
             }
         }
 
-        // --- PAYSTACK FEE CALCULATION (Modified to use 0.205% rate) ---
+        // 🛑 FINAL PROFITABILITY FIX: Calculates the exact amount the customer must pay
         function calculateTotalCharge(planPriceInPesewas) {
-            const TRANSACTION_FEE_RATE = 0.00205; 
-            const TRANSACTION_FEE_FLAT = 80; 
-            const TRANSACTION_FEE_CAP = 2000; 
-
-            let totalFee = (planPriceInPesewas * TRANSACTION_FEE_RATE) + TRANSACTION_FEE_FLAT;
-            totalFee = totalFee > TRANSACTION_FEE_CAP ? TRANSACTION_FEE_CAP : totalFee;
+            // Since we reverted the dual pricing, this page assumes the user is an Agent
+            // and the server returns the Wholesale Price (0 markup).
             
-            let netFeeToPass = Math.max(0, totalFee - TRANSACTION_FEE_FLAT); 
-            const totalAmountCharged = planPriceInPesewas + Math.round(netFeeToPass);
+            const TRUE_PAYSTACK_FIXED_FEE = 80; // GHS 0.80
+            const CUSTOMER_PAYS_PORTION = 0.60; // 60% of the flat fee is passed to customer
             
-            return totalAmountCharged;
+            // The simplest, most transparent price: Wholesale Cost + (60% of Paystack's 80p flat fee)
+            // NOTE: We rely on the server to handle the 1.9% variable fee logic on verification.
+            
+            const totalAmountCharged = planPriceInPesewas + Math.round(TRUE_PAYSTACK_FIXED_FEE * CUSTOMER_PAYS_PORTION);
+            
+            return Math.round(totalAmountCharged);
         }
         
         // --- UI UPDATE AND DATA FETCH ---
@@ -228,7 +230,7 @@
             dataplanSelect.innerHTML = '<option value="" data-amount="0" selected disabled>Loading plans...</option>';
             payButton.disabled = true;
             
-            // 🛑 CRITICAL FIX: Call the WHOLESALE pricing API for this specific Agent page
+            // 🛑 CRITICAL FIX: Call the WHOLESALE pricing API for this page
             fetch(`/api/data-plans-wholesale?network=${network}`)
                 .then(response => response.json())
                 .then(plans => {
@@ -280,7 +282,7 @@
             payButton.disabled = true;
             payButton.textContent = 'Initiating Checkout...';
             
-            const transactionUrl = '/paystack/verify'; 
+            const transactionUrl = '/paystack/verify'; // Only verify purchase from this page
 
             const paymentCallback = function(response) {
                 statusDiv.textContent = "Verifying payment, please wait...";
@@ -458,4 +460,5 @@
             });
         });
     </script>
-
+</body>
+</html>
