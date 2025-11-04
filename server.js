@@ -18,6 +18,7 @@ const RESELLER_API_BASE_URL = 'https://datapacks.shop/api.php';
 
 // --- 2. DATA (PLANS) AND MAPS ---
 const allPlans = {
+    // PRICES ARE THE WHOLESALE COST (in PESEWAS)
     "MTN": [
         { id: '1', name: '1GB', price: 480 }, { id: '2', name: '2GB', price: 960 }, { id: '3', name: '3GB', price: 1420 }, 
         { id: '4', name: '4GB', price: 2000 }, { id: '5', name: '5GB', price: 2400 }, { id: '6', name: '6GB', price: 2800 }, 
@@ -26,11 +27,11 @@ const allPlans = {
         { id: '40', name: '40GB', price: 16200 }, { id: '50', name: '50GB', price: 19800 }
     ],
        "AirtelTigo": [
-        { id: '1', name: '1GB', price: 400 }, { id: '2', name: '2GB', price: 800 }, { id: '3', name: '3GB', price: 1200 },  
-        { id: '4', name: '4GB', price: 1600 }, { id: '5', name: '5GB', price: 2000 }, { id: '6', name: '6GB', price: 2400 },  
-        { id: '7', name: '7GB', price: 2790 }, { id: '8', name: '8GB', price: 3200 }, { id: '9', name: '9GB', price: 3600 },  
-        { id: '10', name: '10GB', price: 4200 }, { id: '12', name: '12GB', price: 5000 }, { id: '15', name: '15GB', price: 6130 },
-        { id: '20', name: '20GB', price: 8210 }
+        { id: '1', name: '1GB', price: 440 }, { id: '2', name: '2GB', price: 900 }, { id: '3', name: '3GB', price: 1300 },  
+        { id: '4', name: '4GB', price: 1650 }, { id: '5', name: '5GB', price: 2100 }, { id: '6', name: '6GB', price: 2500 },  
+        { id: '7', name: '7GB', price: 2800 }, { id: '8', name: '8GB', price: 3200 }, { id: '9', name: '9GB', price: 3650 },  
+        { id: '10', name: '10GB', price: 4300 }, { id: '12', name: '12GB', price: 5000 }, { id: '15', name: '15GB', price: 6200 },
+        { id: '20', name: '20GB', price: 8300 }
     ],
     "Telecel": [
         { id: '5', name: '5GB', price: 2300 }, { id: '10', name: '10GB', price: 4300 }, { id: '15', name: '15GB', price: 6220 }, 
@@ -47,6 +48,7 @@ const NETWORK_KEY_MAP = {
 };
 
 const AGENT_REGISTRATION_FEE_PESEWAS = 2000; // GHS 20.00
+const CHECK_API_ENDPOINT = 'https://console.ckgodsway.com/api/order-status'; // Retaining for compatibility
 
 
 // --- HELPER FUNCTIONS ---
@@ -115,10 +117,9 @@ async function executeDataPurchase(userId, orderDetails, paymentMethod) {
     const resellerApiUrl = RESELLER_API_BASE_URL;
     const networkKey = NETWORK_KEY_MAP[network];
     
-    // DATAPACKS.SHOP API Payload Structure (GET Request/Bearer Auth)
+    // 🛑 DATAPACKS.SHOP API Payload Structure (GET Request/Bearer Auth)
     const resellerPayload = {
         action: 'order',
-        token: process.env.DATA_API_SECRET, 
         network: networkKey,       
         capacity: dataPlan,          
         recipient: orderDetails.phoneNumber,      
@@ -126,13 +127,15 @@ async function executeDataPurchase(userId, orderDetails, paymentMethod) {
     };
     
     try {
-        const transferResponse = await axios.get(re-sellerApiUrl, {
+        const transferResponse = await axios.get(resellerApiUrl, {
             params: resellerPayload,
             headers: {
+                // 🛑 CRITICAL FIX: Send Bearer Token in Authorization header
                 'Authorization': `Bearer ${process.env.DATA_API_SECRET}` 
             }
         });
 
+        // Assuming a successful response structure (status code 200 + success/status field)
         if (transferResponse.data.status === 'success' || transferResponse.data.status === 'SUCCESSFUL') {
             finalStatus = 'data_sent';
         } else {
@@ -182,10 +185,9 @@ async function runPendingOrderCheck() {
 
         for (const order of pendingOrders) {
             try {
-                // DATAPACKS.SHOP STATUS CHECK LOGIC
+                // 🛑 DATAPACKS.SHOP STATUS CHECK LOGIC
                 const statusPayload = {
                     action: 'status', 
-                    token: process.env.DATA_API_SECRET,
                     ref: order.reference
                 };
 
@@ -277,8 +279,8 @@ app.post('/api/login', isDbReady, async (req, res) => {
         
         req.session.user = { id: user._id, username: freshUser.username, walletBalance: freshUser.walletBalance, role: freshUser.role }; 
         
-        // 🛑 FIX: Redirection simplified to always go to the main purchase page
-        const redirectUrl = '/purchase'; 
+        // Dynamic Redirection based on Role
+        const redirectUrl = freshUser.role === 'Agent' ? '/purchase' : '/client-purchase.html'; 
         
         res.json({ message: 'Logged in successfully!', redirect: redirectUrl });
         
@@ -786,7 +788,7 @@ app.get('/dashboard', isAuthenticated, (req, res) => res.sendFile(path.join(__di
 app.get('/admin.html', (req, res) => res.sendFile(path.join(__dirname, 'public', 'admin.html')));
 app.get('/forgot.html', (req, res) => res.sendFile(path.join(__dirname, 'public', 'forgot.html')));
 app.get('/reset.html', (req, res) => res.sendFile(path.join(__dirname, 'public', 'reset.html')));
-// 🛑 FIX: Removed route that was crashing the server
+// 🛑 CRITICAL FIX: Removed route that was crashing the server
 // app.get('/client-purchase.html', isAuthenticated, (req, res) => res.sendFile(path.join(__dirname, 'public', 'client-purchase.html')));
 
 
