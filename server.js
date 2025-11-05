@@ -18,25 +18,25 @@ const RESELLER_API_BASE_URL = 'https://datapacks.shop/api.php';
 
 // --- 2. DATA (PLANS) AND MAPS ---
 const allPlans = {
-    // PRICES ARE THE WHOLESALE COST (in PESEWAS)
-    "MTN": [
-        { id: '1', name: '1GB', price: 480 }, { id: '2', name: '2GB', price: 960 }, { id: '3', name: '3GB', price: 1420 }, 
-        { id: '4', name: '4GB', price: 2000 }, { id: '5', name: '5GB', price: 2400 }, { id: '6', name: '6GB', price: 2800 }, 
-        { id: '8', name: '8GB', price: 3600 }, { id: '10', name: '10GB', price: 4400 }, { id: '15', name: '15GB', price: 6400 },
-        { id: '20', name: '20GB', price: 8200 }, { id: '25', name: '25GB', price: 10200 }, { id: '30', name: '30GB', price: 12200 },
-        { id: '40', name: '40GB', price: 16200 }, { id: '50', name: '50GB', price: 19800 }
+        "MTN": [
+        { id: '1', name: '1GB', price: 490 }, { id: '2', name: '2GB', price: 980 }, { id: '3', name: '3GB', price: 1470 }, 
+        { id: '4', name: '4GB', price: 2000 }, { id: '5', name: '5GB', price: 2460 }, { id: '6', name: '6GB', price: 2800 }, 
+        { id: '8', name: '8GB', price: 3600 }, { id: '10', name: '10GB', price: 4380 }, { id: '15', name: '15GB', price: 6400 },
+        { id: '20', name: '20GB', price: 8500 }, { id: '25', name: '25GB', price: 10500 }, { id: '30', name: '30GB', price: 12450 },
+        { id: '40', name: '40GB', price: 16500 }, { id: '50', name: '50GB', price: 19800 }
     ],
-        "AirtelTigo": [
-        { id: '1', name: '1GB', price: 450 }, { id: '2', name: '2GB', price: 870 }, { id: '3', name: '3GB', price: 1290 },  
-        { id: '4', name: '4GB', price: 1700 }, { id: '5', name: '5GB', price: 2030 }, { id: '6', name: '6GB', price: 2500 },  
-        { id: '7', name: '7GB', price: 2800 }, { id: '8', name: '8GB', price: 3300 }, { id: '9', name: '9GB', price: 3600 },  
-        { id: '10', name: '10GB', price: 4200 }, { id: '12', name: '12GB', price: 5000 }, { id: '15', name: '15GB', price: 6130 },
-        { id: '20', name: '20GB', price: 8210 }
+
+    "AirtelTigo": [
+        { id: '1', name: '1GB', price: 370 }, { id: '2', name: '2GB', price: 740 }, { id: '3', name: '3GB', price: 1110 },  
+        { id: '4', name: '4GB', price: 1480 }, { id: '5', name: '5GB', price: 1850 }, { id: '6', name: '6GB', price: 2220 },  
+        { id: '7', name: '7GB', price: 2590 }, { id: '8', name: '8GB', price: 2960 }, { id: '9', name: '9GB', price: 3330 },  
+        { id: '10', name: '10GB', price: 3700 }, { id: '12', name: '12GB', price: 4440 }, { id: '15', name: '15GB', price: 5550 },
+        { id: '20', name: '20GB', price: 7400 }
     ],
     "Telecel": [
-        { id: '5', name: '5GB', price: 2300 }, { id: '10', name: '10GB', price: 4300 }, { id: '15', name: '15GB', price: 6220 }, 
-        { id: '20', name: '20GB', price: 8300 }, { id: '25', name: '25GB', price: 10300 }, { id: '30', name: '30GB', price: 12300 },
-        { id: '40', name: '40GB', price: 15500 }, { id: '50', name: '50GB', price: 19500 }, { id: '100', name: '100GB', price: 40000}
+        { id: '5', name: '5GB', price: 2000 }, { id: '10', name: '10GB', price: 3800 }, { id: '15', name: '15GB', price: 5500 }, 
+        { id: '20', name: '20GB', price: 7300 }, { id: '25', name: '25GB', price: 9000 }, { id: '30', name: '30GB', price: 11000 },
+        { id: '40', name: '40GB', price: 14300 }, { id: '50', name: '50GB', price: 18000 }, { id: '100', name: '100GB', price: 35000}
     ]
 };
 
@@ -185,7 +185,7 @@ async function runPendingOrderCheck() {
 
         for (const order of pendingOrders) {
             try {
-                // 🛑 DATAPACKS.SHOP STATUS CHECK LOGIC
+                // DATAPACKS.SHOP STATUS CHECK LOGIC
                 const statusPayload = {
                     action: 'status', 
                     ref: order.reference
@@ -566,7 +566,7 @@ app.post('/api/wallet-purchase', isDbReady, isAuthenticated, async (req, res) =>
         }, 'wallet');
         
         if (result.status === 'data_sent') {
-            return res.json({ status: 'success', message: `Data successfully sent from wallet!` });
+            return res.json({ status: 'success', message: 'Data successfully sent from wallet!' });
         } else {
             return res.status(202).json({ 
                 status: 'pending', 
@@ -788,8 +788,6 @@ app.get('/dashboard', isAuthenticated, (req, res) => res.sendFile(path.join(__di
 app.get('/admin.html', (req, res) => res.sendFile(path.join(__dirname, 'public', 'admin.html')));
 app.get('/forgot.html', (req, res) => res.sendFile(path.join(__dirname, 'public', 'forgot.html')));
 app.get('/reset.html', (req, res) => res.sendFile(path.join(__dirname, 'public', 'reset.html')));
-// 🛑 Final Fix: Removed route that was crashing the server
-// app.get('/client-purchase.html', isAuthenticated, (req, res) => res.sendFile(path.join(__dirname, 'public', 'client-purchase.html')));
 
 
 // --- SERVER START ---
