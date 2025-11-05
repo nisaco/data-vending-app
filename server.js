@@ -75,6 +75,7 @@ function calculateClientTopupFee(netDepositPesewas) {
     return Math.round(finalCharge);
 }
 
+// 🛑 CRITICAL FIX: Ensure email alert is wrapped to prevent process crash
 async function sendAdminAlertEmail(order) {
     if (!process.env.SENDGRID_API_KEY) {
         console.error("SENDGRID_API_KEY not set. Cannot send alert email.");
@@ -102,7 +103,7 @@ async function sendAdminAlertEmail(order) {
         await sgMail.send(msg);
         console.log(`Manual alert email sent for reference: ${order.reference}`);
     } catch (error) {
-        console.error('Failed to send admin alert email:', error.response?.body || error);
+        console.error('Failed to send admin alert email:', error.response?.body?.errors || error.message);
     }
 }
 
@@ -204,7 +205,12 @@ async function runPendingOrderCheck() {
                     console.log(`CRON FAILURE: Order ${order.reference} marked 'data_failed'.`);
                 }
             } catch (apiError) {
-                console.error(`CRON ERROR: Failed to check status for ${order.reference}.`, apiError.message);
+                // We must log the error but not crash the CRON job if the vendor fails
+                if (axios.isAxiosError(apiError)) {
+                    console.error(`CRON ERROR: Failed to check status for ${order.reference}. Vendor Status: ${apiError.response?.status || 'Network Error'}`);
+                } else {
+                    console.error(`CRON ERROR: Failed to check status for ${order.reference}.`, apiError.message);
+                }
             }
         }
 
@@ -640,7 +646,6 @@ app.post('/paystack/verify', isDbReady, isAuthenticated, async (req, res) => {
 // --- ADMIN & MANAGEMENT ROUTES ---
 app.get('/api/get-all-orders', async (req, res) => {
     if (req.query.secret !== process.env.ADMIN_SECRET) {
-        console.error(`ADMIN ERROR: Failed attempt to fetch orders. Client secret (last 4 chars): [${req.query.secret.slice(-4)}]`);
         return res.status(403).json({ error: "Unauthorized: Invalid Admin Secret" });
     }
     try {
