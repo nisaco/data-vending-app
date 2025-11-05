@@ -13,12 +13,13 @@ const { User, Order, mongoose } = require('./database.js');
 const app = express();
 const PORT = process.env.PORT || 10000;
 
-// 🛑 NEW API BASE URL 🛑
+// 🛑 DATAPACKS.SHOP API BASE URL 🛑
 const RESELLER_API_BASE_URL = 'https://datapacks.shop/api.php'; 
 
 // --- 2. DATA (PLANS) AND MAPS ---
 const allPlans = {
-        "MTN": [
+    // PRICES ARE THE WHOLESALE COST (in PESEWAS)
+       "MTN": [
         { id: '1', name: '1GB', price: 490 }, { id: '2', name: '2GB', price: 980 }, { id: '3', name: '3GB', price: 1470 }, 
         { id: '4', name: '4GB', price: 2000 }, { id: '5', name: '5GB', price: 2460 }, { id: '6', name: '6GB', price: 2800 }, 
         { id: '8', name: '8GB', price: 3600 }, { id: '10', name: '10GB', price: 4380 }, { id: '15', name: '15GB', price: 6400 },
@@ -41,7 +42,6 @@ const allPlans = {
 };
 
 
-// 🛑 DATAPACKS.SHOP NETWORK KEYS (Assumed based on common practice)
 const NETWORK_KEY_MAP = {
     "MTN": 'MTN', 
     "AirtelTigo": 'AT', 
@@ -83,8 +83,8 @@ async function sendAdminAlertEmail(order) {
     }
     sgMail.setApiKey(process.env.SENDGRID_API_KEY);
     const msg = {
-        to: 'YOUR_ADMIN_RECEIVING_EMAIL@example.com', 
-        from: 'YOUR_VERIFIED_SENDER_EMAIL@example.com', 
+        to: 'jeffreypappoe@yahoo.com', 
+        from: 'jnkpappoe@gmail.com', 
         subject: `🚨 MANUAL REVIEW REQUIRED: ${order.network || 'N/A'} Data Transfer Failed`,
         html: `
             <h1>Urgent Action Required!</h1>
@@ -117,7 +117,7 @@ async function executeDataPurchase(userId, orderDetails, paymentMethod) {
     const resellerApiUrl = RESELLER_API_BASE_URL;
     const networkKey = NETWORK_KEY_MAP[network];
     
-    // 🛑 DATAPACKS.SHOP API Payload Structure (GET Request/Bearer Auth)
+    // DATAPACKS.SHOP API Payload Structure (GET Request/Bearer Auth)
     const resellerPayload = {
         action: 'order',
         network: networkKey,       
@@ -130,12 +130,10 @@ async function executeDataPurchase(userId, orderDetails, paymentMethod) {
         const transferResponse = await axios.get(resellerApiUrl, {
             params: resellerPayload,
             headers: {
-                // 🛑 CRITICAL FIX: Send Bearer Token in Authorization header
                 'Authorization': `Bearer ${process.env.DATA_API_SECRET}` 
             }
         });
 
-        // Assuming a successful response structure (status code 200 + success/status field)
         if (transferResponse.data.status === 'success' || transferResponse.data.status === 'SUCCESSFUL') {
             finalStatus = 'data_sent';
         } else {
@@ -566,7 +564,7 @@ app.post('/api/wallet-purchase', isDbReady, isAuthenticated, async (req, res) =>
         }, 'wallet');
         
         if (result.status === 'data_sent') {
-            return res.json({ status: 'success', message: 'Data successfully sent from wallet!' });
+            return res.json({ status: 'success', message: `Data successfully sent from wallet!` });
         } else {
             return res.status(202).json({ 
                 status: 'pending', 
@@ -791,9 +789,11 @@ app.get('/reset.html', (req, res) => res.sendFile(path.join(__dirname, 'public',
 
 
 // --- SERVER START ---
-app.listen(PORT, '0.0.0.0', () => {
+// 🛑 CRITICAL FIX: Move Cron scheduling into the listener to prevent startup crash
+const server = app.listen(PORT, '0.0.0.0', () => {
     console.log(`Server is LIVE on port ${PORT}`);
     console.log('Database connection is initializing...');
+    
+    // Schedule cron job only after server is listening and defined
+    cron.schedule('*/5 * * * *', runPendingOrderCheck);
 });
-
-cron.schedule('*/5 * * * *', runPendingOrderCheck);
