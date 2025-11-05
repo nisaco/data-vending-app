@@ -13,12 +13,11 @@ const { User, Order, mongoose } = require('./database.js');
 const app = express();
 const PORT = process.env.PORT || 10000;
 
-// 🛑 DATAPACKS.SHOP API BASE URL 🛑
+// 🛑 NEW API BASE URL 🛑
 const RESELLER_API_BASE_URL = 'https://datapacks.shop/api.php'; 
 
 // --- 2. DATA (PLANS) AND MAPS ---
 const allPlans = {
-    // PRICES ARE THE WHOLESALE COST (in PESEWAS)
     "MTN": [
         { id: '1', name: '1GB', price: 480 }, { id: '2', name: '2GB', price: 960 }, { id: '3', name: '3GB', price: 1420 }, 
         { id: '4', name: '4GB', price: 2000 }, { id: '5', name: '5GB', price: 2400 }, { id: '6', name: '6GB', price: 2800 }, 
@@ -75,7 +74,6 @@ function calculateClientTopupFee(netDepositPesewas) {
     return Math.round(finalCharge);
 }
 
-// 🛑 CRITICAL FIX: Ensure email alert is wrapped to prevent process crash
 async function sendAdminAlertEmail(order) {
     if (!process.env.SENDGRID_API_KEY) {
         console.error("SENDGRID_API_KEY not set. Cannot send alert email.");
@@ -103,7 +101,8 @@ async function sendAdminAlertEmail(order) {
         await sgMail.send(msg);
         console.log(`Manual alert email sent for reference: ${order.reference}`);
     } catch (error) {
-        console.error('Failed to send admin alert email:', error.response?.body?.errors || error.message);
+        // Log the error but DO NOT crash the main process
+        console.error('SendGrid Fatal Error: Email alert failed but system proceeds.', error.response?.body?.errors || error.message);
     }
 }
 
@@ -117,7 +116,7 @@ async function executeDataPurchase(userId, orderDetails, paymentMethod) {
     const resellerApiUrl = RESELLER_API_BASE_URL;
     const networkKey = NETWORK_KEY_MAP[network];
     
-    // DATAPACKS.SHOP API Payload Structure (GET Request/Bearer Auth)
+    // 🛑 DATAPACKS.SHOP API Payload Structure (GET Request/Bearer Auth)
     const resellerPayload = {
         action: 'order',
         network: networkKey,       
@@ -134,6 +133,7 @@ async function executeDataPurchase(userId, orderDetails, paymentMethod) {
             }
         });
 
+        // Assuming a successful response structure (status code 200 + success/status field)
         if (transferResponse.data.status === 'success' || transferResponse.data.status === 'SUCCESSFUL') {
             finalStatus = 'data_sent';
         } else {
