@@ -225,31 +225,38 @@
             }
         }
 
-        // Fetches plans based on the selected network
-        const fetchPlansForNetwork = (network) => {
-            dataplanSelect.innerHTML = '<option value="" data-amount="0" selected disabled>Loading plans...</option>';
-            payButton.disabled = true;
-            
-            // 🛑 CRITICAL FIX: Call the WHOLESALE pricing API for this page
-            fetch(`/api/data-plans-wholesale?network=${network}`)
-                .then(response => response.json())
-                .then(plans => {
-                    dataplanSelect.innerHTML = '<option value="" data-amount="0" selected disabled>Select a Plan...</option>';
-                    if (!plans.length) { dataplanSelect.innerHTML = '<option value="" data-amount="0">No plans available</option>'; return; }
-                    
-                    plans.forEach(p => {
-                        const opt = document.createElement('option');
-                        opt.value = p.id; 
-                        opt.dataset.amount = p.price; 
-                        opt.textContent = `${p.name} - GHS ${(p.price / 100).toFixed(2)}`;
-                        dataplanSelect.appendChild(opt);
-                    });
-                    updatePayButton(dataplanSelect.options[dataplanSelect.selectedIndex]);
-                })
-                .catch(() => { 
-                    dataplanSelect.innerHTML = '<option value="" data-amount="0">Could not load plans</option>'; 
+     <script>
+    // ... (rest of the script is unchanged)
+
+    // --- UI UPDATE AND DATA FETCH ---
+    // ... (updatePayButton function is unchanged)
+
+    // Fetches plans based on the selected network
+    const fetchPlansForNetwork = (network) => {
+        dataplanSelect.innerHTML = '<option value="" data-amount="0" selected disabled>Loading plans...</option>';
+        payButton.disabled = true;
+        
+        // 🛑 CRITICAL FIX APPLIED HERE: Changed endpoint from -wholesale to the new, simplified /api/data-plans
+        fetch(`/api/data-plans?network=${network}`)
+            .then(response => response.json())
+            .then(plans => {
+                dataplanSelect.innerHTML = '<option value="" data-amount="0" selected disabled>Select a Plan...</option>';
+                if (!plans.length) { dataplanSelect.innerHTML = '<option value="" data-amount="0">No plans available</option>'; return; }
+                
+                plans.forEach(p => {
+                    const opt = document.createElement('option');
+                    opt.value = p.id; 
+                    opt.dataset.amount = p.price; 
+                    opt.textContent = `${p.name} - GHS ${(p.price / 100).toFixed(2)}`;
+                    dataplanSelect.appendChild(opt);
                 });
-        };
+                updatePayButton(dataplanSelect.options[dataplanSelect.selectedIndex]);
+            })
+            .catch(() => { 
+                dataplanSelect.innerHTML = '<option value="" data-amount="0">Could not load plans</option>'; 
+            });
+    };
+
 
         // Fetches user's current wallet balance
         async function fetchUserInfo() {
@@ -464,5 +471,6 @@
     </script>
 </body>
 </html>
+
 
 
