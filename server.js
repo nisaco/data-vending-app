@@ -61,18 +61,21 @@ function findBaseCost(network, capacityId) {
 }
 
 function calculatePaystackFee(chargedAmountInPesewas) {
-    const TRANSACTION_FEE_RATE = 0.00205; const TRANSACTION_FEE_CAP = 2000;
+    const TRANSACTION_FEE_RATE = 0.00200; const TRANSACTION_FEE_CAP = 2000;
     let fullFee = (chargedAmountInPesewas * TRANSACTION_FEE_RATE) + 80;
     let totalFeeChargedByPaystack = Math.min(fullFee, TRANSACTION_FEE_CAP);
     return totalFeeChargedByPaystack;
 }
 
-// 🛑 MODIFIED: Simplified fee structure to charge a fixed, minimal fee to the client.
+// 🛑 MODIFIED: Simplified fee structure to a FIXED 2% of the deposit amount.
 function calculateClientTopupFee(netDepositPesewas) {
-    // Client is charged a flat GHS 0.25 (25 pesewas) on top of their deposit amount
-    return netDepositPesewas + TOPUP_FLAT_FEE_PESEWAS;
-}
+    const FEE_RATE = 0.02; // 2% fixed fee
+    const feeAmount = netDepositPesewas * FEE_RATE;
+    const finalCharge = netDepositPesewas + feeAmount;
 
+    // We must round the final charge to prevent mismatch errors. Using Math.ceil to avoid shortfalls.
+    return Math.ceil(finalCharge); 
+}
 async function sendAdminAlertEmail(order) {
     if (!process.env.SENDGRID_API_KEY) {
         console.error("SENDGRID_API_KEY not set. Cannot send alert email.");
