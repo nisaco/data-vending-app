@@ -105,6 +105,8 @@ async function sendAdminAlertEmail(order) {
 }
 
 // 🛑 CRITICAL FIX APPLIED HERE 🛑
+// ... inside executeDataPurchase ...
+
 async function executeDataPurchase(userId, orderDetails, paymentMethod) {
     const { network, dataPlan, amount } = orderDetails;
     
@@ -115,7 +117,14 @@ async function executeDataPurchase(userId, orderDetails, paymentMethod) {
     const resellerApiUrl = RESELLER_API_BASE_URL;
     const networkKey = NETWORK_KEY_MAP[network];
     
-    // DATAPACKS.SHOP API Payload Structure (POST Request/JSON Body)
+    // Check for API Secret *before* making the call
+    const apiToken = process.env.DATA_API_SECRET;
+    if (!apiToken || apiToken === 'REPLACE_WITH_YOUR_TOKEN') {
+        console.error("CRITICAL ERROR: DATA_API_SECRET is missing or invalid in environment variables.");
+        // Set to pending review since we can't fulfill it automatically
+        finalStatus = 'pending_review'; 
+    }
+
     const resellerPayload = {
         network: networkKey,       
         capacity: dataPlan,          
@@ -123,33 +132,39 @@ async function executeDataPurchase(userId, orderDetails, paymentMethod) {
         client_ref: reference      
     };
     
-    try {
-        // 🛑 FIX: Changed to axios.post and passing JSON body with required headers.
-        const transferResponse = await axios.post(
-            `${re-sellerApiUrl}?action=order`, // Action in query string as per Postman example
-            resellerPayload, // Pass the order details as a JSON body
-            {
-                headers: {
-                    'Authorization': `Bearer ${process.env.DATA_API_SECRET}`,
-                    'Content-Type': 'application/json' // CRITICAL: Added Content-Type
+    if (finalStatus !== 'pending_review') { // Only try API call if token is present
+        try {
+            const transferResponse = await axios.post(
+                `${resellerApiUrl}?action=order`, 
+                resellerPayload, 
+                {
+                    headers: {
+                        'Authorization': `Bearer ${apiToken}`, // Use the checked token
+                        'Content-Type': 'application/json'
+                    }
                 }
-            }
-        );
+            );
 
-        // Check for success status in the API response data
-        if (transferResponse.data.status === 'success' || transferResponse.data.status === 'SUCCESSFUL') {
-            finalStatus = 'data_sent';
-        } else {
-            console.error('Data API failed response:', transferResponse.data);
-            if (transferResponse.data.message) {
-                 console.error('Data API Error Message:', transferResponse.data.message);
+            const apiResponseData = transferResponse.data;
+
+            if (apiResponseData.status === 'success' || apiResponseData.status === 'SUCCESSFUL') {
+                finalStatus = 'data_sent';
+            } else {
+                console.error(`Data API Failed: Received status '${apiResponseData.status}'.`);
+                // 🛑 CRITICAL DEBUG LOG: Log the full response body for inspection
+                console.error('Full Reseller API Response:', apiResponseData);
+                finalStatus = 'pending_review';
+            }
+
+        } catch (transferError) {
+            console.error('Data API Network/Authentication Error:', transferError.message);
+            // 🛑 CRITICAL DEBUG LOG: Log the API error details if available
+            if (transferError.response) {
+                console.error('Reseller API Error Status:', transferError.response.status);
+                console.error('Reseller API Error Data:', transferError.response.data);
             }
             finalStatus = 'pending_review';
         }
-
-    } catch (transferError) {
-        console.error('Data API Network Error:', transferError.message);
-        finalStatus = 'pending_review';
     }
 
     // --- STEP 2: SAVE FINAL ORDER STATUS TO MONGODB & SEND ALERT ---
@@ -170,6 +185,8 @@ async function executeDataPurchase(userId, orderDetails, paymentMethod) {
 
     return { status: finalStatus, reference: reference };
 }
+
+// ... rest of the code ...
 
 async function runPendingOrderCheck() {
     console.log('--- CRON: Checking for pending orders needing status update... ---');
