@@ -111,7 +111,8 @@ async function executeDataPurchase(userId, orderDetails, paymentMethod) {
     const { network, dataPlan, amount } = orderDetails;
     
     let finalStatus = 'payment_success'; 
-    const reference = `${paymentMethod.toUpperCase()}-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`; 
+    const uniqueId = crypto.randomBytes(16).toString('hex');
+    const reference = `${paymentMethod.toUpperCase()}-${uniqueId}`;
 
     // --- STEP 1: SETUP & VALIDATION ---
     const resellerApiUrl = RESELLER_API_BASE_URL;
