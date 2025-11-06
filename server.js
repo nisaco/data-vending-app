@@ -507,12 +507,12 @@ app.post('/api/topup', isDbReady, isAuthenticated, async (req, res) => {
         return res.status(400).json({ status: 'error', message: 'Reference and amount are required.' });
     }
     
-    // amount is the net deposit amount in GHS
+    // amount is the net deposit amount in GHS (e.g., 10.00)
     let netDepositAmountGHS = amount; 
     let topupAmountPesewas = Math.round(netDepositAmountGHS * 100);
     const userId = req.session.user.id;
 
-    // Calculate the final charged amount using the simplified fee logic
+    // Calculate the final charged amount (Net Deposit + Flat Fee of 25 pesewas)
     const finalChargedAmountPesewas = calculateClientTopupFee(topupAmountPesewas);
 
     try {
@@ -523,18 +523,27 @@ app.post('/api/topup', isDbReady, isAuthenticated, async (req, res) => {
         });
         const { status, data } = paystackResponse.data;
 
+        // 🛑 FIX 1: Handle non-success status with a clearer message (suggests waiting for delay)
         if (!status || data.status !== 'success') {
-            return res.status(400).json({ status: 'error', message: 'Payment verification failed.' });
+            let userMessage = `Payment status is currently ${data.status || 'unknown'}. If your money was deducted, please wait 30 seconds and try again, or contact support with reference: ${reference}.`;
+            console.error(`Topup Verification Failed: Paystack status is not 'success'. Status: ${data.status}. Reference: ${reference}`);
+            return res.status(400).json({ status: 'error', message: userMessage });
         }
         
-        // Check if the charged amount is close enough (to account for small floating point errors)
+        // 🛑 FIX 2: Check for 0 amount, which indicates a bad reference was passed to the server.
+        if (data.amount <= 0) {
+            console.error(`Topup Verification Failed: Paystack reported charged amount as ${data.amount}. Reference: ${reference}`);
+            return res.status(400).json({ status: 'error', message: 'The transaction reference provided is invalid or associated with a failed payment.' });
+        }
+
+        // Check if the charged amount is close enough (5 pesewas tolerance for minor floating point errors)
         if (Math.abs(data.amount - finalChargedAmountPesewas) > 5) {
-            console.error(`Fraud Alert: Charged ${data.amount} but expected ${finalChargedAmountPesewas}`);
-            return res.status(400).json({ status: 'error', message: 'Amount charged mismatch detected.' });
+            // Log the exact numbers for debugging
+            console.error(`Fraud Alert: Paystack charged ${data.amount} but expected ${finalChargedAmountPesewas}. Reference: ${reference}`);
+            return res.status(400).json({ status: 'error', message: 'Amount charged mismatch detected. Please contact support immediately.' });
         }
         
         // --- STEP 2: UPDATE USER WALLET BALANCE (NET DEPOSIT) ---
-        // 🛑 FIX: Use the net amount (topupAmountPesewas) for the wallet deposit
         const updatedUser = await User.findByIdAndUpdate(
             userId,
             { $inc: { walletBalance: topupAmountPesewas } }, 
@@ -547,7 +556,6 @@ app.post('/api/topup', isDbReady, isAuthenticated, async (req, res) => {
         await Order.create({
             userId: userId,
             reference: reference,
-            // Log the total charged amount (finalChargedAmountPesewas) for accurate record-keeping
             amount: finalChargedAmountPesewas / 100, 
             status: 'topup_successful',
             paymentMethod: 'paystack',
