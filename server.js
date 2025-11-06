@@ -108,9 +108,26 @@ async function sendAdminAlertEmail(order) {
 // ... inside executeDataPurchase ...
 
 async function executeDataPurchase(userId, orderDetails, paymentMethod) {
-    // ... (variables and setup are unchanged) ...
+    const { network, dataPlan, amount } = orderDetails;
     
-    // ... (token check is unchanged) ...
+    let finalStatus = 'payment_success'; 
+    const reference = `${paymentMethod.toUpperCase()}-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`; 
+
+    // --- STEP 1: SETUP & VALIDATION ---
+    const resellerApiUrl = RESELLER_API_BASE_URL;
+    // 🛑 CRITICAL FIX: Ensure networkKey is defined outside of any conditional block
+    const networkKey = NETWORK_KEY_MAP[network]; 
+    const apiToken = process.env.DATA_API_SECRET;
+    
+    // Safety check for critical data
+    if (!networkKey) {
+        console.error(`ERROR: Invalid network provided: ${network}`);
+        finalStatus = 'pending_review';
+    }
+    if (!apiToken || apiToken === 'REPLACE_WITH_YOUR_TOKEN') {
+        console.error("CRITICAL ERROR: DATA_API_SECRET is missing or invalid in environment variables.");
+        finalStatus = 'pending_review'; 
+    }
 
     const resellerPayload = {
         network: networkKey,       
@@ -119,7 +136,8 @@ async function executeDataPurchase(userId, orderDetails, paymentMethod) {
         client_ref: reference      
     };
     
-    if (finalStatus !== 'pending_review') { 
+    // --- STEP 2: ATTEMPT DATA TRANSFER ---
+    if (finalStatus === 'payment_success') { // Only try API call if setup was successful
         try {
             const transferResponse = await axios.post(
                 `${resellerApiUrl}?action=order`, 
@@ -143,9 +161,10 @@ async function executeDataPurchase(userId, orderDetails, paymentMethod) {
             } else {
                 console.error("Data API Failed: Could not confirm successful submission.");
                 
-                // 🛑 CRITICAL DEBUG FIX: Log the specific error message from the nested object
+                // Log the specific error message from the nested object
                 if (firstResult && firstResult.error) {
-                    console.error('SPECIFIC RESELLER ERROR:', firstResult.error);
+                    // This will now print the specific error (e.g., "Invalid number format")
+                    console.error('SPECIFIC RESELLER ERROR:', firstResult.error); 
                 }
                 
                 console.error('Full Reseller API Response:', apiResponseData);
@@ -153,13 +172,16 @@ async function executeDataPurchase(userId, orderDetails, paymentMethod) {
             }
 
         } catch (transferError) {
-            // ... (Network/Auth error logging is unchanged) ...
+            console.error('Data API Network/Authentication Error:', transferError.message);
+            if (transferError.response) {
+                console.error('Reseller API Error Status:', transferError.response.status);
+                console.error('Reseller API Error Data:', transferError.response.data);
+            }
             finalStatus = 'pending_review';
         }
     }
 
-
-    // --- STEP 2: SAVE FINAL ORDER STATUS TO MONGODB & SEND ALERT ---
+    // --- STEP 3: SAVE FINAL ORDER STATUS & ALERT ---
     await Order.create({
         userId: userId,
         reference: reference,
