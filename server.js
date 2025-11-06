@@ -117,11 +117,9 @@ async function executeDataPurchase(userId, orderDetails, paymentMethod) {
     const resellerApiUrl = RESELLER_API_BASE_URL;
     const networkKey = NETWORK_KEY_MAP[network];
     
-    // Check for API Secret *before* making the call
     const apiToken = process.env.DATA_API_SECRET;
     if (!apiToken || apiToken === 'REPLACE_WITH_YOUR_TOKEN') {
         console.error("CRITICAL ERROR: DATA_API_SECRET is missing or invalid in environment variables.");
-        // Set to pending review since we can't fulfill it automatically
         finalStatus = 'pending_review'; 
     }
 
@@ -132,33 +130,38 @@ async function executeDataPurchase(userId, orderDetails, paymentMethod) {
         client_ref: reference      
     };
     
-    if (finalStatus !== 'pending_review') { // Only try API call if token is present
+    if (finalStatus !== 'pending_review') { 
         try {
             const transferResponse = await axios.post(
                 `${resellerApiUrl}?action=order`, 
                 resellerPayload, 
                 {
                     headers: {
-                        'Authorization': `Bearer ${apiToken}`, // Use the checked token
+                        'Authorization': `Bearer ${apiToken}`, 
                         'Content-Type': 'application/json'
                     }
                 }
             );
 
             const apiResponseData = transferResponse.data;
+            // 🛑 CRITICAL FIX: Look for success/status inside the first item of the results array
+            const firstResult = apiResponseData.results && apiResponseData.results.length > 0 ? apiResponseData.results[0] : null;
 
-            if (apiResponseData.status === 'success' || apiResponseData.status === 'SUCCESSFUL') {
-                finalStatus = 'data_sent';
+            if (apiResponseData.success === true && firstResult && 
+                (firstResult.status === 'processing' || firstResult.success === true)) {
+                
+                // If the reseller API successfully accepted the order for processing:
+                finalStatus = 'data_sent'; 
+                
             } else {
-                console.error(`Data API Failed: Received status '${apiResponseData.status}'.`);
-                // 🛑 CRITICAL DEBUG LOG: Log the full response body for inspection
+                console.error("Data API Failed: Could not confirm successful submission.");
                 console.error('Full Reseller API Response:', apiResponseData);
                 finalStatus = 'pending_review';
             }
 
         } catch (transferError) {
+            // ... (Error logging remains the same) ...
             console.error('Data API Network/Authentication Error:', transferError.message);
-            // 🛑 CRITICAL DEBUG LOG: Log the API error details if available
             if (transferError.response) {
                 console.error('Reseller API Error Status:', transferError.response.status);
                 console.error('Reseller API Error Data:', transferError.response.data);
@@ -185,7 +188,6 @@ async function executeDataPurchase(userId, orderDetails, paymentMethod) {
 
     return { status: finalStatus, reference: reference };
 }
-
 // ... rest of the code ...
 
 async function runPendingOrderCheck() {
