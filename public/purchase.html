@@ -155,7 +155,7 @@
     <script src="https://js.paystack.co/v1/inline.js"></script>
     
     <!-- JavaScript Logic -->
-    <script>
+   <script>
         // --- FINAL GLOBAL CONSTANTS & ELEMENTS ---
         const networkTabs = document.getElementById('network-tabs');
         const networkInput = document.getElementById('network');
@@ -184,22 +184,21 @@
 
         // 🛑 FINAL PROFITABILITY FIX: Calculates the exact amount the customer must pay
         function calculateTotalCharge(planPriceInPesewas) {
-            // Since we reverted the dual pricing, this page assumes the user is an Agent
-            // and the server returns the Wholesale Price (0 markup).
-            
-            const TRUE_PAYSTACK_FIXED_FEE = 80; // GHS 0.80
-            const CUSTOMER_PAYS_PORTION = 0.60; // 60% of the flat fee is passed to customer
-            
-            // The simplest, most transparent price: Wholesale Cost + (60% of Paystack's 80p flat fee)
-            // NOTE: We rely on the server to handle the 1.9% variable fee logic on verification.
-            
-            const totalAmountCharged = planPriceInPesewas + Math.round(TRUE_PAYSTACK_FIXED_FEE * CUSTOMER_PAYS_PORTION);
-            
+            // We'll use the price from the API + 25 pesewas, mirroring the new top-up flat fee.
+            const CUSTOMER_FLAT_FEE_PESEWAS = 25; 
+            const totalAmountCharged = planPriceInPesewas + CUSTOMER_FLAT_FEE_PESEWAS;
             return Math.round(totalAmountCharged);
         }
         
         // --- UI UPDATE AND DATA FETCH ---
         function updatePayButton(selectedOption) {
+            // Safety check for null option
+            if (!selectedOption) {
+                payButton.textContent = 'Select Plan';
+                payButton.disabled = true;
+                return;
+            }
+
             const priceInPesewas = parseInt(selectedOption.dataset.amount) || 0;
             const selectedMethod = paymentMethodsContainer.querySelector('.pay-option.active').dataset.method;
             
@@ -220,43 +219,49 @@
                     payButton.disabled = false;
                 }
             } else {
-                payButton.textContent = `Pay GHS ${sellingPriceGHS}`;
+                const totalCharge = calculateTotalCharge(priceInPesewas);
+                const totalChargeGHS = (totalCharge / 100).toFixed(2);
+                payButton.textContent = `Pay GHS ${totalChargeGHS}`; // Show the final price including fee
                 payButton.disabled = false;
             }
         }
 
-     <script>
-    // ... (rest of the script is unchanged)
-
-    // --- UI UPDATE AND DATA FETCH ---
-    // ... (updatePayButton function is unchanged)
-
-    // Fetches plans based on the selected network
-    const fetchPlansForNetwork = (network) => {
-        dataplanSelect.innerHTML = '<option value="" data-amount="0" selected disabled>Loading plans...</option>';
-        payButton.disabled = true;
-        
-        // 🛑 CRITICAL FIX APPLIED HERE: Changed endpoint from -wholesale to the new, simplified /api/data-plans
-        fetch(`/api/data-plans?network=${network}`)
-            .then(response => response.json())
-            .then(plans => {
-                dataplanSelect.innerHTML = '<option value="" data-amount="0" selected disabled>Select a Plan...</option>';
-                if (!plans.length) { dataplanSelect.innerHTML = '<option value="" data-amount="0">No plans available</option>'; return; }
-                
-                plans.forEach(p => {
-                    const opt = document.createElement('option');
-                    opt.value = p.id; 
-                    opt.dataset.amount = p.price; 
-                    opt.textContent = `${p.name} - GHS ${(p.price / 100).toFixed(2)}`;
-                    dataplanSelect.appendChild(opt);
+        // Fetches plans based on the selected network
+        const fetchPlansForNetwork = (network) => {
+            dataplanSelect.innerHTML = '<option value="" data-amount="0" selected disabled>Loading plans...</option>';
+            payButton.disabled = true;
+            
+            // 🛑 CORRECTED ENDPOINT
+            fetch(`/api/data-plans?network=${network}`)
+                .then(response => {
+                    if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+                    return response.json();
+                })
+                .then(plans => {
+                    dataplanSelect.innerHTML = '<option value="" data-amount="0" selected disabled>Select a Plan...</option>';
+                    if (!plans.length) { dataplanSelect.innerHTML = '<option value="" data-amount="0">No plans available</option>'; return; }
+                    
+                    plans.forEach(p => {
+                        const opt = document.createElement('option');
+                        opt.value = p.id; 
+                        opt.dataset.amount = p.price; 
+                        opt.textContent = `${p.name} - GHS ${(p.price / 100).toFixed(2)}`;
+                        dataplanSelect.appendChild(opt);
+                    });
+                    
+                    // Select the first valid plan by default if plans are available
+                    if (plans.length > 0) {
+                        dataplanSelect.selectedIndex = 1;
+                    }
+                    // CRITICAL: Update button state after loading plans
+                    updatePayButton(dataplanSelect.options[dataplanSelect.selectedIndex]);
+                })
+                .catch((error) => { 
+                    console.error("Error loading plans:", error);
+                    dataplanSelect.innerHTML = '<option value="" data-amount="0">Could not load plans (Check console)</option>'; 
+                    updatePayButton(dataplanSelect.options[0]); // Update button to reflect disabled state
                 });
-                updatePayButton(dataplanSelect.options[dataplanSelect.selectedIndex]);
-            })
-            .catch(() => { 
-                dataplanSelect.innerHTML = '<option value="" data-amount="0">Could not load plans</option>'; 
-            });
-    };
-
+        };
 
         // Fetches user's current wallet balance
         async function fetchUserInfo() {
@@ -265,6 +270,7 @@
                 if (response.ok) {
                     const data = await response.json();
                     userWalletBalance = data.walletBalance;
+                    // CRITICAL FIX: Display the wallet balance immediately upon fetch
                     walletBalanceDisplay.textContent = `GHS ${(userWalletBalance / 100).toFixed(2)}`;
                     return data.email; 
                 } else {
@@ -289,7 +295,7 @@
             payButton.disabled = true;
             payButton.textContent = 'Initiating Checkout...';
             
-            const transactionUrl = '/paystack/verify'; // Only verify purchase from this page
+            const transactionUrl = '/paystack/verify'; 
 
             const paymentCallback = function(response) {
                 statusDiv.textContent = "Verifying payment, please wait...";
@@ -335,8 +341,7 @@
                     amount: amountToCharge, 
                     currency: 'GHS',
                     ref: 'DL-' + Math.floor((Math.random() * 1000000000) + 1),
-                    // 🛑 CRITICAL: ADD YOUR SPLIT CODE HERE 🛑
-            split_code: "SPL_ImOSmBVWFj",
+                    split_code: "SPL_ImOSmBVWFj",
                     metadata: { 
                         phone_number: phoneInput.value, 
                         network: networkInput.value, 
@@ -368,7 +373,7 @@
                         network: networkInput.value,
                         dataPlan: selected.value,
                         phone_number: phoneInput.value,
-                        amountInPesewas: priceInPesewas
+                        amountInPesewas: priceInPesewas 
                     })
                 });
 
@@ -396,15 +401,21 @@
         // --- INITIALIZATION & LISTENERS ---
         document.addEventListener('DOMContentLoaded', async () => {
             
-            // 1. Fetch User Info (Wallet Balance)
+            // 1. Fetch User Info (This updates userWalletBalance and the display)
             await fetchUserInfo(); 
             
             // 2. Set Default Network & Load Plans 
             const defaultTab = document.querySelector('.network-tab[data-network="MTN"]');
             if (defaultTab) {
+                // First, remove active state from any element that might have it
+                document.querySelectorAll('.network-tab').forEach(tab => tab.classList.remove('active', 'border-primary', 'border-transparent'));
+                
+                // Set the default tab as active
                 defaultTab.classList.add('active', 'border-primary');
                 defaultTab.classList.remove('border-transparent');
+                
                 networkInput.value = 'MTN';
+                // CRITICAL: Call the function to load plans for the default network
                 fetchPlansForNetwork('MTN');
             }
 
@@ -440,7 +451,7 @@
             dataplanSelect.addEventListener('change', (e) => updatePayButton(e.target.options[e.target.selectedIndex]));
 
 
-            // 4. Form Submission Handler
+            // 4. Form Submission Handler (Unchanged)
             paymentForm.addEventListener("submit", function(e) {
                 e.preventDefault();
                 
