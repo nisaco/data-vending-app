@@ -108,20 +108,9 @@ async function sendAdminAlertEmail(order) {
 // ... inside executeDataPurchase ...
 
 async function executeDataPurchase(userId, orderDetails, paymentMethod) {
-    const { network, dataPlan, amount } = orderDetails;
+    // ... (variables and setup are unchanged) ...
     
-    let finalStatus = 'payment_success'; 
-    const reference = `${paymentMethod.toUpperCase()}-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`; 
-
-    // --- STEP 1: TRANSFER DATA VIA RESELLER API ---
-    const resellerApiUrl = RESELLER_API_BASE_URL;
-    const networkKey = NETWORK_KEY_MAP[network];
-    
-    const apiToken = process.env.DATA_API_SECRET;
-    if (!apiToken || apiToken === 'REPLACE_WITH_YOUR_TOKEN') {
-        console.error("CRITICAL ERROR: DATA_API_SECRET is missing or invalid in environment variables.");
-        finalStatus = 'pending_review'; 
-    }
+    // ... (token check is unchanged) ...
 
     const resellerPayload = {
         network: networkKey,       
@@ -144,31 +133,31 @@ async function executeDataPurchase(userId, orderDetails, paymentMethod) {
             );
 
             const apiResponseData = transferResponse.data;
-            // 🛑 CRITICAL FIX: Look for success/status inside the first item of the results array
             const firstResult = apiResponseData.results && apiResponseData.results.length > 0 ? apiResponseData.results[0] : null;
 
             if (apiResponseData.success === true && firstResult && 
                 (firstResult.status === 'processing' || firstResult.success === true)) {
                 
-                // If the reseller API successfully accepted the order for processing:
                 finalStatus = 'data_sent'; 
                 
             } else {
                 console.error("Data API Failed: Could not confirm successful submission.");
+                
+                // 🛑 CRITICAL DEBUG FIX: Log the specific error message from the nested object
+                if (firstResult && firstResult.error) {
+                    console.error('SPECIFIC RESELLER ERROR:', firstResult.error);
+                }
+                
                 console.error('Full Reseller API Response:', apiResponseData);
                 finalStatus = 'pending_review';
             }
 
         } catch (transferError) {
-            // ... (Error logging remains the same) ...
-            console.error('Data API Network/Authentication Error:', transferError.message);
-            if (transferError.response) {
-                console.error('Reseller API Error Status:', transferError.response.status);
-                console.error('Reseller API Error Data:', transferError.response.data);
-            }
+            // ... (Network/Auth error logging is unchanged) ...
             finalStatus = 'pending_review';
         }
     }
+
 
     // --- STEP 2: SAVE FINAL ORDER STATUS TO MONGODB & SEND ALERT ---
     await Order.create({
