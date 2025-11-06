@@ -8,16 +8,18 @@ const sgMail = require('@sendgrid/mail');
 const axios = require('axios');
 const cron = require('node-cron');
 const crypto = require('crypto');
+// Assuming database.js contains User, Order, and mongoose exports
 const { User, Order, mongoose } = require('./database.js'); 
 
 const app = express();
 const PORT = process.env.PORT || 10000;
 
-// 🛑 NEW API BASE URL 🛑
+// 🛑 DATAPACKS.SHOP API BASE URL 🛑
 const RESELLER_API_BASE_URL = 'https://datapacks.shop/api.php'; 
 
 // --- 2. DATA (PLANS) AND MAPS ---
 const allPlans = {
+    // PRICES ARE THE WHOLESALE COST (in PESEWAS)
     "MTN": [
         { id: '1', name: '1GB', price: 480 }, { id: '2', name: '2GB', price: 960 }, { id: '3', name: '3GB', price: 1420 }, 
         { id: '4', name: '4GB', price: 2000 }, { id: '5', name: '5GB', price: 2400 }, { id: '6', name: '6GB', price: 2800 }, 
@@ -47,6 +49,7 @@ const NETWORK_KEY_MAP = {
 };
 
 const AGENT_REGISTRATION_FEE_PESEWAS = 2000; // GHS 20.00
+const TOPUP_FLAT_FEE_PESEWAS = 25; // GHS 0.25 flat fee for customer top-ups
 
 
 // --- HELPER FUNCTIONS ---
@@ -56,22 +59,18 @@ function findBaseCost(network, capacityId) {
     const plan = networkPlans.find(p => p.id === capacityId);
     return plan ? plan.price : 0; 
 }
+
 function calculatePaystackFee(chargedAmountInPesewas) {
     const TRANSACTION_FEE_RATE = 0.00205; const TRANSACTION_FEE_CAP = 2000;
     let fullFee = (chargedAmountInPesewas * TRANSACTION_FEE_RATE) + 80;
     let totalFeeChargedByPaystack = Math.min(fullFee, TRANSACTION_FEE_CAP);
     return totalFeeChargedByPaystack;
 }
-function calculateClientTopupFee(netDepositPesewas) {
-    const PAYSTACK_RATE = 0.019;
-    const PAYSTACK_FLAT = 80;
-    
-    const requiredTotalCharge = (netDepositPesewas + PAYSTACK_FLAT) / (1 - PAYSTACK_RATE);
-    const truePaystackFee = requiredTotalCharge - netDepositPesewas;
-    const feeClientPays = truePaystackFee * 0.60;
-    const finalCharge = netDepositPesewas + feeClientPays;
 
-    return Math.round(finalCharge);
+// 🛑 MODIFIED: Simplified fee structure to charge a fixed, minimal fee to the client.
+function calculateClientTopupFee(netDepositPesewas) {
+    // Client is charged a flat GHS 0.25 (25 pesewas) on top of their deposit amount
+    return netDepositPesewas + TOPUP_FLAT_FEE_PESEWAS;
 }
 
 async function sendAdminAlertEmail(order) {
@@ -81,7 +80,7 @@ async function sendAdminAlertEmail(order) {
     }
     sgMail.setApiKey(process.env.SENDGRID_API_KEY);
     const msg = {
-        to: 'jeffreypappoe@yahoo.com', 
+        to: 'ajcustomercare2@gmail.com', 
         from: 'jnkpappoe@gmail.com', 
         subject: `🚨 MANUAL REVIEW REQUIRED: ${order.network || 'N/A'} Data Transfer Failed`,
         html: `
@@ -101,11 +100,11 @@ async function sendAdminAlertEmail(order) {
         await sgMail.send(msg);
         console.log(`Manual alert email sent for reference: ${order.reference}`);
     } catch (error) {
-        // Log the error but DO NOT crash the main process
-        console.error('SendGrid Fatal Error: Email alert failed but system proceeds.', error.response?.body?.errors || error.message);
+        console.error('Failed to send admin alert email:', error.response?.body?.errors || error.message);
     }
 }
 
+// 🛑 CRITICAL FIX APPLIED HERE 🛑
 async function executeDataPurchase(userId, orderDetails, paymentMethod) {
     const { network, dataPlan, amount } = orderDetails;
     
@@ -116,9 +115,8 @@ async function executeDataPurchase(userId, orderDetails, paymentMethod) {
     const resellerApiUrl = RESELLER_API_BASE_URL;
     const networkKey = NETWORK_KEY_MAP[network];
     
-    // 🛑 DATAPACKS.SHOP API Payload Structure (GET Request/Bearer Auth)
+    // DATAPACKS.SHOP API Payload Structure (POST Request/JSON Body)
     const resellerPayload = {
-        action: 'order',
         network: networkKey,       
         capacity: dataPlan,          
         recipient: orderDetails.phoneNumber,      
@@ -126,18 +124,26 @@ async function executeDataPurchase(userId, orderDetails, paymentMethod) {
     };
     
     try {
-        const transferResponse = await axios.get(resellerApiUrl, {
-            params: resellerPayload,
-            headers: {
-                'Authorization': `Bearer ${process.env.DATA_API_SECRET}` 
+        // 🛑 FIX: Changed to axios.post and passing JSON body with required headers.
+        const transferResponse = await axios.post(
+            `${re-sellerApiUrl}?action=order`, // Action in query string as per Postman example
+            resellerPayload, // Pass the order details as a JSON body
+            {
+                headers: {
+                    'Authorization': `Bearer ${process.env.DATA_API_SECRET}`,
+                    'Content-Type': 'application/json' // CRITICAL: Added Content-Type
+                }
             }
-        });
+        );
 
-        // Assuming a successful response structure (status code 200 + success/status field)
+        // Check for success status in the API response data
         if (transferResponse.data.status === 'success' || transferResponse.data.status === 'SUCCESSFUL') {
             finalStatus = 'data_sent';
         } else {
             console.error('Data API failed response:', transferResponse.data);
+            if (transferResponse.data.message) {
+                 console.error('Data API Error Message:', transferResponse.data.message);
+            }
             finalStatus = 'pending_review';
         }
 
@@ -431,7 +437,9 @@ app.post('/api/verify-agent-payment', async (req, res) => {
 
 
 // --- DATA & PROTECTED PAGES ---
-app.get('/api/data-plans-wholesale', isDbReady, async (req, res) => { 
+
+// 🛑 MODIFIED: Renamed to /api/data-plans and uses only wholesale pricing logic (Markup is 0).
+app.get('/api/data-plans', isDbReady, async (req, res) => { 
     const costPlans = allPlans[req.query.network] || [];
     
     // Wholesale Markup is always 0
@@ -448,21 +456,7 @@ app.get('/api/data-plans-wholesale', isDbReady, async (req, res) => {
     res.json(sellingPlans);
 });
 
-app.get('/api/data-plans-retail', isDbReady, async (req, res) => { 
-    const costPlans = allPlans[req.query.network] || [];
-    const RETAIL_MARKUP_PESEWAS = 100; // GHS 1.00
-
-    const sellingPlans = costPlans.map(p => {
-        const FIXED_MARKUP = RETAIL_MARKUP_PESEWAS; 
-        const rawSellingPrice = p.price + FIXED_MARKUP;
-        const sellingPrice = Math.ceil(rawSellingPrice / 5) * 5; 
-        
-        return { id: p.id, name: p.name, price: sellingPrice };
-    });
-
-    res.json(sellingPlans);
-});
-
+// 🛑 REMOVED: /api/data-plans-retail endpoint has been removed.
 
 app.get('/api/my-orders', isDbReady, isAuthenticated, async (req, res) => {
     try {
@@ -482,11 +476,12 @@ app.post('/api/topup', isDbReady, isAuthenticated, async (req, res) => {
         return res.status(400).json({ status: 'error', message: 'Reference and amount are required.' });
     }
     
+    // amount is the net deposit amount in GHS
     let netDepositAmountGHS = amount; 
     let topupAmountPesewas = Math.round(netDepositAmountGHS * 100);
     const userId = req.session.user.id;
 
-    // Calculate the final charged amount using the 40/60 split logic
+    // Calculate the final charged amount using the simplified fee logic
     const finalChargedAmountPesewas = calculateClientTopupFee(topupAmountPesewas);
 
     try {
@@ -501,15 +496,17 @@ app.post('/api/topup', isDbReady, isAuthenticated, async (req, res) => {
             return res.status(400).json({ status: 'error', message: 'Payment verification failed.' });
         }
         
+        // Check if the charged amount is close enough (to account for small floating point errors)
         if (Math.abs(data.amount - finalChargedAmountPesewas) > 5) {
             console.error(`Fraud Alert: Charged ${data.amount} but expected ${finalChargedAmountPesewas}`);
             return res.status(400).json({ status: 'error', message: 'Amount charged mismatch detected.' });
         }
         
         // --- STEP 2: UPDATE USER WALLET BALANCE (NET DEPOSIT) ---
+        // 🛑 FIX: Use the net amount (topupAmountPesewas) for the wallet deposit
         const updatedUser = await User.findByIdAndUpdate(
             userId,
-            { $inc: { walletBalance: netDepositPesewas } }, // Deposit the net amount (e.g., 5000)
+            { $inc: { walletBalance: topupAmountPesewas } }, 
             { new: true, runValidators: true }
         );
         
@@ -519,11 +516,12 @@ app.post('/api/topup', isDbReady, isAuthenticated, async (req, res) => {
         await Order.create({
             userId: userId,
             reference: reference,
-            amount: finalChargedAmountPesewas / 100, // Log the total charged amount
+            // Log the total charged amount (finalChargedAmountPesewas) for accurate record-keeping
+            amount: finalChargedAmountPesewas / 100, 
             status: 'topup_successful',
             paymentMethod: 'paystack',
             dataPlan: 'WALLET TOP-UP',
-            network: 'WALLET' // CRITICAL FIX: Add network field for filtering
+            network: 'WALLET'
         });
 
         res.json({ status: 'success', message: `Wallet topped up successfully! GHS ${netDepositAmountGHS.toFixed(2)} deposited.`, newBalance: updatedUser.walletBalance });
@@ -571,6 +569,7 @@ app.post('/api/wallet-purchase', isDbReady, isAuthenticated, async (req, res) =>
         if (result.status === 'data_sent') {
             return res.json({ status: 'success', message: `Data successfully sent from wallet!` });
         } else {
+            // Note: The fix above should make this path rare, but it remains for API failures.
             return res.status(202).json({ 
                 status: 'pending', 
                 message: `Data purchase initiated. Status: ${result.status}. Check dashboard.` 
@@ -646,6 +645,7 @@ app.post('/paystack/verify', isDbReady, isAuthenticated, async (req, res) => {
 // --- ADMIN & MANAGEMENT ROUTES ---
 app.get('/api/get-all-orders', async (req, res) => {
     if (req.query.secret !== process.env.ADMIN_SECRET) {
+        console.error(`ADMIN ERROR: Failed attempt to fetch orders. Client secret (last 4 chars): [${req.query.secret.slice(-4)}]`);
         return res.status(403).json({ error: "Unauthorized: Invalid Admin Secret" });
     }
     try {
@@ -798,5 +798,5 @@ const server = app.listen(PORT, '0.0.0.0', () => {
     console.log('Database connection is initializing...');
     
     // Schedule cron job only after server is listening and defined
-    cron.schedule('*/5 * * * *', runPendingOrderCheck);
+    cron.schedule('*/5 * * * *', runPendingOrderCheck); // Runs every 5 minutes
 });
