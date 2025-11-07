@@ -3,7 +3,6 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <link rel="icon" type="image/x-icon" href="apple-touch-icon.png">
     <title>Admin Dashboard - Executive Management</title>
     <!-- Load Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
@@ -36,6 +35,24 @@
         .status-pending_review { background-color: #f59e0b; } 
         .status-data_failed, .status-payment_failed { background-color: #ef4444; }
         .status-payment_success { background-color: #3b82f6; }
+        
+        /* Client Status Colors */
+        .status-online { background-color: #10b981; }
+        .status-offline { background-color: #6b7280; }
+
+        /* Tab Styles */
+        .admin-tab {
+            padding: 10px 20px;
+            cursor: pointer;
+            font-weight: 500;
+            border-bottom: 2px solid transparent;
+            transition: all 0.2s;
+        }
+        .admin-tab.active {
+            color: var(--primary);
+            font-weight: 700;
+            border-bottom: 2px solid var(--primary);
+        }
 
         /* Dark Mode Overrides */
         .dark { background-color: #121212; color: #e0e0e0; }
@@ -77,6 +94,7 @@
     <!-- Navbar -->
     <nav class="bg-white shadow-lg dark:bg-[#1f1f1f]">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex justify-between items-center h-16">
+            <!-- NOTE: Remember to pass the secret in the URL when accessing the admin panel -->
             <a href="/admin.html?secret=YOUR_ADMIN_SECRET" class="text-xl font-bold text-primary">Admin Control Panel</a>
             <div class="flex space-x-4 items-center">
                 <!-- Theme Toggle -->
@@ -88,7 +106,6 @@
                         <path stroke-linecap="round" stroke-linejoin="round" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
                     </svg>
                 </button>
-                <!-- NOTE: Replace YOUR_ADMIN_SECRET -->
                 <p id="admin-key-display" class="text-xs text-gray-400 dark:text-gray-500 hidden sm:block">Key: ---</p>
                 <a href="/purchase.html" class="py-1 px-3 bg-primary text-white font-bold rounded-lg transition hover:bg-secondary">Go to Client View</a>
             </div>
@@ -101,7 +118,6 @@
 
         <!-- Metrics Cards -->
         <div id="metrics-container" class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-10">
-            <!-- Cards will be populated here -->
             <div class="metric-card p-5 dark:border-gray-700">
                 <p class="text-sm font-medium text-gray-500 dark:text-gray-400">Total Revenue</p>
                 <p id="metric-revenue" class="text-3xl font-extrabold text-gray-800 dark:text-white mt-1">GHS 0.00</p>
@@ -120,59 +136,138 @@
             </div>
         </div>
 
-        <!-- Orders Table -->
-        <div class="bg-white p-6 md:p-8 rounded-2xl shadow-xl border border-gray-100 dark:bg-[#1f1f1f] dark:border-gray-700">
-            <h2 class="text-xl font-bold text-gray-800 dark:text-white mb-4 border-b pb-2">All Transactions</h2>
-            
-            <div id="orders-status" class="text-center font-medium mb-4 text-gray-700 dark:text-gray-400">Loading orders...</div>
+        <!-- Authentication and Fetch Button -->
+        <div class="flex flex-col sm:flex-row gap-3 mb-6 items-center justify-center">
+            <input type="password" id="adminSecret" placeholder="Enter Admin Secret" class="w-full sm:w-64 p-3 border border-gray-300 rounded-lg focus:ring-primary focus:border-primary dark:bg-gray-700 dark:border-gray-600 dark:text-white">
+            <button id="fetchDataBtn" class="w-full sm:w-auto py-3 px-6 bg-primary text-white font-bold rounded-lg hover:bg-secondary transition">
+                Fetch All Data
+            </button>
+        </div>
 
-            <!-- Responsive Table Container -->
-            <div class="overflow-x-auto rounded-xl border border-gray-200 shadow-inner dark:border-gray-700">
-                <table class="w-full text-sm text-left text-gray-500 dark:text-gray-400">
-                    <thead class="text-xs text-white uppercase bg-primary">
-                        <tr>
-                            <th scope="col" class="py-3 px-6 rounded-tl-xl">Time</th>
-                            <th scope="col" class="py-3 px-6">User</th>
-                            <th scope="col" class="py-3 px-6">Phone</th>
-                            <th scope="col" class="py-3 px-6">Item / Network</th>
-                            <th scope="col" class="py-3 px-6">Amount (GHS)</th>
-                            <th scope="col" class="py-3 px-6">Status</th>
-                            <th scope="col" class="py-3 px-6 rounded-tr-xl">Actions</th>
-                        </tr>
-                    </thead>
-                    <tbody id="ordersTableBody" class="bg-white divide-y divide-gray-100 dark:bg-[#1f1f1f] dark:divide-gray-700">
-                        <!-- Order rows will be inserted here by JavaScript -->
-                    </tbody>
-                </table>
+
+        <!-- Main Content Area: Tabs -->
+        <div class="bg-white p-6 md:p-8 rounded-2xl shadow-xl border border-gray-100 dark:bg-[#1f1f1f] dark:border-gray-700">
+            
+            <!-- Tab Navigation -->
+            <div class="flex border-b border-gray-200 dark:border-gray-700 mb-6">
+                <div class="admin-tab active" data-tab="transactions">All Transactions</div>
+                <div class="admin-tab" data-tab="clients">Client Engagement</div>
             </div>
+            
+            <!-- Tab Content: Transactions -->
+            <div id="tab-content-transactions">
+                <h2 class="text-xl font-bold text-gray-800 dark:text-white mb-4">All Transactions</h2>
+                <div id="orders-status" class="text-center font-medium mb-4 text-gray-700 dark:text-gray-400">Enter secret to load data.</div>
+
+                <div class="overflow-x-auto rounded-xl border border-gray-200 shadow-inner dark:border-gray-700">
+                    <table class="w-full text-sm text-left text-gray-500 dark:text-gray-400">
+                        <thead class="text-xs text-white uppercase bg-primary">
+                            <tr>
+                                <th scope="col" class="py-3 px-6 rounded-tl-xl">Time</th>
+                                <th scope="col" class="py-3 px-6">User</th>
+                                <th scope="col" class="py-3 px-6">Phone</th>
+                                <th scope="col" class="py-3 px-6">Item / Network</th>
+                                <th scope="col" class="py-3 px-6">Amount (GHS)</th>
+                                <th scope="col" class="py-3 px-6">Status</th>
+                                <th scope="col" class="py-3 px-6 rounded-tr-xl">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="ordersTableBody" class="bg-white divide-y divide-gray-100 dark:bg-[#1f1f1f] dark:divide-gray-700">
+                            <tr><td colspan="7" class="py-4 text-center text-gray-400">Data requires authentication.</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div> <!-- End Transactions Tab -->
+            
+            <!-- Tab Content: Clients -->
+            <div id="tab-content-clients" class="hidden">
+                <h2 class="text-xl font-bold text-gray-800 dark:text-white mb-4">Client Engagement</h2>
+                <div id="clients-status" class="text-center font-medium mb-4 text-gray-700 dark:text-gray-400">Enter secret to load client data.</div>
+
+                <div class="overflow-x-auto rounded-xl border border-gray-200 shadow-inner dark:border-gray-700">
+                    <table class="w-full text-sm text-left text-gray-500 dark:text-gray-400">
+                        <thead class="text-xs text-white uppercase bg-primary">
+                            <tr>
+                                <th scope="col" class="py-3 px-6 rounded-tl-xl">Username</th>
+                                <th scope="col" class="py-3 px-6">Email</th>
+                                <th scope="col" class="py-3 px-6">Role</th>
+                                <th scope="col" class="py-3 px-6">Online Status</th>
+                                <th scope="col" class="py-3 px-6 rounded-tr-xl">Joined</th>
+                            </tr>
+                        </thead>
+                        <tbody id="clientsTableBody" class="bg-white divide-y divide-gray-100 dark:bg-[#1f1f1f] dark:divide-gray-700">
+                            <tr><td colspan="5" class="py-4 text-center text-gray-400">Client data requires authentication.</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div> <!-- End Clients Tab -->
+
         </div>
     </div>
     
+    <!-- Modal Backdrop (Update Status) -->
+    <div id="modal-backdrop" class="fixed inset-0 hidden items-center justify-center bg-black bg-opacity-75 z-50 opacity-0 transition-opacity duration-300">
+        <div id="status-modal" class="bg-white p-6 rounded-xl shadow-2xl w-full max-w-md transform scale-95 transition-all duration-300 dark:bg-gray-800">
+            <h3 class="text-xl font-bold text-gray-800 dark:text-white mb-4">Update Order Status</h3>
+            <div id="modal-current-order" class="text-sm text-gray-600 dark:text-gray-400 mb-4">
+                Reference: <span id="modal-order-ref" class="font-medium"></span>
+                <br> Current Status: <span id="modal-current-status" class="font-bold"></span>
+            </div>
+
+            <label for="new-status" class="block text-gray-700 dark:text-gray-300 mb-2">New Status</label>
+            <select id="new-status" class="w-full p-2 border border-gray-300 rounded-lg dark:bg-gray-700 dark:border-gray-600 dark:text-white">
+                <option value="data_sent">Data Sent (Fulfilled)</option>
+                <option value="pending_review">Pending Review</option>
+                <option value="data_failed">Data Failed</option>
+                <option value="payment_failed">Payment Failed</option>
+            </select>
+            
+            <div id="modal-status-message" class="mt-3 text-sm font-medium text-red-500"></div>
+
+            <div class="mt-6 flex justify-end space-x-3">
+                <button id="modal-cancel" type="button" class="py-2 px-4 bg-gray-200 text-gray-800 rounded-lg hover:bg-gray-300 transition dark:bg-gray-700 dark:text-white dark:hover:bg-gray-600">Cancel</button>
+                <button id="modal-update" type="button" class="py-2 px-4 bg-primary text-white rounded-lg hover:bg-secondary transition">Update</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- JavaScript Logic -->
     <script>
         // --- GLOBAL STATE & CONSTANTS ---
         let adminSecret = '';
         let allOrders = [];
+        let allUsers = [];
         const statusMap = {
-            'data_sent': 'Data Sent',
-            'pending_review': 'Pending Review',
-            'data_failed': 'Data Failed',
-            'topup_successful': 'Top Up Success',
-            'payment_success': 'Payment Success',
-            'payment_failed': 'Payment Failed'
+            'data_sent': 'Data Sent', 'pending_review': 'Pending Review', 'data_failed': 'Data Failed', 
+            'topup_successful': 'Top Up Success', 'payment_success': 'Payment Success', 'payment_failed': 'Payment Failed'
         };
 
         // --- DOM Elements ---
         const ordersTableBody = document.getElementById('ordersTableBody');
         const ordersStatusDiv = document.getElementById('orders-status');
+        const clientsTableBody = document.getElementById('clientsTableBody');
+        const clientsStatusDiv = document.getElementById('clients-status');
+        const adminSecretInput = document.getElementById('adminSecret');
+        const fetchDataBtn = document.getElementById('fetchDataBtn');
+        const tabsContainer = document.querySelector('.flex.border-b');
+        const tabContentTransactions = document.getElementById('tab-content-transactions');
+        const tabContentClients = document.getElementById('tab-content-clients');
+
         const metrics = {
-            revenue: document.getElementById('metric-revenue'),
-            profit: document.getElementById('metric-profit'),
-            orders: document.getElementById('metric-orders'),
-            users: document.getElementById('metric-users'),
+            revenue: document.getElementById('metric-revenue'), profit: document.getElementById('metric-profit'),
+            orders: document.getElementById('metric-orders'), users: document.getElementById('metric-users'),
         };
         const modalBackdrop = document.getElementById('modal-backdrop');
         const modalStatusMessage = document.getElementById('modal-status-message');
         
+        // Modal specific elements
+        const modalOrderRef = document.getElementById('modal-order-ref');
+        const modalCurrentStatus = document.getElementById('modal-current-status');
+        const modalUpdateBtn = document.getElementById('modal-update');
+        const modalCancelBtn = document.getElementById('modal-cancel');
+        const modalNewStatus = document.getElementById('new-status');
+
+
         // --- THEME LOGIC (Identical to Login/Signup) ---
         const htmlElement = document.documentElement;
         const toggleButton = document.getElementById('theme-toggle');
@@ -211,6 +306,9 @@
             if (!isoString) return 'N/A';
             try {
                 const date = new Date(isoString); 
+                if (isNaN(date.getTime())) {
+                    return 'Invalid Date';
+                }
                 return date.toLocaleString('en-GB', { 
                     year: 'numeric', month: 'short', day: 'numeric', 
                     hour: '2-digit', minute: '2-digit' 
@@ -220,15 +318,17 @@
             }
         }
 
-        // --- DATA FETCHING ---
+        // --- FETCHING FUNCTIONS ---
+
         async function fetchMetrics() {
             try {
-                const response = await fetch(`/api/admin/metrics?secret=${adminSecret}`);
-                const userCountResponse = await fetch(`/api/admin/user-count?secret=${adminSecret}`);
+                // Ensure the secret is read from the input box
+                const secret = adminSecretInput.value.trim();
+                const response = await fetch(`/api/admin/metrics?secret=${secret}`);
+                const userCountResponse = await fetch(`/api/admin/user-count?secret=${secret}`);
                 
                 if (response.status === 403 || userCountResponse.status === 403) {
-                    ordersStatusDiv.textContent = 'ERROR: Invalid Admin Secret.';
-                    return false;
+                    throw new Error('Authorization Failed. Check Admin Secret.');
                 }
                 if (!response.ok || !userCountResponse.ok) throw new Error('Failed to fetch metrics data.');
 
@@ -242,21 +342,22 @@
                 return true;
             } catch (error) {
                 console.error('Metrics fetch error:', error);
+                // Set placeholders to Error if fetching fails
                 metrics.revenue.textContent = 'Error';
+                metrics.profit.textContent = 'Error';
                 return false;
             }
         }
 
         async function fetchAllOrders() {
-            ordersStatusDiv.textContent = 'Loading orders...';
-            ordersTableBody.innerHTML = '';
+            ordersStatusDiv.textContent = 'Loading transactions...';
+            ordersTableBody.innerHTML = '<tr><td colspan="7" class="py-4 text-center text-blue-500 font-medium">Loading...</td></tr>';
+            
             try {
-                const response = await fetch(`/api/get-all-orders?secret=${adminSecret}`);
+                const secret = adminSecretInput.value.trim();
+                const response = await fetch(`/api/get-all-orders?secret=${secret}`);
                 
-                if (response.status === 403) {
-                    ordersStatusDiv.textContent = 'ERROR: Unauthorized Access.';
-                    return;
-                }
+                if (response.status === 403) throw new Error('Authorization Failed. Check Admin Secret.');
                 if (!response.ok) throw new Error('Could not fetch all orders.');
                 
                 const data = await response.json();
@@ -265,32 +366,89 @@
 
             } catch (error) {
                 ordersStatusDiv.textContent = `Error fetching orders: ${error.message}`;
+                ordersStatusDiv.style.color = 'red';
+            }
+        }
+
+        async function fetchAllUsers() {
+            clientsStatusDiv.textContent = 'Loading client data...';
+            clientsTableBody.innerHTML = '<tr><td colspan="5" class="py-4 text-center text-blue-500 font-medium">Loading...</td></tr>';
+            
+            try {
+                const secret = adminSecretInput.value.trim();
+                const response = await fetch(`/api/admin/all-users-status?secret=${secret}`);
+                
+                if (response.status === 403) throw new Error('Authorization Failed. Check Admin Secret.');
+                if (!response.ok) throw new Error('Could not fetch all users.');
+                
+                const data = await response.json();
+                allUsers = data.users || [];
+                renderUsers(allUsers);
+            } catch (error) {
+                clientsStatusDiv.textContent = `Error fetching users: ${error.message}`;
+                clientsStatusDiv.style.color = 'red';
             }
         }
 
         // --- RENDERING ---
-        function renderOrders(orders) {
-            ordersTableBody.innerHTML = '';
-            if (orders.length === 0) {
-                ordersStatusDiv.textContent = "No transactions found.";
+        
+        function renderUsers(users) {
+            clientsTableBody.innerHTML = '';
+            if (users.length === 0) {
+                clientsStatusDiv.textContent = "No registered clients found.";
                 return;
             }
+            clientsStatusDiv.textContent = '';
 
-            ordersStatusDiv.textContent = ''; 
-            
-            orders.forEach(order => {
-                const row = ordersTableBody.insertRow();
-                const statusText = statusMap[order.status] || order.status;
-                const statusClass = `status-${order.status}`;
-                const amountSign = (order.dataPlan === 'WALLET TOP-UP') ? '+' : '-';
-                const amountColor = (order.dataPlan === 'WALLET TOP-UP') ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400';
+            users.forEach(user => {
+                const row = clientsTableBody.insertRow();
+                const statusText = user.isOnline ? 'Online' : 'Offline';
+                const statusClass = user.isOnline ? 'status-online' : 'status-offline';
+                const roleColor = user.role === 'Agent' ? 'text-primary' : 'text-gray-500 dark:text-gray-400';
 
                 row.className = 'hover:bg-gray-50 transition duration-150 dark:hover:bg-gray-800';
 
                 row.innerHTML = `
-                    <td class="py-4 px-6 dark:text-gray-400 text-xs">${safeDateFormatter(order.created_at)}</td>
+                    <td class="py-4 px-6 font-medium text-gray-800 dark:text-gray-300">${user.username}</td>
+                    <td class="py-4 px-6 text-xs dark:text-gray-400">${user.email}</td>
+                    <td class="py-4 px-6 font-semibold ${roleColor}">${user.role}</td>
+                    <td class="py-4 px-6">
+                        <span class="px-3 py-1 text-white text-xs font-bold uppercase rounded-full ${statusClass}">
+                            ${statusText}
+                        </span>
+                    </td>
+                    <td class="py-4 px-6 text-xs dark:text-gray-400">${safeDateFormatter(user.signedUp)}</td>
+                `;
+            });
+        }
+        
+        function renderOrders(orders) {
+            ordersTableBody.innerHTML = '';
+            if (orders.length === 0) {
+                ordersStatusDiv.textContent = "No transactions found.";
+                ordersStatusDiv.style.color = 'black';
+                return;
+            }
+
+            ordersStatusDiv.textContent = `Displaying ${orders.length} orders.`;
+            ordersStatusDiv.style.color = 'black';
+            
+            orders.forEach(order => {
+                const row = ordersTableBody.insertRow();
+                const statusText = statusMap[order.status] || order.status.replace(/_/g, ' ');
+                const statusClass = `status-${order.status}`;
+                const amountSign = (order.dataPlan === 'WALLET TOP-UP') ? '+' : '-';
+                const amountColor = (order.dataPlan === 'WALLET TOP-UP') ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400';
+
+                const displayPhone = order.network === 'WALLET' ? 'N/A (Deposit)' : (order.phone_number || 'N/A');
+
+                row.className = 'hover:bg-gray-50 transition duration-150 dark:hover:bg-gray-800';
+
+                row.innerHTML = `
+                    <td class="py-4 px-6 dark:text-gray-400 text-xs font-mono">${order.id.substring(0, 8)}...</td>
                     <td class="py-4 px-6 font-medium text-gray-800 dark:text-gray-300">${order.username || 'N/A'}</td>
-                    <td class="py-4 px-6 dark:text-gray-400 text-xs">${order.phone_number || 'N/A'}</td>
+                    <td class="py-4 px-6 dark:text-gray-400 text-xs">${safeDateFormatter(order.created_at)}</td>
+                    <td class="py-4 px-6 dark:text-gray-400 text-xs">${displayPhone}</td>
                     <td class="py-4 px-6 dark:text-gray-400 text-xs">${order.dataPlan} (${order.network})</td>
                     <td class="py-4 px-6 font-semibold ${amountColor}">
                         ${amountSign} GHS ${order.amount.toFixed(2)}
@@ -302,40 +460,46 @@
                     </td>
                     <td class="py-4 px-6">
                         ${order.status === 'pending_review' ? 
-                            `<button data-id="${order.id}" data-ref="${order.reference}" data-status="${order.status}" 
-                             class="open-modal-btn text-white bg-blue-600 hover:bg-blue-700 text-xs font-medium py-1 px-3 rounded transition">
+                            `<button data-id="${order.id}" class="open-modal-btn text-white bg-blue-600 hover:bg-blue-700 text-xs font-medium py-1 px-3 rounded transition">
                              Update
                              </button>` : 'N/A'}
                     </td>
                 `;
             });
-
-            // Re-attach modal listeners after rendering
+            
             document.querySelectorAll('.open-modal-btn').forEach(btn => {
                 btn.addEventListener('click', openUpdateModal);
             });
         }
+        
+        function filterAndRenderOrders(network) {
+            let filtered = allOrders;
+            if (network !== 'All') {
+                filtered = allOrders.filter(order => order.network === network || order.network === 'WALLET');
+            }
+            renderOrders(filtered);
+        }
 
         // --- MODAL & ACTION LOGIC ---
+        
         let currentOrderId = null;
-        const modalOrderRef = document.getElementById('modal-order-ref');
-        const modalCurrentStatus = document.getElementById('modal-current-status');
-        const modalUpdateBtn = document.getElementById('modal-update');
-        const modalCancelBtn = document.getElementById('modal-cancel');
-        const modalNewStatus = document.getElementById('new-status');
-
 
         function openUpdateModal(event) {
             const button = event.target;
             currentOrderId = button.dataset.id;
             
-            modalOrderRef.textContent = button.dataset.ref;
-            modalCurrentStatus.textContent = statusMap[button.dataset.status] || button.dataset.status;
-            modalNewStatus.value = 'data_sent'; // Default selection
-            modalStatusMessage.textContent = ''; // Clear previous message
-            
-            modalBackdrop.style.display = 'flex';
-            setTimeout(() => { modalBackdrop.style.opacity = 1; }, 10);
+            // Find the order data to populate the modal fields
+            const order = allOrders.find(o => o.id === currentOrderId);
+
+            if (order) {
+                modalOrderRef.textContent = order.reference.substring(0, 16) + '...';
+                modalCurrentStatus.textContent = statusMap[order.status] || order.status.replace(/_/g, ' ');
+                modalNewStatus.value = 'data_sent'; // Default selection
+                modalStatusMessage.textContent = ''; // Clear previous message
+                
+                modalBackdrop.style.opacity = 1;
+                modalBackdrop.style.display = 'flex';
+            }
         }
 
         function closeModal() {
@@ -348,6 +512,8 @@
             if (!currentOrderId) return;
             
             const newStatus = modalNewStatus.value;
+            const secret = adminSecretInput.value.trim();
+
             modalUpdateBtn.disabled = true;
             modalUpdateBtn.textContent = 'Saving...';
             modalStatusMessage.textContent = 'Updating status...';
@@ -361,7 +527,7 @@
                     body: JSON.stringify({ 
                         orderId: currentOrderId, 
                         newStatus: newStatus,
-                        adminSecret: adminSecret 
+                        adminSecret: secret 
                     })
                 });
 
@@ -371,10 +537,16 @@
                     modalStatusMessage.textContent = data.message;
                     modalStatusMessage.classList.remove('text-yellow-600');
                     modalStatusMessage.classList.add('text-green-600');
-                    // Refresh data after successful update
+                    
+                    // Update local data and re-render the table
+                    const index = allOrders.findIndex(o => o.id === currentOrderId);
+                    if (index !== -1) {
+                        allOrders[index].status = newStatus;
+                    }
+                    
                     setTimeout(() => {
                         closeModal();
-                        fetchAllOrders(); 
+                        filterAndRenderOrders(document.querySelector('.admin-tab.active').dataset.tab === 'transactions' ? 'All' : 'All');
                     }, 1000);
                 } else {
                     modalStatusMessage.textContent = data.error || data.message || 'Update failed.';
@@ -391,30 +563,86 @@
                 modalUpdateBtn.textContent = 'Update';
             }
         }
-        
-        // --- INITIALIZATION ---
-        document.addEventListener('DOMContentLoaded', async () => {
-            // 1. Get Admin Secret from URL
-            const urlParams = new URLSearchParams(window.location.search);
-            adminSecret = urlParams.get('secret');
+
+        // --- MAIN FETCH TRIGGER ---
+
+        async function fetchAllData() {
+            const secret = adminSecretInput.value.trim();
+            if (!secret) { 
+                ordersStatusDiv.textContent = clientsStatusDiv.textContent = 'Please enter the admin secret.'; 
+                ordersStatusDiv.style.color = clientsStatusDiv.style.color = 'red';
+                return; 
+            }
             
-            if (!adminSecret) {
-                ordersStatusDiv.textContent = 'Access Denied: Admin Secret required in URL.';
-                return;
+            fetchDataBtn.disabled = true;
+            fetchDataBtn.textContent = 'Loading...';
+            
+            try {
+                // Fetch metrics first
+                const metricsReady = await fetchMetrics();
+                if (!metricsReady) {
+                    throw new Error("Failed to load core metrics. Check secret.");
+                }
+
+                // Fetch transactions and users concurrently
+                await Promise.all([fetchAllOrders(), fetchAllUsers()]);
+
+            } catch (error) {
+                console.error('Master Fetch Error:', error);
+                ordersStatusDiv.textContent = clientsStatusDiv.textContent = `CRITICAL ERROR: ${error.message}`;
+            } finally {
+                fetchDataBtn.disabled = false;
+                fetchDataBtn.textContent = 'Fetch All Data';
+            }
+        }
+        
+        // --- INITIALIZATION & LISTENERS ---
+        document.addEventListener('DOMContentLoaded', async () => {
+            
+            // 1. Get Admin Secret from URL (for persistence if user refresh)
+            const urlParams = new URLSearchParams(window.location.search);
+            const initialSecret = urlParams.get('secret');
+            if (initialSecret) {
+                adminSecretInput.value = initialSecret;
+                // Auto-fetch data if secret is in URL
+                fetchAllData();
             }
 
-            // Display a truncated version of the key
-            document.getElementById('admin-key-display').textContent = `Key: ...${adminSecret.slice(-4)}`;
+            // 2. Attach Listeners
+            fetchDataBtn.addEventListener('click', fetchAllData);
+            
+            tabsContainer.addEventListener('click', (e) => {
+                const target = e.target.closest('.admin-tab');
+                if (target) {
+                    document.querySelectorAll('.admin-tab').forEach(tab => tab.classList.remove('active'));
+                    target.classList.add('active');
 
-            // 2. Fetch all necessary data
-            const metricsReady = await fetchMetrics();
-            if (metricsReady) {
-                await fetchAllOrders();
-            }
+                    tabContentTransactions.classList.add('hidden');
+                    tabContentClients.classList.add('hidden');
 
-            // 3. Attach Modal Listeners
-            modalUpdateBtn.addEventListener('click', updateOrderStatus);
+                    if (target.dataset.tab === 'transactions') {
+                        tabContentTransactions.classList.remove('hidden');
+                        filterAndRenderOrders('All');
+                    } else if (target.dataset.tab === 'clients') {
+                        tabContentClients.classList.remove('hidden');
+                        renderUsers(allUsers); 
+                    }
+                }
+            });
+            
+            document.getElementById('modal-update').addEventListener('click', updateOrderStatus);
+            document.getElementById('modal-cancel').addEventListener('click', closeModal);
             modalCancelBtn.addEventListener('click', closeModal);
+
+            // Filter buttons for Orders table
+            document.querySelectorAll('.filter-tab').forEach(tab => {
+                tab.addEventListener('click', (e) => {
+                    document.querySelectorAll('.filter-tab').forEach(t => t.classList.remove('active'));
+                    e.target.classList.add('active');
+                    filterAndRenderOrders(e.target.dataset.network);
+                });
+            });
+            
         });
     </script>
 </body>
