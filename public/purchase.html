@@ -10,11 +10,14 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         /* Define primary colors */
-        :root { --primary: #009879; }
+        :root { 
+            --primary: #009879; 
+            --secondary: #007a63;
+        }
         .text-primary { color: var(--primary); }
         .border-primary { border-color: var(--primary); }
-        .bg-safe-button { background-color: #006400; }
-        .hover\:bg-safe-button-darker:hover { background-color: #004d00; } 
+        .bg-primary { background-color: var(--primary); }
+        .hover\:bg-secondary:hover { background-color: var(--secondary); } 
         
         /* Tab Styling */
         .network-tab {
@@ -22,10 +25,12 @@
             border-radius: 0.75rem; 
             border: 2px solid transparent;
         }
+        /* Active state for executive look */
         .network-tab.active { 
-            box-shadow: 0 0 0 3px var(--primary), 0 1px 3px 0 rgba(0, 0, 0, 0.1);
-            transform: scale(1.05);
-            background-color: #f0fff0; /* Light green highlight */
+            box-shadow: 0 0 0 3px var(--primary), 0 5px 15px rgba(0, 0, 0, 0.1);
+            transform: translateY(-2px);
+            background-color: #f0fff0;
+            border-color: var(--primary);
         }
         /* Pay Option Styling */
         .pay-option {
@@ -35,32 +40,48 @@
             border: 3px solid transparent; 
         }
         .pay-option.active {
-            border: 3px solid #009879; 
-            box-shadow: 0 4px 6px rgba(0, 152, 121, 0.2);
+            border: 3px solid var(--primary); 
+            box-shadow: 0 4px 10px rgba(0, 152, 121, 0.2);
         }
-        /* Dark Mode Styling (for consistency) */
+        /* Dark Mode Styling */
         .dark { background-color: #121212; color: #e0e0e0; }
         .dark .bg-white { background-color: #1f1f1f; color: #e0e0e0; }
+        .dark .shadow-xl { box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.4), 0 10px 10px -5px rgba(0, 0, 0, 0.2); }
+        .dark .text-gray-700, .dark .text-gray-600 { color: #d1d5db; }
+        .dark input, .dark select { background-color: #374151; border-color: #4b5563; color: #f3f4f6; }
+        .dark .network-tab { background-color: #282828; border-color: #374151; }
+        .dark .network-tab.active { background-color: #1f2937; }
+        .dark .bg-blue-50 { background-color: #1e3a8a; border-color: #3b82f6; color: #dbeafe; }
     </style>
 </head>
-<body class="bg-gray-50 min-h-screen font-sans">
+<body class="bg-gray-50 min-h-screen font-sans transition-colors duration-300 dark:bg-[#121212]">
 
     <!-- Navbar (Fixed for Mobile View) -->
-    <nav class="bg-white shadow-lg">
-        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex justify-between items-center h-24 sm:h-16 flex-col sm:flex-row py-2">
+    <nav class="bg-white shadow-lg dark:bg-[#1f1f1f]">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex justify-between items-center h-16">
             
             <!-- Logo Area -->
-            <a href="/purchase" class="text-xl font-bold text-primary w-full sm:w-auto text-center sm:text-left">AJENTERPRISE</a>
+            <a href="/purchase.html" class="text-xl font-bold text-primary transition-colors duration-300">AJENTERPRISE</a>
             
             <!-- Links and Wallet Area -->
-            <div class="flex space-x-4 items-center w-full justify-center sm:w-auto mt-2 sm:mt-0">
+            <div class="flex space-x-4 items-center">
+
+                <!-- Theme Toggle Button -->
+                <button id="theme-toggle" class="p-2 rounded-full text-gray-500 hover:bg-gray-200 dark:text-gray-400 dark:hover:bg-gray-700 transition">
+                    <svg id="theme-icon-moon" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
+                    </svg>
+                    <svg id="theme-icon-sun" class="h-6 w-6 hidden" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
+                    </svg>
+                </button>
                 
                 <!-- Wallet Balance Display -->
-                <span class="text-sm font-semibold text-gray-700 whitespace-nowrap">
-                    Wallet Balance: <span id="wallet-balance-display" class="text-primary font-extrabold">GHS 0.00</span>
+                <span class="text-sm font-semibold text-gray-700 dark:text-gray-400 whitespace-nowrap hidden sm:inline">
+                    Balance: <span id="wallet-balance-display" class="text-primary font-extrabold">GHS 0.00</span>
                 </span>
                 
-                <a href="/dashboard" class="text-gray-600 hover:text-primary transition font-medium">Dashboard</a>
+                <a href="/dashboard.html" class="text-gray-600 dark:text-gray-400 hover:text-primary transition font-medium">Dashboard</a>
                 <a href="/api/logout" class="text-red-500 hover:text-red-700 transition font-medium">Logout</a>
             </div>
         </div>
@@ -68,43 +89,47 @@
     
     <!-- Main Content Container -->
     <div class="container mx-auto p-4 max-w-2xl">
-        <div class="bg-white p-6 md:p-8 rounded-2xl shadow-xl mt-8 border border-gray-100">
-            <h1 class="text-3xl font-extrabold text-center text-gray-800 mb-2">Buy Mobile Data</h1>
-            <p class="text-center text-gray-500 mb-8">Select your network and plan to get started.</p>
+        <div class="bg-white p-6 md:p-8 rounded-2xl shadow-xl mt-8 border border-gray-100 dark:bg-[#1f1f1f] dark:border-gray-700">
+            <h1 class="text-3xl font-extrabold text-center text-gray-800 mb-2 dark:text-white transition-colors duration-300">
+                Buy Mobile Data
+            </h1>
+            <p class="text-center text-gray-500 mb-8 dark:text-gray-400 transition-colors duration-300">
+                Select your network and plan to get started.
+            </p>
 
-            <form id="paymentForm">
+            <form id="paymentForm" class="space-y-6">
                 
                 <!-- Network Selection Tabs -->
-                <label class="block text-gray-700 font-semibold mb-3">Choose Network</label>
-                <div id="network-tabs" class="grid grid-cols-3 gap-3 mb-6">
+                <label class="block text-gray-700 font-semibold mb-3 dark:text-gray-300">Choose Network</label>
+                <div id="network-tabs" class="grid grid-cols-3 gap-4">
                     <!-- MTN -->
-                    <div class="network-tab p-4 cursor-pointer bg-gray-50 shadow-md text-center text-sm font-bold border-2 border-primary" data-network="MTN">
-                        <img src="logos/mtn_logo.png" alt="MTN Logo" class="w-10 h-10 mx-auto mb-1 object-contain">
+                    <div class="network-tab p-4 cursor-pointer shadow-md text-center text-sm font-bold active border-primary" data-network="MTN">
+                        <img src="logos/mtn_logo.png" onerror="this.onerror=null;this.src='https://placehold.co/40x40/FFCC00/000000?text=MTN';" alt="MTN Logo" class="w-10 h-10 mx-auto mb-1 object-contain rounded-full">
                         MTN
                     </div>
                     <!-- AirtelTigo -->
-                    <div class="network-tab p-4 cursor-pointer bg-gray-50 shadow-md text-center text-sm font-bold border-2 border-transparent" data-network="AirtelTigo">
-                        <img src="logos/at_logo.png" alt="AirtelTigo Logo" class="w-10 h-10 mx-auto mb-1 object-contain">
+                    <div class="network-tab p-4 cursor-pointer shadow-md text-center text-sm font-bold border-transparent" data-network="AirtelTigo">
+                        <img src="logos/at_logo.png" onerror="this.onerror=null;this.src='https://placehold.co/40x40/FF5733/FFFFFF?text=AT';" alt="AirtelTigo Logo" class="w-10 h-10 mx-auto mb-1 object-contain">
                         AirtelTigo
                     </div>
                     <!-- Telecel -->
-                    <div class="network-tab p-4 cursor-pointer bg-gray-50 shadow-md text-center text-sm font-bold border-2 border-transparent" data-network="Telecel">
-                        <img src="logos/telecel_logo.png" alt="Telecel Logo" class="w-10 h-10 mx-auto mb-1 object-contain">
+                    <div class="network-tab p-4 cursor-pointer shadow-md text-center text-sm font-bold border-transparent" data-network="Telecel">
+                        <img src="logos/telecel_logo.png" onerror="this.onerror=null;this.src='https://placehold.co/40x40/B510B5/FFFFFF?text=TEL';" alt="Telecel Logo" class="w-10 h-10 mx-auto mb-1 object-contain">
                         Telecel
                     </div>
                     <input type="hidden" id="network" name="network" value="MTN">
                 </div>
                 
                 <!-- Data Plan Selection -->
-                <div class="form-group mb-5">
-                    <label for="dataplan" class="block text-gray-700 font-medium mb-2">Select Data Plan</label>
+                <div class="form-group">
+                    <label for="dataplan" class="block text-gray-700 font-medium mb-2 dark:text-gray-300">Select Data Plan</label>
                     <select id="dataplan" required class="w-full p-3 border border-gray-300 rounded-lg focus:ring-primary focus:border-primary transition">
                         <option value="" data-amount="0" selected disabled>Loading plans...</option>
                     </select>
                 </div>
                 
                 <!-- Guidance Note -->
-                <div class="bg-blue-50 border border-blue-200 text-blue-700 p-4 rounded-xl mb-4 text-sm shadow-inner">
+                <div class="bg-blue-50 border border-blue-200 text-blue-700 p-4 rounded-xl text-sm shadow-inner dark:bg-blue-900 dark:border-blue-700 dark:text-blue-200">
                     <p class="font-bold mb-1">Checklist for Fast Delivery:</p>
                     <ul class="list-disc list-inside space-y-1">
                         <li>Ensure the **10-digit phone number starts with 0**.</li>
@@ -113,41 +138,41 @@
                 </div>
 
                 <!-- Phone Number -->
-                <div class="form-group mb-5">
-                    <label for="phone" class="block text-gray-700 font-medium mb-2">Recipient Phone Number</label>
+                <div class="form-group">
+                    <label for="phone" class="block text-gray-700 font-medium mb-2 dark:text-gray-300">Recipient Phone Number</label>
                     <input type="tel" id="phone" pattern="0[0-9]{9}" maxlength="10" placeholder="e.g., 0501234567" required class="w-full p-3 border border-gray-300 rounded-lg focus:ring-primary focus:border-primary transition">
                 </div>
                 
                 <!-- Email for Receipt -->
-                <div class="form-group mb-6">
-                    <label for="email" class="block text-gray-700 font-medium mb-2">Email for Receipt (Optional)</label>
+                <div class="form-group">
+                    <label for="email" class="block text-sm font-medium text-gray-700 mb-2 dark:text-gray-300">Email for Receipt (Optional)</label>
                     <input type="email" id="email" placeholder="your.email@example.com" class="w-full p-3 border border-gray-300 rounded-lg focus:ring-primary focus:border-primary transition">
                 </div>
                 
                 <!-- Payment Method Selection -->
-                <label class="block text-gray-700 font-semibold mb-3">Choose Payment Method</label>
-                <div id="payment-methods" class="grid grid-cols-2 gap-4 mb-6">
+                <label class="block text-gray-700 font-semibold mb-3 dark:text-gray-300">Choose Payment Method</label>
+                <div id="payment-methods" class="grid grid-cols-2 gap-4">
                     <!-- Wallet Option -->
-                    <div class="pay-option p-4 bg-gray-50 shadow-lg text-center active" data-method="wallet">
-                        <p class="font-bold text-lg text-gray-800">Use Wallet</p>
-                        <p class="text-xs text-gray-500">Instant & Fee-Free</p>
+                    <div class="pay-option p-4 shadow-lg text-center active dark:bg-[#282828]" data-method="wallet">
+                        <p class="font-bold text-lg text-gray-800 dark:text-white">Use Wallet</p>
+                        <p class="text-xs text-gray-500 dark:text-gray-400">Instant & Fee-Free</p>
                     </div>
                     <!-- Paystack Option -->
-                    <div class="pay-option p-4 bg-gray-50 shadow-lg text-center" data-method="paystack">
-                        <p class="font-bold text-lg text-gray-800">Mobile Money / Card</p>
+                    <div class="pay-option p-4 shadow-lg text-center dark:bg-[#282828]" data-method="paystack">
+                        <p class="font-bold text-lg text-gray-800 dark:text-white">Mobile Money / Card</p>
                         <p class="text-red-500 font-extrabold text-xl">via Paystack</p>
-                        <p class="text-xs text-gray-500">External Fees Apply</p>
+                        <p class="text-xs text-gray-500 dark:text-gray-400">External Fees Apply</p>
                     </div>
                 </div>
 
 
                 <!-- Pay Button -->
-                <button type="submit" id="pay-button" class="w-full py-3 bg-safe-button text-white text-lg font-bold rounded-lg shadow-xl transition hover:bg-safe-button-darker disabled:opacity-50">
+                <button type="submit" id="pay-button" class="w-full py-4 bg-primary text-white text-lg font-bold rounded-xl shadow-lg transition hover:bg-secondary disabled:opacity-50">
                     Pay Now
                 </button>
             </form>
             
-            <div id="status" class="text-center mt-4 font-semibold min-h-[20px]"></div>
+            <div id="status" class="text-center mt-4 font-semibold min-h-[20px] dark:text-white"></div>
         </div>
     </div>
 
@@ -156,6 +181,40 @@
     
     <!-- JavaScript Logic -->
    <script>
+        // --- THEME LOGIC START ---
+        const htmlElement = document.documentElement;
+        const toggleButton = document.getElementById('theme-toggle');
+        const iconMoon = document.getElementById('theme-icon-moon');
+        const iconSun = document.getElementById('theme-icon-sun');
+
+        function applyTheme(theme) {
+            if (theme === 'dark') {
+                htmlElement.classList.add('dark');
+                iconMoon.classList.add('hidden');
+                iconSun.classList.remove('hidden');
+            } else {
+                htmlElement.classList.remove('dark');
+                iconMoon.classList.remove('hidden');
+                iconSun.classList.add('hidden');
+            }
+        }
+
+        const savedTheme = localStorage.getItem('theme');
+        if (savedTheme) {
+            applyTheme(savedTheme);
+        } else if (window.matchMedia('(prefers-color-scheme: dark)').matches) {
+            applyTheme('dark');
+        } else {
+            applyTheme('light');
+        }
+
+        toggleButton.addEventListener('click', () => {
+            const newTheme = htmlElement.classList.contains('dark') ? 'light' : 'dark';
+            localStorage.setItem('theme', newTheme);
+            applyTheme(newTheme);
+        });
+        // --- THEME LOGIC END ---
+
         // --- FINAL GLOBAL CONSTANTS & ELEMENTS ---
         const networkTabs = document.getElementById('network-tabs');
         const networkInput = document.getElementById('network');
@@ -182,9 +241,11 @@
             }
         }
 
-        // 🛑 FINAL PROFITABILITY FIX: Calculates the exact amount the customer must pay
+        // 🛑 CRITICAL FUNCTIONALITY (NO CHANGE IN LOGIC)
         function calculateTotalCharge(planPriceInPesewas) {
-            // We'll use the price from the API + 25 pesewas, mirroring the new top-up flat fee.
+            // This logic MUST match the server's expected charge for verification
+            // The 2% fee logic is handled on the server side, but for simple Paystack initiation,
+            // we use the fixed 25 pesewas added in the initial successful deployment model.
             const CUSTOMER_FLAT_FEE_PESEWAS = 25; 
             const totalAmountCharged = planPriceInPesewas + CUSTOMER_FLAT_FEE_PESEWAS;
             return Math.round(totalAmountCharged);
@@ -231,7 +292,7 @@
             dataplanSelect.innerHTML = '<option value="" data-amount="0" selected disabled>Loading plans...</option>';
             payButton.disabled = true;
             
-            // 🛑 CORRECTED ENDPOINT
+            // Correct API endpoint (no -wholesale or -retail)
             fetch(`/api/data-plans?network=${network}`)
                 .then(response => {
                     if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
@@ -249,17 +310,15 @@
                         dataplanSelect.appendChild(opt);
                     });
                     
-                    // Select the first valid plan by default if plans are available
                     if (plans.length > 0) {
                         dataplanSelect.selectedIndex = 1;
                     }
-                    // CRITICAL: Update button state after loading plans
                     updatePayButton(dataplanSelect.options[dataplanSelect.selectedIndex]);
                 })
                 .catch((error) => { 
                     console.error("Error loading plans:", error);
-                    dataplanSelect.innerHTML = '<option value="" data-amount="0">Could not load plans (Check console)</option>'; 
-                    updatePayButton(dataplanSelect.options[0]); // Update button to reflect disabled state
+                    dataplanSelect.innerHTML = '<option value="" data-amount="0">Could not load plans (Server Error)</option>'; 
+                    updatePayButton(dataplanSelect.options[0]); 
                 });
         };
 
@@ -270,7 +329,6 @@
                 if (response.ok) {
                     const data = await response.json();
                     userWalletBalance = data.walletBalance;
-                    // CRITICAL FIX: Display the wallet balance immediately upon fetch
                     walletBalanceDisplay.textContent = `GHS ${(userWalletBalance / 100).toFixed(2)}`;
                     return data.email; 
                 } else {
@@ -285,7 +343,7 @@
             }
         }
         
-        // --- PURCHASE LOGIC (Handles transaction outcome) ---
+        // --- PURCHASE LOGIC ---
         const handlePaystackTransaction = (transactionType) => {
             const selected = dataplanSelect.options[dataplanSelect.selectedIndex];
             const priceInPesewas = parseInt(selected.dataset.amount);
@@ -407,7 +465,7 @@
             // 2. Set Default Network & Load Plans 
             const defaultTab = document.querySelector('.network-tab[data-network="MTN"]');
             if (defaultTab) {
-                // First, remove active state from any element that might have it
+                // Remove active state from any element that might have it
                 document.querySelectorAll('.network-tab').forEach(tab => tab.classList.remove('active', 'border-primary', 'border-transparent'));
                 
                 // Set the default tab as active
@@ -415,7 +473,6 @@
                 defaultTab.classList.remove('border-transparent');
                 
                 networkInput.value = 'MTN';
-                // CRITICAL: Call the function to load plans for the default network
                 fetchPlansForNetwork('MTN');
             }
 
@@ -451,7 +508,7 @@
             dataplanSelect.addEventListener('change', (e) => updatePayButton(e.target.options[e.target.selectedIndex]));
 
 
-            // 4. Form Submission Handler (Unchanged)
+            // 4. Form Submission Handler 
             paymentForm.addEventListener("submit", function(e) {
                 e.preventDefault();
                 
@@ -482,6 +539,3 @@
     </script>
 </body>
 </html>
-
-
-
