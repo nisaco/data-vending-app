@@ -8,6 +8,7 @@ const sgMail = require('@sendgrid/mail');
 const axios = require('axios');
 const cron = require('node-cron');
 const crypto = require('crypto');
+const rateLimit = require('express-rate-limit'); // 🛑 NEW: Rate limiting
 // 🛑 IMPORT REQUIRED FOR SESSION PERSISTENCE 🛑
 const MongoStore = require('connect-mongo');
 // Assuming database.js contains User, Order, and mongoose exports
@@ -254,7 +255,7 @@ app.set('trust proxy', 1);
 
 const sessionSecret = process.env.SESSION_SECRET || 'fallback-secret-for-local-dev-only-12345';
 
-// 🛑 CRITICAL FIX: Use MONGO_URI from the Render Environment 🛑
+// 🛑 Retrieve MONGO_URI from the environment (CRITICAL FIX)
 const mongoUri = process.env.MONGO_URI;
 
 app.use(session({
@@ -262,7 +263,6 @@ app.use(session({
     resave: false,
     saveUninitialized: false,
     store: MongoStore.create({
-        // PASS MONGO_URI HERE
         mongoUrl: mongoUri, 
         collectionName: 'sessions',
         touchAfter: 24 * 3600 
@@ -282,6 +282,17 @@ app.get('/health', (req, res) => {
 // ------------------------------------
 
 app.use(express.static(path.join(__dirname, 'public')));
+
+// 🛑 RATE LIMITING MIDDLEWARE 🛑
+const loginLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000, // 15 minutes
+    max: 5, // Limit each IP to 5 requests per windowMs
+    message: {
+        message: "Too many login attempts from this IP, please try again after 15 minutes."
+    },
+    standardHeaders: true,
+    legacyHeaders: false,
+});
 
 
 // --- 4. DATABASE CHECK MIDDLEWARE ---
@@ -312,7 +323,8 @@ app.post('/api/signup', isDbReady, async (req, res) => {
     }
 });
 
-app.post('/api/login', isDbReady, async (req, res) => {
+// 🛑 APPLY RATE LIMITER TO LOGIN ROUTE
+app.post('/api/login', loginLimiter, isDbReady, async (req, res) => {
     const { username, password } = req.body;
     if (!username || !password) return res.status(400).json({ message: 'Username and password are required.' });
     try {
@@ -684,7 +696,6 @@ app.post('/paystack/verify', isDbReady, isAuthenticated, async (req, res) => {
 
 
 // --- ADMIN & MANAGEMENT ROUTES ---
-// 🛑 NEW: Endpoint to fetch all users and their session status
 app.get('/api/admin/all-users-status', async (req, res) => {
     if (req.query.secret !== process.env.ADMIN_SECRET) return res.status(403).json({ error: "Unauthorized" });
     
@@ -693,7 +704,6 @@ app.get('/api/admin/all-users-status', async (req, res) => {
 
         const registeredUsers = await User.find({}).select('username email createdAt role').lean();
 
-        // Access the raw sessions collection which is managed by MongoStore
         const sessionsCollection = mongoose.connection.db.collection('sessions');
         const rawSessions = await sessionsCollection.find({}).toArray();
 
