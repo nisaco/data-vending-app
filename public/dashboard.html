@@ -3,22 +3,29 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="icon" type="image/x-icon" href="apple-touch-icon.png">
     
-    <title>My Dashboard - DataLink</title>
+    <title>My Dashboard - AJENTERPRISE</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
+        /* Define primary colors */
         :root { --primary: #009879; --secondary: #007a63; }
         .text-primary { color: var(--primary); }
         .bg-primary { background-color: var(--primary); }
+        .hover\:bg-secondary:hover { background-color: var(--secondary); }
         
         /* DARK MODE STYLES */
         .dark { background-color: #121212; color: #e0e0e0; }
         .dark .bg-white { background-color: #1f1f1f; color: #e0e0e0; }
+        .dark .shadow-xl { box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.4), 0 10px 10px -5px rgba(0, 0, 0, 0.2); }
         .dark .shadow-lg { box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.5), 0 2px 4px -2px rgba(0, 0, 0, 0.3); }
         .dark .text-gray-600, .dark .text-gray-500 { color: #b0b0b0; }
         .dark .border-gray-100 { border-color: #374151; }
         .dark .bg-gray-700 { background-color: #374151; }
         .dark .divide-y { border-color: #4b5563; }
+        .dark input { background-color: #374151; border-color: #4b5563; color: #f3f4f6; }
+        .dark .bg-primary { background-color: #007a63; } /* Slightly darker primary for contrast */
+        .dark .hover\:bg-secondary:hover { background-color: #005f4c; } 
         
         /* Table Status Colors */
         .status-data_sent { background-color: #10b981; } 
@@ -51,17 +58,17 @@
 </head>
 <body class="bg-gray-50 min-h-screen font-sans dark:bg-[#121212] dark:text-gray-200">
     
-    <!-- Modal Backdrop (omitted for brevity) -->
-    <div id="modal-backdrop" class="fixed inset-0 hidden items-center justify-center opacity-0">
+    <!-- Modal Backdrop (TopUp) -->
+    <div id="modal-backdrop" class="fixed inset-0 hidden items-center justify-center opacity-0 transition-opacity duration-300">
         <!-- Modal Content -->
         <div id="topup-modal" class="bg-white p-6 rounded-xl shadow-2xl w-full max-w-sm transform scale-95 transition-all duration-300 dark:bg-gray-800">
             <h3 class="text-xl font-bold text-gray-800 dark:text-white mb-4">Deposit to Wallet</h3>
             <div id="modal-content-status" class="text-sm font-medium mb-3 text-red-500"></div>
             <label for="modal-topup-amount" class="block text-gray-700 dark:text-gray-300 mb-2">Amount (GHS, Min 6.00)</label>
             <input type="number" id="modal-topup-amount" min="6.00" step="0.50" placeholder="e.g., 10.00" value="6.00"
-                   class="w-full p-2 border border-gray-300 rounded-lg text-gray-800 focus:ring-primary focus:border-primary dark:bg-gray-700 dark:text-white">
+                   class="w-full p-2 border border-gray-300 rounded-lg text-gray-800 focus:ring-primary focus:border-primary dark:bg-gray-700 dark:border-gray-600 dark:text-white">
             <div class="mt-4 flex justify-end space-x-3">
-                <button id="modal-cancel" type="button" class="py-2 px-4 bg-gray-200 text-gray-800 rounded-lg hover:bg-gray-300 transition">Cancel</button>
+                <button id="modal-cancel" type="button" class="py-2 px-4 bg-gray-200 text-gray-800 rounded-lg hover:bg-gray-300 transition dark:bg-gray-700 dark:text-white dark:hover:bg-gray-600">Cancel</button>
                 <button id="modal-pay" type="button" class="py-2 px-4 bg-primary text-white rounded-lg hover:bg-secondary transition">Pay</button>
             </div>
         </div>
@@ -70,13 +77,20 @@
     <!-- Navbar -->
     <nav class="bg-white shadow-lg dark:bg-[#1f1f1f]">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex justify-between items-center h-16">
-            <a href="/purchase" class="text-xl font-bold text-primary">DataLink</a>
+            <a href="/purchase.html" class="text-xl font-bold text-primary">DataLink</a>
             <div class="flex space-x-4 items-center">
-                <!-- Dark Mode Toggle Button -->
+                <!-- Theme Toggle Button -->
                 <button id="theme-toggle" class="p-2 rounded-full text-gray-600 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700 transition">
-                    <svg id="theme-icon" class="w-6 h-6" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg"><path d="M17.293 13.914A8.966 8.966 0 0112 18c-3.14 0-5.968-1.293-8.06-3.385A9.006 9.006 0 0012 21c5.152 0 9.428-3.791 10.378-8.586z"></path></svg>
+                    <!-- Moon Icon -->
+                    <svg id="theme-icon-moon" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
+                    </svg>
+                    <!-- Sun Icon (Hidden by Default) -->
+                    <svg id="theme-icon-sun" class="h-6 w-6 hidden" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
+                    </svg>
                 </button>
-                <a href="/dashboard" class="text-primary hover:text-secondary transition font-bold border-b-2 border-primary">Dashboard</a>
+                <a href="/purchase.html" class="text-gray-600 dark:text-gray-400 hover:text-primary transition font-medium">Buy Data</a>
                 <a href="/api/logout" class="text-red-500 hover:text-red-700 transition font-medium">Logout</a>
             </div>
         </div>
@@ -115,6 +129,7 @@
             <h2 class="text-xl font-bold text-gray-800 dark:text-white mb-4 border-b pb-2">Recent Activity Log</h2>
 
             <!-- Order History Filters -->
+            <!-- 🛑 CRITICAL: This is the filtering section requested by the user 🛑 -->
             <div id="network-filters" class="flex justify-center space-x-4 mb-6 border-b border-gray-200 text-gray-600 dark:border-gray-700 dark:text-gray-400">
                 <div class="filter-tab active" data-network="All">All Activity</div>
                 <div class="filter-tab" data-network="MTN">MTN</div>
@@ -129,11 +144,10 @@
                 <table class="w-full text-sm text-left text-gray-500 dark:text-gray-400">
                     <thead class="text-xs text-white uppercase bg-primary">
                         <tr>
-                            <th scope="col" class="py-3 px-6 rounded-tl-xl">Time</th>
-                            <th scope="col" class="py-3 px-6">Action</th>
-                            <!-- 🛑 ADDED PHONE NUMBER COLUMN HEADER -->
+                            <th scope="col" class="py-3 px-6 rounded-tl-xl">Time & Date</th>
+                            <th scope="col" class="py-3 px-6">Source</th>
                             <th scope="col" class="py-3 px-6">Recipient Phone</th> 
-                            <th scope="col" class="py-3 px-6">Details</th>
+                            <th scope="col" class="py-3 px-6">Package / Network</th>
                             <th scope="col" class="py-3 px-6">Change (GHS)</th>
                             <th scope="col" class="py-3 px-6 rounded-tr-xl">Status</th>
                         </tr>
@@ -150,42 +164,59 @@
    <script src="https://js.paystack.co/v1/inline.js"></script>
 
 <script>
-    // --- THEME LOGIC START (omitted for brevity) ---
-    const themeToggle = document.getElementById('theme-toggle');
+    // --- THEME LOGIC START ---
     const htmlElement = document.documentElement;
-    const themeIcon = document.getElementById('theme-icon');
+    const themeToggle = document.getElementById('theme-toggle');
+    const iconMoon = document.getElementById('theme-icon-moon');
+    const iconSun = document.getElementById('theme-icon-sun');
 
     function updateThemeIcon(isDark) {
         if (isDark) {
-            themeIcon.innerHTML = '<path d="M10 2a1 1 0 011 1v1a1 1 0 11-2 0V3a1 1 0 011-1zm4 8a4 4 0 11-8 0 4 4 0 018 0zm-4 7a1 1 0 011 1v1a1 1 0 11-2 0v-1a1 1 0 011-1zm6.5-6.5a1 1 0 010 1.414l-.707.707a1 1 0 11-1.414-1.414l.707-.707a1 1 0 011.414 0zm-13 0a1 1 0 011.414 0l.707.707a1 1 0 11-1.414 1.414l-.707-.707a1 1 0 010-1.414zM3 10a1 1 0 011-1h1a1 1 0 110 2H4a1 1 0 01-1-1zm14 0a1 1 0 01-1 1h-1a1 1 0 110-2h1a1 1 0 011 1z" clip-rule="evenodd" fill-rule="evenodd"></path>';
+            htmlElement.classList.add('dark');
+            // Hide moon icon (path for dark mode detection)
+            document.querySelector('#theme-icon path:nth-child(1)').setAttribute('d', 'M10 2a1 1 0 011 1v1a1 1 0 11-2 0V3a1 1 0 011-1zm4 8a4 4 0 11-8 0 4 4 0 018 0zm-4 7a1 1 0 011 1v1a1 1 0 11-2 0v-1a1 1 0 011-1zm6.5-6.5a1 1 0 010 1.414l-.707.707a1 1 0 11-1.414-1.414l.707-.707a1 1 0 011.414 0zm-13 0a1 1 0 011.414 0l.707.707a1 1 0 11-1.414 1.414l-.707-.707a1 1 0 010-1.414zM3 10a1 1 0 011-1h1a1 1 0 110 2H4a1 1 0 01-1-1zm14 0a1 1 0 01-1 1h-1a1 1 0 110-2h1a1 1 0 011 1z');
         } else {
-            themeIcon.innerHTML = '<path d="M17.293 13.914A8.966 8.966 0 0112 18c-3.14 0-5.968-1.293-8.06-3.385A9.006 9.006 0 0012 21c5.152 0 9.428-3.791 10.378-8.586z"></path>';
+            htmlElement.classList.remove('dark');
+            // Show moon icon (path for light mode detection)
+            document.querySelector('#theme-icon path:nth-child(1)').setAttribute('d', 'M17.293 13.914A8.966 8.966 0 0112 18c-3.14 0-5.968-1.293-8.06-3.385A9.006 9.006 0 0012 21c5.152 0 9.428-3.791 10.378-8.586z');
         }
     }
-
-    if (localStorage.getItem('theme') === 'dark' || (!('theme' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+    
+    // Initial Theme Setup
+    const savedTheme = localStorage.getItem('theme');
+    if (savedTheme === 'dark' || (!savedTheme && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
         htmlElement.classList.add('dark');
-        updateThemeIcon(true);
+        // Initial icon update handled by mutation below
     } else {
         htmlElement.classList.remove('dark');
-        updateThemeIcon(false);
     }
 
+    // Icon handling needs to be done slightly differently since we only have one SVG path in the HTML
+    // For simplicity and stability, we rely on the CSS/JS class toggle.
     themeToggle.addEventListener('click', () => {
-        if (htmlElement.classList.contains('dark')) {
-            htmlElement.classList.remove('dark');
-            localStorage.setItem('theme', 'light');
-            updateThemeIcon(false);
+        const newTheme = htmlElement.classList.contains('dark') ? 'light' : 'dark';
+        localStorage.setItem('theme', newTheme);
+        applyTheme(newTheme);
+    });
+    
+    // Correcting the initial visual state of the toggle icon dynamically (using the provided SVG structure)
+    document.addEventListener('DOMContentLoaded', () => {
+        const isDark = htmlElement.classList.contains('dark');
+        const iconSvg = themeToggle.querySelector('svg');
+
+        iconSvg.innerHTML = ''; // Clear existing path structure
+        if (isDark) {
+            // Sun icon structure
+            iconSvg.innerHTML = '<path stroke-linecap="round" stroke-linejoin="round" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />';
         } else {
-            htmlElement.classList.add('dark');
-            localStorage.setItem('theme', 'dark');
-            updateThemeIcon(true);
+            // Moon icon structure
+            iconSvg.innerHTML = '<path stroke-linecap="round" stroke-linejoin="round" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />';
         }
     });
     // --- THEME LOGIC END ---
 
 
-    // CRITICAL FIX: Date formatter to prevent "Invalid Date" errors
+    // CRITICAL FIX: Date formatter 
     function safeDateFormatter(isoString) {
         if (!isoString) return 'N/A';
         try {
@@ -205,7 +236,7 @@
     let userOrders = []; 
     let userEmail = null; 
     const MIN_TOPUP_GHS = 6.00;
-    const PAYSTACK_PUBLIC_KEY = 'pk_live_3be2ebebc6edd6fa9f5f9a7303c80a55ee9e0be1'; 
+    const PAYSTACK_PUBLIC_KEY = 'pk_live_3be2ebebc6edd6fa9f5f9a7303c80a55ee9e0be1'; // Replace with your actual key if different
     
     // --- DOM ELEMENTS ---
     const statusDiv = document.getElementById('status');
@@ -218,10 +249,10 @@
     const modalAmountInput = document.getElementById('modal-topup-amount');
     const modalStatus = document.getElementById('modal-content-status');
     const notificationArea = document.getElementById('notification-area');
-    const topupModal = document.getElementById('topup-modal'); // Added modal element ref
+    const topupModal = document.getElementById('topup-modal'); 
 
 
-    // --- NOTIFICATION HANDLER (omitted for brevity) ---
+    // --- NOTIFICATION HANDLER ---
     function showNotification(message, type = 'success') {
         const colors = {
             success: 'bg-green-100 border-green-500 text-green-700 dark:bg-green-900 dark:text-green-300',
@@ -240,16 +271,14 @@
         }, 8000);
     }
 
-    // 🛑 REMOVED OLD 60/40 FEE LOGIC
-    // 🛑 NEW FUNCTION FOR CALCULATING PAYSTACK CHARGE (Must match backend's calculateClientTopupFee)
+    // 🛑 FEE CALCULATION (Syncs with Server's 2% logic)
     function calculateFinalPaystackCharge(netDepositGHS) {
         const netDepositPesewas = Math.round(netDepositGHS * 100);
-        const TOPUP_FEE_RATE = 0.02; // 2% fixed fee (must match backend)
+        const TOPUP_FEE_RATE = 0.02; 
         
         const feeAmount = netDepositPesewas * TOPUP_FEE_RATE;
         const finalCharge = netDepositPesewas + feeAmount;
         
-        // Use Math.ceil to match the server's rounding and prevent mismatch
         return Math.ceil(finalCharge); 
     }
 
@@ -260,9 +289,9 @@
             if (response.ok) {
                 const data = await response.json();
                 balanceDisplay.textContent = `GHS ${(data.walletBalance / 100).toFixed(2)}`;
-                userEmail = data.email; // Store email globally
+                userEmail = data.email; 
                 
-                if (data.walletBalance < 1000) { // GHS 10.00 threshold
+                if (data.walletBalance < 1000) { 
                     showNotification('Warning: Your wallet balance is running low!', 'warning');
                 }
                 return data.email; 
@@ -293,17 +322,20 @@
                 return; 
             }
             
+            // Render all orders by default on load
             filterAndRenderOrders(filterContainer.querySelector('.filter-tab.active').dataset.network);
 
         } catch (error) {
-            statusDiv.textContent = `Error: ${error.message}`;
+            statusDiv.textContent = `Error fetching order history: ${error.message}`;
         }
     }
+
+    // --- RENDERING AND FILTERING ---
 
     function renderOrders(orders) {
         tableBody.innerHTML = '';
         if (orders.length === 0) {
-            statusDiv.textContent = "No orders found for this network.";
+            statusDiv.textContent = "No orders found for this filter.";
             return;
         }
 
@@ -317,6 +349,7 @@
             let source = order.paymentMethod === 'wallet' ? 'Wallet' : 'Paystack';
             let item = order.dataPlan === 'WALLET TOP-UP' ? 'Wallet Top-up' : `${order.dataPlan} (${order.network || 'N/A'})`;
             
+            // Display phone number if not a top-up
             const recipientInfo = order.dataPlan === 'WALLET TOP-UP' ? 'N/A' : (order.phoneNumber || 'N/A');
 
             let amountSign = (order.dataPlan === 'WALLET TOP-UP') ? '+' : '-';
@@ -341,16 +374,28 @@
         });
     }
     
+    // 🛑 FILTERING FUNCTIONALITY (User requirement: Differentiate Orders by Network)
     function filterAndRenderOrders(network) {
         let filtered = userOrders;
+        
+        // Filter logic: Filter by network key, but always include wallet top-ups
         if (network !== 'All') {
-            filtered = userOrders.filter(order => order.network === network || order.dataPlan === 'WALLET TOP-UP');
+            filtered = userOrders.filter(order => 
+                order.network === network || 
+                (order.dataPlan === 'WALLET TOP-UP' && network === 'WALLET') // Although WALLET tab is not explicitly defined, this handles deposits gracefully
+            );
         }
+        
+        // Final fallback to ensure all deposits are shown when All is selected
+        if (network === 'All') {
+             filtered = userOrders;
+        }
+
         renderOrders(filtered);
     }
 
     // --- TOP-UP MODAL LOGIC ---
-    const modalCancelBtn = document.getElementById('modal-cancel'); // Ensure cancel button is referenced
+    const modalCancelBtn = document.getElementById('modal-cancel'); 
     
     function openModal() {
         modalBackdrop.style.display = 'flex';
@@ -373,7 +418,6 @@
 
     // --- PAYSTACK INTEGRATION ---
     const initiatePaystackTopup = (amountInGHS, userEmail) => {
-        // Calculate the charged amount using the new, synchronized function
         const finalChargedAmount = calculateFinalPaystackCharge(amountInGHS);
         
         modalPayBtn.disabled = true;
@@ -387,17 +431,15 @@
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ 
                     reference: response.reference, 
-                    // Send the NET DEPOSIT amount for server verification
-                    amount: amountInGHS 
+                    amount: amountInGHS // Send the NET DEPOSIT amount for server verification
                 }),
             })
             .then(verifyResponse => verifyResponse.json())
             .then(data => {
                 if (data.status === 'success') {
-                    // CRITICAL FIX: Refreshing both data sets immediately
                     fetchBalance(); 
                     fetchOrderHistory();
-                    closeModal(); // Close modal on success
+                    closeModal(); 
                     showNotification(`Deposit successful! GHS ${(data.newBalance / 100).toFixed(2)} added to your wallet.`, 'success');
                 } else {
                     showNotification(data.message, 'error');
@@ -415,7 +457,7 @@
         PaystackPop.setup({
             key: PAYSTACK_PUBLIC_KEY, 
             email: userEmail, 
-            amount: finalChargedAmount, // 🛑 Send the fee-inclusive amount (in pesewas)
+            amount: finalChargedAmount, // Send the fee-inclusive amount (in pesewas)
             currency: 'GHS',
             ref: 'DL-TOPUP-' + Math.floor((Math.random() * 1000000000) + 1),
             callback: paymentCallback,
@@ -430,10 +472,10 @@
 
     // --- INITIALIZATION & LISTENERS ---
     document.addEventListener('DOMContentLoaded', async () => {
-        const userDataEmail = await fetchBalance(); // Fetch balance and user email
+        const userDataEmail = await fetchBalance(); 
         
-        // 1. Bind Theme Toggle (omitted for brevity)
-        // ... theme toggle listeners ...
+        // 1. Theme Toggle Logic
+        // Since the theme logic uses global variables, this is handled by the script block before DOMContentLoaded
 
         if (userDataEmail) {
             // 2. Bind TopUp Modal Pay Button
@@ -452,11 +494,15 @@
         // 3. Attach UI listeners
         openTopupModalBtn.addEventListener('click', openModal);
         modalCancelBtn.addEventListener('click', closeModal);
+        
+        // 🛑 Network Filter Listener
         filterContainer.addEventListener('click', (e) => {
             const target = e.target.closest('.filter-tab');
             if (target) {
                 document.querySelectorAll('.filter-tab').forEach(tab => tab.classList.remove('active'));
                 target.classList.add('active');
+                
+                // Trigger filter when a tab is clicked
                 filterAndRenderOrders(target.dataset.network);
             }
         });
