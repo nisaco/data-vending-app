@@ -8,7 +8,7 @@ const sgMail = require('@sendgrid/mail');
 const axios = require('axios');
 const cron = require('node-cron');
 const crypto = require('crypto');
-// 🛑 IMPORT FOR SESSION PERSISTENCE 🛑
+// 🛑 IMPORT REQUIRED FOR SESSION PERSISTENCE 🛑
 const MongoStore = require('connect-mongo');
 // Assuming database.js contains User, Order, and mongoose exports
 const { User, Order, mongoose } = require('./database.js'); 
@@ -68,7 +68,6 @@ function calculatePaystackFee(chargedAmountInPesewas) {
 }
 
 function calculateClientTopupFee(netDepositPesewas) {
-    // 🛑 Client pays Net Deposit + 2% Fee (used for Paystack charge calculation)
     const feeAmount = netDepositPesewas * TOPUP_FEE_RATE;
     const finalCharge = netDepositPesewas + feeAmount;
     return Math.ceil(finalCharge); 
@@ -109,14 +108,13 @@ async function executeDataPurchase(userId, orderDetails, paymentMethod) {
     const { network, dataPlan, amount } = orderDetails;
     
     let finalStatus = 'payment_success'; 
-    // 🛑 Use crypto for guaranteed unique reference ID
     const uniqueId = crypto.randomBytes(16).toString('hex');
     const reference = `${paymentMethod.toUpperCase()}-${uniqueId}`;
 
     // --- STEP 1: SETUP & VALIDATION ---
     const resellerApiUrl = RESELLER_API_BASE_URL;
     const networkKey = NETWORK_KEY_MAP[network]; 
-    const apiToken = process.env.DATA_API_SECRET; // Using DATA_API_SECRET for Datapacks.shop
+    const apiToken = process.env.DATA_API_SECRET; 
     
     if (!networkKey) {
         console.error(`ERROR: Invalid network provided: ${network}`);
@@ -137,7 +135,6 @@ async function executeDataPurchase(userId, orderDetails, paymentMethod) {
     // --- STEP 2: ATTEMPT DATA TRANSFER ---
     if (finalStatus === 'payment_success') { 
         try {
-            // 🛑 CRITICAL FIX: POST request for order submission to Datapacks.shop
             const transferResponse = await axios.post(
                 `${resellerApiUrl}?action=order`, 
                 resellerPayload, 
@@ -214,8 +211,6 @@ async function runPendingOrderCheck() {
             return;
         }
 
-        const apiToken = process.env.DATA_API_SECRET;
-
         for (const order of pendingOrders) {
             try {
                 // DATAPACKS.SHOP STATUS CHECK LOGIC
@@ -226,7 +221,7 @@ async function runPendingOrderCheck() {
 
                 const statusResponse = await axios.get(RESELLER_API_BASE_URL, {
                     params: statusPayload,
-                    headers: { 'Authorization': `Bearer ${apiToken}` }
+                    headers: { 'Authorization': `Bearer ${process.env.DATA_API_SECRET}` }
                 });
 
                 const apiData = statusResponse.data;
@@ -258,19 +253,23 @@ async function runPendingOrderCheck() {
 app.set('trust proxy', 1); 
 
 const sessionSecret = process.env.SESSION_SECRET || 'fallback-secret-for-local-dev-only-12345';
+
+// 🛑 PERSISTENT SESSION STORE (CRITICAL FOR ONLINE STATUS CHECK) 🛑
+const mongoUri = process.env.MONGODB_URI;
+
 app.use(session({
     secret: sessionSecret,
     resave: false,
     saveUninitialized: false,
-    // 🛑 MongoDB Session Store Configuration
     store: MongoStore.create({
-        mongoUrl: process.env.MONGODB_URI,
+        // Must provide the MongoDB URI to the store
+        mongoUrl: mongoUri, 
         collectionName: 'sessions',
-        touchAfter: 24 * 3600 
+        touchAfter: 24 * 3600 // Update session only once every 24 hours
     }),
     cookie: { 
         secure: true, 
-        maxAge: 1000 * 60 * 60 * 24 
+        maxAge: 1000 * 60 * 60 * 24 // 24 hours
     } 
 }));
 
@@ -694,6 +693,7 @@ app.get('/api/admin/all-users-status', async (req, res) => {
 
         const registeredUsers = await User.find({}).select('username email createdAt role').lean();
 
+        // Access the raw sessions collection which is managed by MongoStore
         const sessionsCollection = mongoose.connection.db.collection('sessions');
         const rawSessions = await sessionsCollection.find({}).toArray();
 
