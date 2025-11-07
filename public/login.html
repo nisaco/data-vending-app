@@ -3,181 +3,225 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Log In - DataLink</title>
-    <!-- FAVICON LINK -->
-    <link rel="icon" type="image/png" href="apple-touch-icon.png">
+    <title>Login - Secure Client Access</title>
+    <!-- Load Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
-        /* Custom CSS for base colors and card styling (omitted for brevity) */
-        :root { --primary-color: #009879; }
-        body {
-            font-family: 'Inter', sans-serif;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            min-height: 100vh;
-            padding: 1rem;
-            background-color: #e5e7eb; 
-        }
-        /* Glassmorphism Card Styling */
-        .glass-card {
-            background: white;
-            color: #1f2937; /* Dark text */
-            border: 1px solid #d1d5db;
-            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
-            position: relative; 
-        }
-        /* Dark Mode Overrides */
-        .dark {
-            background-color: #1a1a1a; 
-        }
-        .dark .glass-card {
-            background: #282828;
-            color: #f3f4f6; /* Light text */
-            border: 1px solid #4b5563;
-            box-shadow: 0 8px 16px rgba(0, 0, 0, 0.6);
-        }
-        .dark .glass-card input {
-            background: #374151;
-            border-color: #4b5563;
-            color: #f3f4f6;
-        }
-        .glass-card input {
-            background: #f3f4f6;
-            border: 1px solid #d1d5db;
-            color: #1f2937;
-        }
-        .glass-card input:focus { border-color: var(--primary-color); outline: none; }
-        .text-primary { color: var(--primary-color); }
+        /* Professional color scheme */
+        :root { --primary: #009879; }
+        .text-primary { color: var(--primary); }
+        .bg-primary { background-color: var(--primary); }
+        .ring-primary:focus { --tw-ring-color: var(--primary); }
+        
+        /* Dark Mode Specific Styles */
+        .dark { background-color: #121212; color: #e0e0e0; }
+        .dark .bg-white { background-color: #1f1f1f; }
+        .dark .shadow-2xl { box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.4); }
+        .dark input { background-color: #374151; border-color: #4b5563; color: #e0e0e0; }
+        .dark .text-gray-800 { color: #ffffff; }
+        .dark .text-gray-700 { color: #d1d5db; }
+        .dark .text-gray-500 { color: #9ca3af; }
     </style>
 </head>
-<body>
-    <div class="glass-card w-full max-w-sm p-8 rounded-2xl text-center">
-        <!-- Theme Toggle Button -->
-        <button id="theme-toggle" class="absolute top-4 right-4 p-2 rounded-full text-gray-600 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700 transition">
-            <svg id="theme-icon" class="w-6 h-6" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg"><path d="M17.293 13.914A8.966 8.966 0 0112 18c-3.14 0-5.968-1.293-8.06-3.385A9.006 9.006 0 0012 21c5.152 0 9.428-3.791 10.378-8.586z"></path></svg>
-        </button>
+<body class="bg-gray-50 min-h-screen flex flex-col items-center justify-center font-sans p-4 transition-colors duration-300">
 
-        <h1 class="text-3xl font-extrabold mb-6 mt-4">Welcome Back</h1>
-        <form id="loginForm">
-            <div class="mb-4 text-left">
-                <label for="username" class="block mb-2 font-medium">Username</label>
-                <input type="text" id="username" required class="w-full p-3 rounded-lg transition" autocomplete="username">
+    <!-- Theme Toggle (Fixed Position) -->
+    <button id="theme-toggle" class="absolute top-4 right-4 p-2 rounded-full text-gray-500 hover:bg-gray-200 dark:text-gray-400 dark:hover:bg-gray-700 transition">
+        <!-- Moon Icon (Default Light Mode) -->
+        <svg id="theme-icon-moon" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
+        </svg>
+        <!-- Sun Icon (Hidden by Default) -->
+        <svg id="theme-icon-sun" class="h-6 w-6 hidden" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
+        </svg>
+    </button>
+
+    <!-- Main Login Card -->
+    <div class="w-full max-w-md bg-white p-8 md:p-10 rounded-xl shadow-2xl border border-gray-100 transition-colors duration-300">
+        
+        <div class="text-center mb-8">
+            <h1 class="text-4xl font-extrabold text-gray-800 tracking-tight transition-colors duration-300">
+                Client Login
+            </h1>
+            <p class="text-gray-500 mt-2 text-lg transition-colors duration-300">Access your platform dashboard.</p>
+        </div>
+
+        <form id="login-form" class="space-y-6">
+
+            <!-- Username Input -->
+            <div>
+                <label for="username" class="block text-sm font-medium text-gray-700 mb-1 transition-colors duration-300">Username</label>
+                <input type="text" id="username" name="username" required
+                       class="w-full px-4 py-3 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-primary ring-primary transition duration-150"
+                       placeholder="Enter your username">
             </div>
-            <div class="mb-4 text-left relative">
-                <label for="password" class="block mb-2 font-medium">Password</label>
-                <input type="password" id="password" required class="w-full p-3 rounded-lg transition pr-10" autocomplete="current-password">
+
+            <!-- Password Input -->
+            <div class="relative">
+                <label for="password" class="block text-sm font-medium text-gray-700 mb-1 transition-colors duration-300">Password</label>
+                <input type="password" id="password" name="password" required
+                       class="w-full pr-12 px-4 py-3 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-primary ring-primary transition duration-150"
+                       placeholder="Enter your password">
                 <!-- Show/Hide Toggle -->
-                <button type="button" id="togglePassword" class="absolute inset-y-0 right-0 flex items-center pr-3 pt-5 text-gray-500 dark:text-gray-400 focus:outline-none">
-                    <svg id="eye-icon" class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path></svg>
+                <button type="button" onclick="togglePasswordVisibility('password', this)"
+                        class="absolute inset-y-0 right-0 top-6 pt-3 pr-3 flex items-center text-gray-400 hover:text-gray-600 transition">
+                    <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                    </svg>
                 </button>
-                <p class="text-right mt-1 text-sm">
-                    <a href="forgot.html" class="text-gray-500 hover:text-red-500 dark:text-gray-400 dark:hover:text-red-300 transition duration-150">Forgot Password?</a>
-                </p>
             </div>
-            <button type="submit" class="w-full py-3 bg-primary text-white font-bold rounded-lg text-lg transition duration-300 hover:bg-secondary shadow-xl">
+
+            <!-- Forgot Password Link -->
+            <div class="flex justify-end text-sm">
+                <a href="/forgot.html" class="font-medium text-gray-500 hover:text-primary transition duration-150">
+                    Forgot Password?
+                </a>
+            </div>
+
+            <!-- Status Message Area -->
+            <div id="status-message" class="min-h-[20px] text-center font-medium text-sm">
+                <!-- Messages (success/error) will appear here -->
+            </div>
+
+            <!-- Submit Button -->
+            <button type="submit" id="login-button"
+                    class="w-full py-3 bg-primary text-white font-semibold rounded-lg shadow-md hover:bg-gray-700 transition duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary">
                 Log In
             </button>
         </form>
-        <div id="status" class="mt-4 font-semibold min-h-[20px] text-gray-700 dark:text-gray-200"></div>
-        <p class="mt-6 text-sm text-gray-700 dark:text-gray-400">
-            Don't have an account? 
-            <a href="signup.html" class="font-bold underline hover:text-primary dark:text-white">Sign Up</a>
-        </p>
+
+        <!-- Signup Link -->
+        <div class="mt-6 text-center">
+            <p class="text-sm text-gray-600 transition-colors duration-300">
+                Need access? 
+                <a href="/signup.html" class="font-medium text-primary hover:text-gray-700 transition duration-150">
+                    Register here
+                </a>
+            </p>
+        </div>
+
     </div>
+
+    <!-- JavaScript Logic -->
     <script>
-        // --- THEME LOGIC START (omitted for brevity) ---
-        const themeToggle = document.getElementById('theme-toggle');
+        // --- Password Visibility Toggle ---
+        function togglePasswordVisibility(fieldId, buttonElement) {
+            const field = document.getElementById(fieldId);
+            const isPassword = field.type === 'password';
+            field.type = isPassword ? 'text' : 'password';
+            
+            // Optional: Toggle icon appearance based on visibility state
+            // For simplicity here, we keep the eye icon but the state changes the field type.
+        }
+
+        // --- Theme Management ---
         const htmlElement = document.documentElement;
-        const themeIcon = document.getElementById('theme-icon');
+        const toggleButton = document.getElementById('theme-toggle');
+        const iconMoon = document.getElementById('theme-icon-moon');
+        const iconSun = document.getElementById('theme-icon-sun');
 
-        function updateThemeIcon(isDark) {
-            if (isDark) {
-                themeIcon.innerHTML = '<path d="M10 2a1 1 0 011 1v1a1 1 0 11-2 0V3a1 1 0 011-1zm4 8a4 4 0 11-8 0 4 4 0 018 0zm-4 7a1 1 0 011 1v1a1 1 0 11-2 0v-1a1 1 0 011-1zm6.5-6.5a1 1 0 010 1.414l-.707.707a1 1 0 11-1.414-1.414l.707-.707a1 1 0 011.414 0zm-13 0a1 1 0 011.414 0l.707.707a1 1 0 11-1.414 1.414l-.707-.707a1 1 0 010-1.414zM3 10a1 1 0 011-1h1a1 1 0 110 2H4a1 1 0 01-1-1zm14 0a1 1 0 01-1 1h-1a1 1 0 110-2h1a1 1 0 011 1z" clip-rule="evenodd" fill-rule="evenodd"></path>';
+        // Apply saved or system preference theme on load
+        function applyTheme(theme) {
+            if (theme === 'dark') {
+                htmlElement.classList.add('dark');
+                iconMoon.classList.add('hidden');
+                iconSun.classList.remove('hidden');
             } else {
-                themeIcon.innerHTML = '<path d="M17.293 13.914A8.966 8.966 0 0112 18c-3.14 0-5.968-1.293-8.06-3.385A9.006 9.006 0 0012 21c5.152 0 9.428-3.791 10.378-8.586z"></path>';
+                htmlElement.classList.remove('dark');
+                iconMoon.classList.remove('hidden');
+                iconSun.classList.add('hidden');
             }
         }
 
-        function checkInitialTheme() {
-            if (localStorage.getItem('theme') === 'dark' || (!('theme' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
-                htmlElement.classList.add('dark');
-                updateThemeIcon(true);
-            } else {
-                htmlElement.classList.remove('dark');
-                updateThemeIcon(false);
-            }
+        // Initialize theme based on localStorage or system preference
+        const savedTheme = localStorage.getItem('theme');
+        if (savedTheme) {
+            applyTheme(savedTheme);
+        } else if (window.matchMedia('(prefers-color-scheme: dark)').matches) {
+            applyTheme('dark');
+        } else {
+            applyTheme('light');
         }
 
-        themeToggle.addEventListener('click', () => {
-            if (htmlElement.classList.contains('dark')) {
-                htmlElement.classList.remove('dark');
-                localStorage.setItem('theme', 'light');
-                updateThemeIcon(false);
-            } else {
-                htmlElement.classList.add('dark');
-                localStorage.setItem('theme', 'dark');
-                updateThemeIcon(true);
-            }
-        });
-        
-        document.addEventListener('DOMContentLoaded', checkInitialTheme);
-        // --- THEME LOGIC END ---
-
-        // --- PASSWORD TOGGLE LOGIC ---
-        const passwordInput = document.getElementById('password');
-        const togglePassword = document.getElementById('togglePassword');
-        const eyeIcon = document.getElementById('eye-icon');
-        
-        togglePassword.addEventListener('click', () => {
-            const type = passwordInput.getAttribute('type') === 'password' ? 'text' : 'password';
-            passwordInput.setAttribute('type', type);
-            
-            // Change eye icon: open eye if text, closed eye if password
-            if (type === 'text') {
-                eyeIcon.setAttribute('d', 'M15 12a3 3 0 11-6 0 3 3 0 016 0z');
-            } else {
-                eyeIcon.setAttribute('d', 'M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z');
-            }
+        // Toggle theme on button click
+        toggleButton.addEventListener('click', () => {
+            const newTheme = htmlElement.classList.contains('dark') ? 'light' : 'dark';
+            localStorage.setItem('theme', newTheme);
+            applyTheme(newTheme);
         });
 
-        document.getElementById('loginForm').addEventListener('submit', async (e) => {
-            e.preventDefault();
-            const statusDiv = document.getElementById('status');
-            const [username, password] = [document.getElementById('username').value, document.getElementById('password').value];
-            
-            const button = e.target.querySelector('button');
-            button.disabled = true;
-            statusDiv.textContent = 'Logging in...';
-            statusDiv.style.color = 'orange';
-            
-            try {
-                const response = await fetch('/api/login', {
-                    method: 'POST', headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ username, password })
-                });
-                
-                const result = await response.json();
+        // --- Login Form Logic ---
+        document.addEventListener('DOMContentLoaded', () => {
+            const form = document.getElementById('login-form');
+            const statusMessage = document.getElementById('status-message');
+            const loginButton = document.getElementById('login-button');
 
-                if (response.ok) {
-                    statusDiv.textContent = 'Success! Redirecting...';
-                    statusDiv.style.color = 'green';
-                    
-                    // 🛑 FINAL FIX: Use the redirection URL sent from the server
-                    window.location.href = result.redirect; 
-                    
-                } else {
-                    statusDiv.textContent = result.message || 'Login failed. Invalid credentials.';
-                    statusDiv.style.color = 'red';
+            form.addEventListener('submit', async (e) => {
+                e.preventDefault();
+
+                const username = document.getElementById('username').value.trim();
+                const password = document.getElementById('password').value;
+
+                if (!username || !password) {
+                    setStatus('Please enter both username and password.', 'error');
+                    return;
                 }
-            } catch(err) {
-                statusDiv.textContent = 'Network error. Could not connect to server.';
-                statusDiv.style.color = 'red';
-            } finally {
-                button.disabled = false;
-                button.textContent = 'Log In';
+
+                // Prepare UI for submission
+                loginButton.disabled = true;
+                loginButton.textContent = 'Authenticating...';
+                setStatus('Verifying credentials...', 'warning');
+
+                try {
+                    const response = await fetch('/api/login', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({ username, password })
+                    });
+
+                    const data = await response.json();
+
+                    if (response.ok) {
+                        setStatus(data.message + ' Redirecting...', 'success');
+                        setTimeout(() => {
+                            // Redirect to the purchase page upon success
+                            window.location.href = data.redirect || '/purchase.html'; 
+                        }, 1000);
+                    } else {
+                        setStatus(data.message || 'Login failed. Check your username and password.', 'error');
+                    }
+
+                } catch (error) {
+                    console.error('Network or server error during login:', error);
+                    setStatus('Network error. Could not connect to the server.', 'error');
+                } finally {
+                    // Re-enable button if no redirect occurred
+                    if (loginButton.disabled) {
+                        loginButton.disabled = false;
+                        loginButton.textContent = 'Log In';
+                    }
+                }
+            });
+
+            function setStatus(message, type) {
+                statusMessage.textContent = message;
+                statusMessage.className = 'min-h-[20px] text-center font-medium text-sm mt-3 transition-colors duration-300';
+                if (type === 'error') {
+                    statusMessage.classList.add('text-red-600');
+                    statusMessage.classList.remove('text-green-600', 'text-yellow-600');
+                } else if (type === 'success') {
+                    statusMessage.classList.add('text-green-600');
+                    statusMessage.classList.remove('text-red-600', 'text-yellow-600');
+                } else if (type === 'warning') {
+                     statusMessage.classList.add('text-yellow-600');
+                     statusMessage.classList.remove('text-red-600', 'text-green-600');
+                }
             }
         });
     </script>
-
-
+</body>
+</html>
