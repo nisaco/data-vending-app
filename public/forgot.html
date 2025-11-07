@@ -1,93 +1,181 @@
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
+
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Forgot Password - DataLink</title>
+    <link rel="icon" type="image/x-icon" href="apple-touch-icon.png">
+    <title>Forgot Password - Account Recovery</title>
+    <!-- Load Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
-        :root { --primary-color: #009879; }
-        body {
-            font-family: 'Inter', sans-serif;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            min-height: 100vh;
-            padding: 1rem;
-            background-color: #e5e7eb; 
-        }
-        .glass-card {
-            background: white;
-            color: #1f2937;
-            border: 1px solid #d1d5db;
-            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
-        }
-        .dark { background-color: #1a1a1a; }
-        .dark .glass-card {
-            background: #282828;
-            color: #f3f4f6;
-            border: 1px solid #4b5563;
-            box-shadow: 0 8px 16px rgba(0, 0, 0, 0.6);
-        }
-        .dark .glass-card input {
-            background: #374151;
-            border-color: #4b5563;
-            color: #f3f4f6;
-        }
-        .glass-card input {
-            background: #f3f4f6;
-            border: 1px solid #d1d5db;
-            color: #1f2937;
-        }
-        .text-primary { color: var(--primary-color); }
+        /* Professional color scheme */
+        :root { --primary: #009879; }
+        .text-primary { color: var(--primary); }
+        .bg-primary { background-color: var(--primary); }
+        .ring-primary:focus { --tw-ring-color: var(--primary); }
+        
+        /* Dark Mode Styling */
+        .dark { background-color: #121212; color: #e0e0e0; }
+        .dark .bg-white { background-color: #1f1f1f; color: #e0e0e0; }
+        .dark .shadow-2xl { box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.4); }
+        .dark input { background-color: #374151; border-color: #4b5563; color: #e0e0e0; }
+        .dark .text-gray-800 { color: #ffffff; }
+        .dark .text-gray-700 { color: #d1d5db; }
+        .dark .text-gray-500 { color: #9ca3af; }
     </style>
 </head>
-<body class="dark:bg-[#1a1a1a]">
-    <div class="glass-card w-full max-w-sm p-8 rounded-2xl text-center">
-        <h1 class="text-2xl font-extrabold mb-4">Reset Password</h1>
-        <p class="text-sm mb-6 text-gray-600 dark:text-gray-400">Enter your email address to receive a password reset link.</p>
-        <form id="forgotForm">
-            <div class="mb-6 text-left">
-                <label for="email" class="block mb-2 font-medium">Email Address</label>
-                <input type="email" id="email" required class="w-full p-3 rounded-lg transition">
+<body class="bg-gray-50 min-h-screen flex flex-col items-center justify-center font-sans p-4 transition-colors duration-300">
+
+    <!-- Theme Toggle (Fixed Position) -->
+    <button id="theme-toggle" class="absolute top-4 right-4 p-2 rounded-full text-gray-500 hover:bg-gray-200 dark:text-gray-400 dark:hover:bg-gray-700 transition">
+        <svg id="theme-icon-moon" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
+        </svg>
+        <svg id="theme-icon-sun" class="h-6 w-6 hidden" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
+        </svg>
+    </button>
+
+    <!-- Recovery Card -->
+    <div class="w-full max-w-md bg-white p-8 md:p-10 rounded-xl shadow-2xl border border-gray-100 transition-colors duration-300">
+        
+        <div class="text-center mb-8">
+            <h1 class="text-3xl font-extrabold text-gray-800 transition-colors duration-300">
+                Password Recovery
+            </h1>
+            <p class="text-gray-500 mt-2 text-md transition-colors duration-300">
+                Enter your registered email to receive a reset link.
+            </p>
+        </div>
+
+        <form id="recovery-form" class="space-y-6">
+
+            <!-- Email Input -->
+            <div>
+                <label for="email" class="block text-sm font-medium text-gray-700 mb-1 transition-colors duration-300">Email Address</label>
+                <input type="email" id="email" name="email" required
+                       class="w-full px-4 py-3 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-primary ring-primary transition duration-150"
+                       placeholder="your.email@example.com">
             </div>
-            <button type="submit" class="w-full py-3 bg-primary text-white font-bold rounded-lg text-lg transition duration-300 hover:bg-secondary shadow-xl">
+
+            <!-- Status Message Area -->
+            <div id="status-message" class="min-h-[20px] text-center font-medium text-sm">
+                <!-- Messages (success/error) will appear here -->
+            </div>
+
+            <!-- Submit Button -->
+            <button type="submit" id="submit-button"
+                    class="w-full py-3 bg-primary text-white font-semibold rounded-lg shadow-md hover:bg-gray-700 transition duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary">
                 Send Reset Link
             </button>
         </form>
-        <div id="status" class="mt-4 font-semibold min-h-[20px] text-gray-700 dark:text-gray-200"></div>
-        <p class="mt-6 text-sm text-gray-700 dark:text-gray-400">
-            <a href="login.html" class="font-bold underline hover:text-primary dark:text-white">Back to Log In</a>
-        </p>
-    </div>
-    <script>
-        document.getElementById('forgotForm').addEventListener('submit', async (e) => {
-            e.preventDefault();
-            const statusDiv = document.getElementById('status');
-            const email = document.getElementById('email').value;
-            
-            const button = e.target.querySelector('button');
-            button.disabled = true;
-            statusDiv.textContent = 'Sending email...';
-            statusDiv.style.color = 'orange';
 
-            try {
-                const response = await fetch('/api/forgot-password', {
-                    method: 'POST', headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ email })
-                });
-                const result = await response.json();
-                
-                statusDiv.textContent = result.message;
-                statusDiv.style.color = response.ok ? 'green' : 'red';
-                
-            } catch (err) {
-                statusDiv.textContent = 'Network error. Could not connect to server.';
-                statusDiv.style.color = 'red';
-            } finally {
-                button.disabled = false;
-                button.textContent = 'Send Reset Link';
+        <!-- Back to Login Link -->
+        <div class="mt-6 text-center">
+            <a href="/login.html" class="font-medium text-gray-500 hover:text-primary transition duration-150">
+                ← Back to Login
+            </a>
+        </div>
+
+    </div>
+
+    <!-- JavaScript Logic -->
+    <script>
+        // --- Theme Management ---
+        const htmlElement = document.documentElement;
+        const toggleButton = document.getElementById('theme-toggle');
+        const iconMoon = document.getElementById('theme-icon-moon');
+        const iconSun = document.getElementById('theme-icon-sun');
+
+        // Apply theme based on stored preference or system default
+        function applyTheme(theme) {
+            if (theme === 'dark') {
+                htmlElement.classList.add('dark');
+                iconMoon.classList.add('hidden');
+                iconSun.classList.remove('hidden');
+            } else {
+                htmlElement.classList.remove('dark');
+                iconMoon.classList.remove('hidden');
+                iconSun.classList.add('hidden');
+            }
+        }
+
+        // Initialize theme on load
+        const savedTheme = localStorage.getItem('theme');
+        if (savedTheme) {
+            applyTheme(savedTheme);
+        } else if (window.matchMedia('(prefers-color-scheme: dark)').matches) {
+            applyTheme('dark');
+        } else {
+            applyTheme('light');
+        }
+
+        // Toggle theme on button click
+        toggleButton.addEventListener('click', () => {
+            const newTheme = htmlElement.classList.contains('dark') ? 'light' : 'dark';
+            localStorage.setItem('theme', newTheme);
+            applyTheme(newTheme);
+        });
+
+
+        // --- Recovery Form Logic ---
+        document.addEventListener('DOMContentLoaded', () => {
+            const form = document.getElementById('recovery-form');
+            const statusMessage = document.getElementById('status-message');
+            const submitButton = document.getElementById('submit-button');
+
+            form.addEventListener('submit', async (e) => {
+                e.preventDefault();
+
+                const email = document.getElementById('email').value.trim();
+
+                // Prepare UI for submission
+                submitButton.disabled = true;
+                submitButton.textContent = 'Sending...';
+                setStatus('Processing request...', 'warning');
+
+                try {
+                    const response = await fetch('/api/forgot-password', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({ email })
+                    });
+
+                    const data = await response.json();
+
+                    if (response.ok || response.status === 404) {
+                        // The server intentionally returns 404/200 with a vague success message 
+                        // to prevent user enumeration attacks.
+                        setStatus('If the email is registered, a password reset link has been sent.', 'success');
+                    } else {
+                        setStatus(data.message || 'Recovery failed due to a server error.', 'error');
+                    }
+
+                } catch (error) {
+                    console.error('Network or server error during recovery:', error);
+                    setStatus('Network error. Please try again.', 'error');
+                } finally {
+                    submitButton.disabled = false;
+                    submitButton.textContent = 'Send Reset Link';
+                }
+            });
+
+            function setStatus(message, type) {
+                statusMessage.textContent = message;
+                statusMessage.className = 'min-h-[20px] text-center font-medium text-sm mt-3 transition-colors duration-300';
+                if (type === 'error') {
+                    statusMessage.classList.add('text-red-600');
+                    statusMessage.classList.remove('text-green-600', 'text-yellow-600');
+                } else if (type === 'success') {
+                    statusMessage.classList.add('text-green-600');
+                    statusMessage.classList.remove('text-red-600', 'text-yellow-600');
+                } else if (type === 'warning') {
+                     statusMessage.classList.add('text-yellow-600');
+                     statusMessage.classList.remove('text-red-600', 'text-green-600');
+                }
             }
         });
     </script>
