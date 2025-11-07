@@ -3,521 +3,418 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
- <link rel="icon" type="image/x-icon" href="apple-touch-icon.png">
-   
-    <title>Admin Dashboard</title>
+    <link rel="icon" type="image/x-icon" href="apple-touch-icon.png">
+    <title>Admin Dashboard - Executive Management</title>
+    <!-- Load Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
-        :root { --primary: #009879; --secondary: #007a63; }
+        /* Professional Color Palette */
+        :root { 
+            --primary: #009879; 
+            --secondary: #007a63; 
+            --text-dark: #1f2937;
+            --text-light: #f9fafb;
+        }
         .text-primary { color: var(--primary); }
         .bg-primary { background-color: var(--primary); }
+        .hover\:bg-secondary:hover { background-color: var(--secondary); }
         
-        /* Table Status Colors */
-        .status-data_sent { background-color: #10b981; } 
-        .status-pending_review { background-color: #f59e0b; } 
-        .status-payment_success { background-color: #3b82f6; } 
-        .status-online { background-color: #10b981; } 
-        .status-offline { background-color: #9ca3af; } 
-        
-        /* Tab Styling */
-        .filter-tab {
+        /* Dashboard Card Styles */
+        .metric-card {
+            background-color: #ffffff;
+            border-radius: 0.75rem;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -2px rgba(0, 0, 0, 0.06);
             transition: all 0.2s ease-in-out;
-            padding: 8px 16px;
-            border-bottom: 2px solid transparent;
-            cursor: pointer;
-            font-weight: 500;
         }
-        .filter-tab.active {
-            color: var(--primary);
-            border-bottom: 2px solid var(--primary);
-            font-weight: 700;
+        .metric-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -4px rgba(0, 0, 0, 0.05);
         }
-        
-        /* Button styling for actions */
-        .action-btn {
-            background-color: #ef4444; 
-            color: white;
-            padding: 4px 10px;
-            border-radius: 6px;
-            font-weight: 600;
-            font-size: 0.75rem;
-            transition: background-color 0.2s;
-        }
-        .action-btn:hover {
-            background-color: #dc2626;
-        }
-        /* Custom card for stats */
-        .stat-card {
-            background-color: #f7f7f7;
-            padding: 1rem;
-            border-radius: 12px;
-            box-shadow: inset 0 1px 3px rgba(0,0,0,0.05);
-        }
-        /* Dark Mode Styling */
-        .dark { background-color: #121212; color: #e0e0e0; }
-        .dark .bg-white { background-color: #1f1f1f; color: #e0e0e0; }
-        .dark .shadow-lg { box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.5), 0 2px 4px -2px rgba(0, 0, 0, 0.3); }
-        .dark .text-gray-600, .dark .text-gray-500 { color: #b0b0b0; }
-        .dark .border-gray-100 { border-color: #374151; }
-        .dark .bg-gray-700 { background-color: #374151; }
-        .dark .divide-y { border-color: #4b5563; }
-        .dark .stat-card { background-color: #282828; }
-        .dark input { background-color: #374151; border-color: #4b5563; color: #f3f4f6; }
 
+        /* Status Pill Colors */
+        .status-data_sent, .status-topup_successful { background-color: #10b981; } 
+        .status-pending_review { background-color: #f59e0b; } 
+        .status-data_failed, .status-payment_failed { background-color: #ef4444; }
+        .status-payment_success { background-color: #3b82f6; }
+
+        /* Dark Mode Overrides */
+        .dark { background-color: #121212; color: #e0e0e0; }
+        .dark .bg-white, .dark .metric-card { background-color: #1f1f1f; border-color: #374151; }
+        .dark .text-gray-800 { color: #ffffff; }
+        .dark .text-gray-500 { color: #9ca3af; }
+        .dark .bg-gray-100 { background-color: #374151; }
+        .dark input, .dark select { background-color: #374151; border-color: #4b5563; color: #e0e0e0; }
     </style>
 </head>
-<body class="bg-gray-50 min-h-screen font-sans dark:bg-[#121212] dark:text-gray-200">
+<body class="bg-gray-50 min-h-screen font-sans transition-colors duration-300 dark:bg-[#121212] dark:text-gray-200">
+
+    <!-- Modal Backdrop (Update Status) -->
+    <div id="modal-backdrop" class="fixed inset-0 hidden items-center justify-center bg-black bg-opacity-75 z-50 opacity-0 transition-opacity duration-300">
+        <div id="status-modal" class="bg-white p-6 rounded-xl shadow-2xl w-full max-w-md transform scale-95 transition-all duration-300 dark:bg-gray-800">
+            <h3 class="text-xl font-bold text-gray-800 dark:text-white mb-4">Update Order Status</h3>
+            <div id="modal-current-order" class="text-sm text-gray-600 dark:text-gray-400 mb-4">
+                Reference: <span id="modal-order-ref" class="font-medium"></span>
+                <br> Current Status: <span id="modal-current-status" class="font-bold"></span>
+            </div>
+
+            <label for="new-status" class="block text-gray-700 dark:text-gray-300 mb-2">New Status</label>
+            <select id="new-status" class="w-full p-2 border border-gray-300 rounded-lg dark:bg-gray-700 dark:border-gray-600 dark:text-white">
+                <option value="data_sent">Data Sent (Fulfilled)</option>
+                <option value="pending_review">Pending Review</option>
+                <option value="data_failed">Data Failed</option>
+                <option value="payment_failed">Payment Failed</option>
+            </select>
+            
+            <div id="modal-status-message" class="mt-3 text-sm font-medium text-red-500"></div>
+
+            <div class="mt-6 flex justify-end space-x-3">
+                <button id="modal-cancel" type="button" class="py-2 px-4 bg-gray-200 text-gray-800 rounded-lg hover:bg-gray-300 transition dark:bg-gray-700 dark:text-white dark:hover:bg-gray-600">Cancel</button>
+                <button id="modal-update" type="button" class="py-2 px-4 bg-primary text-white rounded-lg hover:bg-secondary transition">Update</button>
+            </div>
+        </div>
+    </div>
     
-    <!-- Navbar (Minimalist for Admin View) -->
+    <!-- Navbar -->
     <nav class="bg-white shadow-lg dark:bg-[#1f1f1f]">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex justify-between items-center h-16">
-            <span class="text-xl font-bold text-primary">Admin Panel</span>
-            <div class="flex space-x-4">
-                <a href="/purchase" class="text-gray-600 hover:text-primary transition font-medium dark:text-gray-400">Client View</a>
+            <a href="/admin.html?secret=YOUR_ADMIN_SECRET" class="text-xl font-bold text-primary">Admin Control Panel</a>
+            <div class="flex space-x-4 items-center">
+                <!-- Theme Toggle -->
+                <button id="theme-toggle" class="p-2 rounded-full text-gray-500 hover:bg-gray-200 dark:text-gray-400 dark:hover:bg-gray-700 transition">
+                    <svg id="theme-icon-moon" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
+                    </svg>
+                    <svg id="theme-icon-sun" class="h-6 w-6 hidden" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
+                    </svg>
+                </button>
+                <!-- NOTE: Replace YOUR_ADMIN_SECRET -->
+                <p id="admin-key-display" class="text-xs text-gray-400 dark:text-gray-500 hidden sm:block">Key: ---</p>
+                <a href="/purchase.html" class="py-1 px-3 bg-primary text-white font-bold rounded-lg transition hover:bg-secondary">Go to Client View</a>
             </div>
         </div>
     </nav>
 
-    <!-- Main Content Card -->
+    <!-- Main Content Container -->
     <div class="container mx-auto p-4 max-w-7xl">
-        <div class="bg-white p-6 md:p-8 rounded-2xl shadow-xl mt-8 border border-gray-100 dark:bg-[#1f1f1f] dark:border-gray-700">
+        <h1 class="text-3xl font-extrabold text-gray-800 dark:text-white mt-4 mb-8">System Overview</h1>
+
+        <!-- Metrics Cards -->
+        <div id="metrics-container" class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-10">
+            <!-- Cards will be populated here -->
+            <div class="metric-card p-5 dark:border-gray-700">
+                <p class="text-sm font-medium text-gray-500 dark:text-gray-400">Total Revenue</p>
+                <p id="metric-revenue" class="text-3xl font-extrabold text-gray-800 dark:text-white mt-1">GHS 0.00</p>
+            </div>
+            <div class="metric-card p-5 dark:border-gray-700">
+                <p class="text-sm font-medium text-gray-500 dark:text-gray-400">Net Profit</p>
+                <p id="metric-profit" class="text-3xl font-extrabold text-primary mt-1">GHS 0.00</p>
+            </div>
+            <div class="metric-card p-5 dark:border-gray-700">
+                <p class="text-sm font-medium text-gray-500 dark:text-gray-400">Total Orders</p>
+                <p id="metric-orders" class="text-3xl font-extrabold text-gray-800 dark:text-white mt-1">0</p>
+            </div>
+            <div class="metric-card p-5 dark:border-gray-700">
+                <p class="text-sm font-medium text-gray-500 dark:text-gray-400">Total Users</p>
+                <p id="metric-users" class="text-3xl font-extrabold text-gray-800 dark:text-white mt-1">0</p>
+            </div>
+        </div>
+
+        <!-- Orders Table -->
+        <div class="bg-white p-6 md:p-8 rounded-2xl shadow-xl border border-gray-100 dark:bg-[#1f1f1f] dark:border-gray-700">
+            <h2 class="text-xl font-bold text-gray-800 dark:text-white mb-4 border-b pb-2">All Transactions</h2>
             
-            <h1 class="text-3xl font-extrabold text-center text-gray-800 mb-2 dark:text-white">Admin Control Panel</h1>
-            <p class="text-center text-gray-500 mb-6 dark:text-gray-400">Monitor users, track orders, and manually resolve issues.</p>
+            <div id="orders-status" class="text-center font-medium mb-4 text-gray-700 dark:text-gray-400">Loading orders...</div>
 
-            <!-- STATS BLOCK -->
-            <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-                
-                <!-- Total Clients -->
-                <div id="user-count-display" class="stat-card text-center hidden">
-                    <p class="text-sm text-gray-600 font-medium">Total Clients</p>
-                    <p id="client-count" class="text-3xl font-extrabold text-primary"></p>
-                </div>
-                
-                <!-- Total Revenue (Placeholder) -->
-                <div id="revenue-display" class="stat-card text-center text-gray-400 font-medium flex items-center justify-center">
-                    (Metrics Removed)
-                </div>
-
-                <!-- Total Profit (Placeholder) -->
-                <div id="profit-display" class="stat-card text-center text-gray-400 font-medium flex items-center justify-center">
-                    (Metrics Removed)
-                </div>
-                
-                <!-- Active Sessions -->
-                <div class="stat-card">
-                    <p class="text-sm text-gray-600 font-medium mb-2">Active Sessions</p>
-                    <p id="active-count" class="text-3xl font-extrabold text-blue-600 mb-2">0</p>
-                    <div id="active-users-list" class="flex flex-wrap gap-2 text-xs text-white">
-                        <span class="text-gray-500 text-xs italic">Enter secret to view.</span>
-                    </div>
-                </div>
-
-            </div>
-            <!-- END STATS BLOCK -->
-
-            <div class="flex flex-col sm:flex-row gap-3 mb-6 items-center justify-center">
-                <input type="password" id="adminSecret" placeholder="Enter Admin Secret" class="w-full sm:w-64 p-3 border border-gray-300 rounded-lg focus:ring-primary focus:border-primary dark:bg-gray-700 dark:border-gray-600 dark:text-white">
-                <button id="fetchOrdersBtn" class="w-full sm:w-auto py-3 px-6 bg-primary text-white font-bold rounded-lg hover:bg-secondary transition">
-                    Fetch Orders & Clients
-                </button>
-            </div>
-            
-            <!-- USER MANAGEMENT TABLE -->
-            <h2 class="text-xl font-bold text-gray-800 mt-8 mb-4 border-b pb-2 dark:text-white">Client User List</h2>
-            <div id="user-list-status" class="text-center font-medium mb-4 text-gray-700 dark:text-gray-400">Enter secret to load user data.</div>
-
-            <div class="overflow-x-auto rounded-xl border border-gray-200 shadow-inner mb-8 dark:border-gray-700">
-                <table class="w-full text-sm text-left text-gray-500 dark:text-gray-400">
-                    <thead class="text-xs text-white uppercase bg-gray-700">
-                        <tr>
-                            <th scope="col" class="py-3 px-6 rounded-tl-xl">Username</th>
-                            <th scope="col" class="py-3 px-6">Email</th>
-                            <th scope="col" class="py-3 px-6">Signed Up</th>
-                            <th scope="col" class="py-3 px-6">Status</th>
-                            <th scope="col" class="py-3 px-6 rounded-tr-xl">Action</th>
-                        </tr>
-                    </thead>
-                    <tbody id="userTableBody" class="bg-white divide-y divide-gray-100 dark:bg-[#1f1f1f] dark:divide-gray-700">
-                        <tr><td colspan="5" class="py-4 text-center text-gray-400">User data will appear here.</td></tr>
-                    </tbody>
-                </table>
-            </div>
-
-            <!-- ORDER MANAGEMENT TABLE -->
-            <h2 class="text-xl font-bold text-gray-800 mt-8 mb-4 border-b pb-2 dark:text-white">Order History</h2>
-
-            <!-- Network Filters -->
-            <div id="network-filters" class="flex justify-center space-x-4 mb-6 border-b border-gray-200 text-gray-600 dark:border-gray-700 dark:text-gray-400">
-                <div class="filter-tab active" data-network="All">All Orders</div>
-                <div class="filter-tab" data-network="MTN">MTN</div>
-                <div class="filter-tab" data-network="AirtelTigo">AirtelTigo</div>
-                <div class="filter-tab" data-network="Telecel">Telecel</div>
-            </div>
-
-            <div id="status" class="text-center font-medium mb-4 text-gray-700 dark:text-gray-400">Click the button above to load orders.</div>
-            
+            <!-- Responsive Table Container -->
             <div class="overflow-x-auto rounded-xl border border-gray-200 shadow-inner dark:border-gray-700">
                 <table class="w-full text-sm text-left text-gray-500 dark:text-gray-400">
                     <thead class="text-xs text-white uppercase bg-primary">
                         <tr>
-                            <th scope="col" class="py-3 px-6 rounded-tl-xl">ID</th>
-                            <th scope="col" class="py-3 px-6">Username</th>
-                            <th scope="col" class="py-3 px-6">Date</th>
+                            <th scope="col" class="py-3 px-6 rounded-tl-xl">Time</th>
+                            <th scope="col" class="py-3 px-6">User</th>
                             <th scope="col" class="py-3 px-6">Phone</th>
-                            <th scope="col" class="py-3 px-6">Plan</th>
-                            <th scope="col" class="py-3 px-6">Amount</th>
+                            <th scope="col" class="py-3 px-6">Item / Network</th>
+                            <th scope="col" class="py-3 px-6">Amount (GHS)</th>
                             <th scope="col" class="py-3 px-6">Status</th>
-                            <th scope="col" class="py-3 px-6 rounded-tr-xl">Action</th>
+                            <th scope="col" class="py-3 px-6 rounded-tr-xl">Actions</th>
                         </tr>
                     </thead>
                     <tbody id="ordersTableBody" class="bg-white divide-y divide-gray-100 dark:bg-[#1f1f1f] dark:divide-gray-700">
-                        <tr><td colspan="8" class="py-4 text-center text-gray-400">Order history will appear here.</td></tr>
+                        <!-- Order rows will be inserted here by JavaScript -->
                     </tbody>
                 </table>
             </div>
-
         </div>
     </div>
     
     <script>
-        // CRITICAL FIX: Date formatter to prevent "Invalid Date" errors
+        // --- GLOBAL STATE & CONSTANTS ---
+        let adminSecret = '';
+        let allOrders = [];
+        const statusMap = {
+            'data_sent': 'Data Sent',
+            'pending_review': 'Pending Review',
+            'data_failed': 'Data Failed',
+            'topup_successful': 'Top Up Success',
+            'payment_success': 'Payment Success',
+            'payment_failed': 'Payment Failed'
+        };
+
+        // --- DOM Elements ---
+        const ordersTableBody = document.getElementById('ordersTableBody');
+        const ordersStatusDiv = document.getElementById('orders-status');
+        const metrics = {
+            revenue: document.getElementById('metric-revenue'),
+            profit: document.getElementById('metric-profit'),
+            orders: document.getElementById('metric-orders'),
+            users: document.getElementById('metric-users'),
+        };
+        const modalBackdrop = document.getElementById('modal-backdrop');
+        const modalStatusMessage = document.getElementById('modal-status-message');
+        
+        // --- THEME LOGIC (Identical to Login/Signup) ---
+        const htmlElement = document.documentElement;
+        const toggleButton = document.getElementById('theme-toggle');
+        const iconMoon = document.getElementById('theme-icon-moon');
+        const iconSun = document.getElementById('theme-icon-sun');
+
+        function applyTheme(theme) {
+            if (theme === 'dark') {
+                htmlElement.classList.add('dark');
+                iconMoon.classList.add('hidden');
+                iconSun.classList.remove('hidden');
+            } else {
+                htmlElement.classList.remove('dark');
+                iconMoon.classList.remove('hidden');
+                iconSun.classList.add('hidden');
+            }
+        }
+
+        const savedTheme = localStorage.getItem('theme');
+        if (savedTheme) {
+            applyTheme(savedTheme);
+        } else if (window.matchMedia('(prefers-color-scheme: dark)').matches) {
+            applyTheme('dark');
+        } else {
+            applyTheme('light');
+        }
+
+        toggleButton.addEventListener('click', () => {
+            const newTheme = htmlElement.classList.contains('dark') ? 'light' : 'dark';
+            localStorage.setItem('theme', newTheme);
+            applyTheme(newTheme);
+        });
+        
+        // --- UTILITY FUNCTIONS ---
         function safeDateFormatter(isoString) {
             if (!isoString) return 'N/A';
             try {
-                // Ensure the date is correctly parsed
                 const date = new Date(isoString); 
-                if (isNaN(date.getTime())) {
-                    return 'Invalid Data'; // Return specific error if parsing failed
-                }
-                
                 return date.toLocaleString('en-GB', { 
                     year: 'numeric', month: 'short', day: 'numeric', 
                     hour: '2-digit', minute: '2-digit' 
                 });
             } catch (e) {
-                return 'Invalid Data';
+                return 'Invalid Date';
             }
         }
-        
-        let adminOrders = []; 
-        const statusDiv = document.getElementById('status');
-        const ordersTableBody = document.getElementById('ordersTableBody');
-        const userTableBody = document.getElementById('userTableBody');
-        const adminSecretInput = document.getElementById('adminSecret');
-        const filterContainer = document.getElementById('network-filters');
-        const userCountDisplay = document.getElementById('user-count-display');
-        const clientCountElement = document.getElementById('client-count');
-        const activeUsersList = document.getElementById('active-users-list');
-        const activeCountElement = document.getElementById('active-count');
-        const userListStatus = document.getElementById('user-list-status');
-        const fetchOrdersBtn = document.getElementById('fetchOrdersBtn');
 
-        
-        // Helper function to show generic loading state
-        function showLoading() {
-            userTableBody.innerHTML = '<tr><td colspan="5" class="py-4 text-center text-blue-500 font-medium">Loading user data...</td></tr>';
-            activeUsersList.innerHTML = '<span class="text-gray-500 text-xs italic">Loading...</span>';
-            ordersTableBody.innerHTML = '<tr><td colspan="8" class="py-4 text-center text-blue-500 font-medium">Loading orders...</td></tr>';
-        }
+        // --- DATA FETCHING ---
+        async function fetchMetrics() {
+            try {
+                const response = await fetch(`/api/admin/metrics?secret=${adminSecret}`);
+                const userCountResponse = await fetch(`/api/admin/user-count?secret=${adminSecret}`);
+                
+                if (response.status === 403 || userCountResponse.status === 403) {
+                    ordersStatusDiv.textContent = 'ERROR: Invalid Admin Secret.';
+                    return false;
+                }
+                if (!response.ok || !userCountResponse.ok) throw new Error('Failed to fetch metrics data.');
 
-        // --- RENDER FUNCTIONS ---
-        function renderUserList(users) {
-            userTableBody.innerHTML = '';
-            userListStatus.textContent = '';
+                const metricsData = await response.json();
+                const userData = await userCountResponse.json();
 
-            if (users.length === 0) {
-                userListStatus.textContent = 'No registered users found.';
-                return;
+                metrics.revenue.textContent = `GHS ${parseFloat(metricsData.revenue).toFixed(2)}`;
+                metrics.profit.textContent = `GHS ${parseFloat(metricsData.netProfit).toFixed(2)}`;
+                metrics.orders.textContent = metricsData.totalOrders.toLocaleString();
+                metrics.users.textContent = userData.count.toLocaleString();
+                return true;
+            } catch (error) {
+                console.error('Metrics fetch error:', error);
+                metrics.revenue.textContent = 'Error';
+                return false;
             }
-
-            users.forEach(user => {
-                const row = userTableBody.insertRow();
-                const statusText = user.isOnline ? 'Online' : 'Offline';
-                const statusClass = user.isOnline ? 'status-online' : 'status-offline';
-
-                row.className = 'hover:bg-gray-50 transition duration-150 dark:hover:bg-gray-800';
-
-                row.innerHTML = `
-                    <td class="py-4 px-6 font-semibold text-gray-900 dark:text-white">${user.username}</td>
-                    <td class="py-4 px-6 dark:text-gray-400">${user.email}</td>
-                    <td class="py-4 px-6 dark:text-gray-400">${safeDateFormatter(user.signedUp)}</td>
-                    <td class="py-4 px-6">
-                        <span class="px-3 py-1 text-white text-xs font-bold uppercase rounded-full ${statusClass}">
-                            ${statusText}
-                        </span>
-                    </td>
-                    <td class="py-4 px-6">
-                        <button class="delete-btn bg-red-500 hover:bg-red-700 text-white p-1.5 rounded-md text-xs" data-user-id="${user._id}">
-                            Delete
-                        </button>
-                    </td>
-                `;
-            });
         }
 
+        async function fetchAllOrders() {
+            ordersStatusDiv.textContent = 'Loading orders...';
+            ordersTableBody.innerHTML = '';
+            try {
+                const response = await fetch(`/api/get-all-orders?secret=${adminSecret}`);
+                
+                if (response.status === 403) {
+                    ordersStatusDiv.textContent = 'ERROR: Unauthorized Access.';
+                    return;
+                }
+                if (!response.ok) throw new Error('Could not fetch all orders.');
+                
+                const data = await response.json();
+                allOrders = data.orders || [];
+                renderOrders(allOrders);
+
+            } catch (error) {
+                ordersStatusDiv.textContent = `Error fetching orders: ${error.message}`;
+            }
+        }
+
+        // --- RENDERING ---
         function renderOrders(orders) {
             ordersTableBody.innerHTML = '';
             if (orders.length === 0) {
-                statusDiv.textContent = "No orders found for this filter.";
-                statusDiv.style.color = 'black';
+                ordersStatusDiv.textContent = "No transactions found.";
                 return;
             }
 
-            statusDiv.textContent = `Displaying ${orders.length} orders.`;
-            statusDiv.style.color = 'green';
+            ordersStatusDiv.textContent = ''; 
             
             orders.forEach(order => {
                 const row = ordersTableBody.insertRow();
-                const statusText = order.status.replace(/_/g, ' '); 
+                const statusText = statusMap[order.status] || order.status;
                 const statusClass = `status-${order.status}`;
-                
-                const actionButton = order.status === 'pending_review' ? 
-                    `<button class="action-btn" data-id="${order.id}">Mark Sent</button>` : '';
-                
-                // CRITICAL FIX: Ensure phone number is displayed correctly, even if null
-                const displayPhone = order.network === 'WALLET' ? 'N/A (Deposit)' : (order.phone_number || 'N/A');
+                const amountSign = (order.dataPlan === 'WALLET TOP-UP') ? '+' : '-';
+                const amountColor = (order.dataPlan === 'WALLET TOP-UP') ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400';
 
                 row.className = 'hover:bg-gray-50 transition duration-150 dark:hover:bg-gray-800';
 
                 row.innerHTML = `
-                    <td class="py-4 px-6 font-mono text-xs">${order.id.substring(0, 8)}...</td>
-                    <td class="py-4 px-6 font-medium text-gray-900 dark:text-white">${order.username}</td>
-                    <td class="py-4 px-6 dark:text-gray-400">${safeDateFormatter(order.created_at)}</td>
-                    <td class="py-4 px-6 dark:text-gray-400">${displayPhone}</td>
-                    <td class="py-4 px-6 dark:text-gray-400">${order.data_plan}</td>
-                    <td class="py-4 px-6 text-gray-800 font-semibold dark:text-white">${order.amount.toFixed(2)}</td>
+                    <td class="py-4 px-6 dark:text-gray-400 text-xs">${safeDateFormatter(order.created_at)}</td>
+                    <td class="py-4 px-6 font-medium text-gray-800 dark:text-gray-300">${order.username || 'N/A'}</td>
+                    <td class="py-4 px-6 dark:text-gray-400 text-xs">${order.phone_number || 'N/A'}</td>
+                    <td class="py-4 px-6 dark:text-gray-400 text-xs">${order.dataPlan} (${order.network})</td>
+                    <td class="py-4 px-6 font-semibold ${amountColor}">
+                        ${amountSign} GHS ${order.amount.toFixed(2)}
+                    </td>
                     <td class="py-4 px-6">
                         <span class="px-3 py-1 text-white text-xs font-bold uppercase rounded-full ${statusClass}">
                             ${statusText}
                         </span>
                     </td>
-                    <td class="py-4 px-6">${actionButton}</td>
+                    <td class="py-4 px-6">
+                        ${order.status === 'pending_review' ? 
+                            `<button data-id="${order.id}" data-ref="${order.reference}" data-status="${order.status}" 
+                             class="open-modal-btn text-white bg-blue-600 hover:bg-blue-700 text-xs font-medium py-1 px-3 rounded transition">
+                             Update
+                             </button>` : 'N/A'}
+                    </td>
                 `;
             });
-        }
-        
-        function filterAndRenderOrders(network) {
-            let filtered = adminOrders;
-            if (network !== 'All') {
-                filtered = adminOrders.filter(order => order.network === network || order.network === 'WALLET');
-            }
-            renderOrders(filtered);
+
+            // Re-attach modal listeners after rendering
+            document.querySelectorAll('.open-modal-btn').forEach(btn => {
+                btn.addEventListener('click', openUpdateModal);
+            });
         }
 
-        // --- FETCH USER MANAGEMENT DATA (Auto-Run) ---
-        async function fetchUserManagementData(secret) {
-            userListStatus.textContent = 'Loading user data...';
-            try {
-                // Show loading state
-                userTableBody.innerHTML = '<tr><td colspan="5" class="py-4 text-center text-blue-500 font-medium">Loading user data...</td></tr>';
+        // --- MODAL & ACTION LOGIC ---
+        let currentOrderId = null;
+        const modalOrderRef = document.getElementById('modal-order-ref');
+        const modalCurrentStatus = document.getElementById('modal-current-status');
+        const modalUpdateBtn = document.getElementById('modal-update');
+        const modalCancelBtn = document.getElementById('modal-cancel');
+        const modalNewStatus = document.getElementById('new-status');
 
-                const response = await fetch(`/api/admin/all-users-status?secret=${secret}`);
-                if (response.status === 403) throw new Error('Authorization Failed. Check Admin Secret.');
-                if (!response.ok) throw new Error('Failed to fetch user list.');
-                
-                const { users } = await response.json();
-                renderUserList(users);
-                
-                // Update Stat Cards
-                const activeCount = users.filter(u => u.isOnline).length;
-                clientCountElement.textContent = users.length;
-                activeCountElement.textContent = activeCount;
-                userCountDisplay.classList.remove('hidden');
 
-                // Render active users in the small box
-                const activeUsersHtml = users.filter(u => u.isOnline).map(user => {
-                    return `<span class="bg-primary px-3 py-1 rounded-full shadow-sm text-xs font-semibold text-white">${user.username}</span>`;
-                }).join('');
-
-                activeUsersList.innerHTML = activeUsersHtml || '<span class="text-gray-500 text-xs italic">None.</span>';
-                
-            } catch (error) {
-                userListStatus.textContent = `Error loading users: ${error.message}`;
-                userListStatus.style.color = 'red';
-                clientCountElement.textContent = '0';
-                activeCountElement.textContent = '0';
-                userTableBody.innerHTML = '<tr><td colspan="5" class="py-4 text-center text-red-400">Error fetching user data.</td></tr>';
-            }
-        }
-        
-        // --- FETCH PROFIT METRICS ---
-        async function fetchMetricsAndRender(secret) {
-            try {
-                const response = await fetch(`/api/admin/metrics?secret=${secret}`);
-                if (response.ok) {
-                    const data = await response.json();
-                    
-                    document.getElementById('revenue-display').classList.remove('hidden');
-                    document.getElementById('profit-display').classList.remove('hidden');
-
-                    document.getElementById('total-revenue').textContent = data.revenue;
-                    document.getElementById('net-profit').textContent = data.netProfit;
-                }
-            } catch (error) {
-                console.error("Failed to load metrics.");
-            }
+        function openUpdateModal(event) {
+            const button = event.target;
+            currentOrderId = button.dataset.id;
+            
+            modalOrderRef.textContent = button.dataset.ref;
+            modalCurrentStatus.textContent = statusMap[button.dataset.status] || button.dataset.status;
+            modalNewStatus.value = 'data_sent'; // Default selection
+            modalStatusMessage.textContent = ''; // Clear previous message
+            
+            modalBackdrop.style.display = 'flex';
+            setTimeout(() => { modalBackdrop.style.opacity = 1; }, 10);
         }
 
+        function closeModal() {
+            modalBackdrop.style.opacity = 0;
+            currentOrderId = null;
+            setTimeout(() => { modalBackdrop.style.display = 'none'; }, 300);
+        }
 
-        // --- MAIN FETCH FUNCTION ---
-        
-        // 1. Auto-fetch User Stats on Key Input (This will now run reliably)
-        adminSecretInput.addEventListener('input', () => {
-            const secret = adminSecretInput.value.trim();
-            if (secret.length > 10) { // Check for minimum secret length
-                fetchUserManagementData(secret);
-            } else {
-                userListStatus.textContent = 'Enter secret to load user data.';
-                userListStatus.style.color = 'black';
-            }
-        });
-
-        // 2. Button Click to Fetch Orders/Metrics
-        fetchOrdersBtn.addEventListener('click', async () => {
-            const secret = adminSecretInput.value.trim();
-            if (!secret) { 
-                statusDiv.textContent = 'Please enter the admin secret first.'; 
-                statusDiv.style.color = 'red'; 
-                return; 
-            }
+        async function updateOrderStatus() {
+            if (!currentOrderId) return;
             
-            // Set loading state on button
-            fetchOrdersBtn.disabled = true;
-            fetchOrdersBtn.textContent = 'Loading...';
-            statusDiv.textContent = 'Fetching all data sets...';
-
-            // 1. Fetch User Data (Sequential: required for Auth/Stats)
-            await fetchUserManagementData(secret); 
-            
-            // 2. Fetch Metrics
-            await fetchMetricsAndRender(secret);
-            
-            // 3. Fetch Orders
-            statusDiv.textContent = 'Fetching order history...';
-            ordersTableBody.innerHTML = '<tr><td colspan="8" class="py-4 text-center text-blue-500 font-medium">Loading orders...</td></tr>';
-            
-            try {
-                const response = await fetch(`/api/get-all-orders?secret=${secret}`);
-                
-                if (response.status === 403) throw new Error('Authorization Failed. Check Admin Secret.');
-                if (response.status === 503) throw new Error('Database Not Ready. Try again in 10 seconds.');
-                if (!response.ok) throw new Error('Server error while fetching orders.');
-                
-                const data = await response.json();
-                adminOrders = data.orders || [];
-
-                if (adminOrders.length === 0) { 
-                    statusDiv.textContent = 'No orders found.';
-                    statusDiv.style.color = 'black';
-                }
-                
-                filterAndRenderOrders('All');
-
-            } catch (error) {
-                statusDiv.textContent = `Error: ${error.message}`;
-                statusDiv.style.color = 'red';
-                ordersTableBody.innerHTML = '<tr><td colspan="8" class="py-4 text-center text-red-400">Failed to load order history.</td></tr>';
-            } finally {
-                fetchOrdersBtn.disabled = false;
-                fetchOrdersBtn.textContent = 'Fetch Orders & Clients';
-            }
-        });
-        
-        // --- FUNCTION TO HANDLE MARK SENT ACTION ---
-        async function markOrderSent(orderId, button) {
-            const secret = adminSecretInput.value; // Read secret directly from input
-            if (!secret) { statusDiv.textContent = 'Admin secret missing.'; statusDiv.style.color = 'red'; return; }
-            
-            button.textContent = 'Processing...';
-            button.disabled = true;
+            const newStatus = modalNewStatus.value;
+            modalUpdateBtn.disabled = true;
+            modalUpdateBtn.textContent = 'Saving...';
+            modalStatusMessage.textContent = 'Updating status...';
+            modalStatusMessage.classList.remove('text-red-500');
+            modalStatusMessage.classList.add('text-yellow-600');
 
             try {
                 const response = await fetch('/api/admin/update-order', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ 
-                        orderId: orderId, 
-                        newStatus: 'data_sent', 
-                        adminSecret: secret 
+                        orderId: currentOrderId, 
+                        newStatus: newStatus,
+                        adminSecret: adminSecret 
                     })
                 });
 
-                const result = await response.json();
+                const data = await response.json();
+
                 if (response.ok) {
-                    const index = adminOrders.findIndex(order => order.id === orderId);
-                    if (index !== -1) {
-                        adminOrders[index].status = 'data_sent';
-                    }
-                    statusDiv.textContent = result.message;
-                    statusDiv.style.color = 'green';
-                    
-                    const activeNetwork = filterContainer.querySelector('.filter-tab.active').dataset.network;
-                    filterAndRenderOrders(activeNetwork);
+                    modalStatusMessage.textContent = data.message;
+                    modalStatusMessage.classList.remove('text-yellow-600');
+                    modalStatusMessage.classList.add('text-green-600');
+                    // Refresh data after successful update
+                    setTimeout(() => {
+                        closeModal();
+                        fetchAllOrders(); 
+                    }, 1000);
                 } else {
-                    throw new Error(result.error || result.message || 'Failed to update status.');
+                    modalStatusMessage.textContent = data.error || data.message || 'Update failed.';
+                    modalStatusMessage.classList.remove('text-yellow-600');
+                    modalStatusMessage.classList.add('text-red-500');
                 }
 
             } catch (error) {
-                statusDiv.textContent = `Error updating order ${orderId}: ${error.message}`;
-                statusDiv.style.color = 'red';
-                button.textContent = 'Error';
-                button.disabled = false;
+                modalStatusMessage.textContent = 'Network error during update.';
+                modalStatusMessage.classList.remove('text-yellow-600');
+                modalStatusMessage.classList.add('text-red-500');
+            } finally {
+                modalUpdateBtn.disabled = false;
+                modalUpdateBtn.textContent = 'Update';
             }
         }
         
-        // --- FUNCTION TO HANDLE DELETE CLIENT ACTION ---
-        userTableBody.addEventListener('click', async (e) => {
-            if (e.target.classList.contains('delete-btn')) {
-                const userId = e.target.dataset.userId;
-                const secret = adminSecretInput.value; // Read secret directly from input
-
-                if (!confirm(`Are you sure you want to permanently delete user ${userId.substring(0, 8)}...? This will delete ALL their orders and data!`)) {
-                    return;
-                }
-                
-                e.target.textContent = 'Deleting...';
-                e.target.disabled = true;
-
-                try {
-                    const response = await fetch('/api/admin/delete-user', {
-                        method: 'DELETE',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ userId, adminSecret: secret })
-                    });
-                    
-                    const result = await response.json();
-                    if (response.ok) {
-                        userListStatus.textContent = result.message;
-                        userListStatus.style.color = 'green';
-                        fetchUserManagementData(secret); 
-                    } else {
-                        throw new Error(result.error || 'Failed to delete user.');
-                    }
-                } catch (error) {
-                    userListStatus.textContent = `Delete Error: ${error.message}`;
-                    userListStatus.style.color = 'red';
-                    e.target.textContent = 'Failed';
-                }
+        // --- INITIALIZATION ---
+        document.addEventListener('DOMContentLoaded', async () => {
+            // 1. Get Admin Secret from URL
+            const urlParams = new URLSearchParams(window.location.search);
+            adminSecret = urlParams.get('secret');
+            
+            if (!adminSecret) {
+                ordersStatusDiv.textContent = 'Access Denied: Admin Secret required in URL.';
+                return;
             }
-        });
 
+            // Display a truncated version of the key
+            document.getElementById('admin-key-display').textContent = `Key: ...${adminSecret.slice(-4)}`;
 
-        // --- EVENT LISTENERS ---
-        ordersTableBody.addEventListener('click', (e) => {
-            if (e.target.classList.contains('action-btn')) {
-                const orderId = e.target.dataset.id;
-                markOrderSent(orderId, e.target);
+            // 2. Fetch all necessary data
+            const metricsReady = await fetchMetrics();
+            if (metricsReady) {
+                await fetchAllOrders();
             }
-        });
-        
-        filterContainer.addEventListener('click', (e) => {
-            const target = e.target.closest('.filter-tab');
-            if (target) {
-                document.querySelectorAll('.filter-tab').forEach(tab => tab.classList.remove('active'));
-                target.classList.add('active');
-                filterAndRenderOrders(target.dataset.network);
-            }
+
+            // 3. Attach Modal Listeners
+            modalUpdateBtn.addEventListener('click', updateOrderStatus);
+            modalCancelBtn.addEventListener('click', closeModal);
         });
     </script>
 </body>
