@@ -254,22 +254,22 @@ app.set('trust proxy', 1);
 
 const sessionSecret = process.env.SESSION_SECRET || 'fallback-secret-for-local-dev-only-12345';
 
-// 🛑 PERSISTENT SESSION STORE (CRITICAL FOR ONLINE STATUS CHECK) 🛑
-const mongoUri = process.env.MONGODB_URI;
+// 🛑 CRITICAL FIX: Use MONGO_URI from the Render Environment 🛑
+const mongoUri = process.env.MONGO_URI;
 
 app.use(session({
     secret: sessionSecret,
     resave: false,
     saveUninitialized: false,
     store: MongoStore.create({
-        // Must provide the MongoDB URI to the store
+        // PASS MONGO_URI HERE
         mongoUrl: mongoUri, 
         collectionName: 'sessions',
-        touchAfter: 24 * 3600 // Update session only once every 24 hours
+        touchAfter: 24 * 3600 
     }),
     cookie: { 
         secure: true, 
-        maxAge: 1000 * 60 * 60 * 24 // 24 hours
+        maxAge: 1000 * 60 * 60 * 24 
     } 
 }));
 
