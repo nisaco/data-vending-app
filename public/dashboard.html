@@ -4,8 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link rel="icon" type="image/x-icon" href="apple-touch-icon.png">
-    
-    <title>My Dashboard - AJENTERPRISE</title>
+    <title>My Dashboard - DataLink</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         /* Define primary colors */
@@ -24,7 +23,7 @@
         .dark .bg-gray-700 { background-color: #374151; }
         .dark .divide-y { border-color: #4b5563; }
         .dark input { background-color: #374151; border-color: #4b5563; color: #f3f4f6; }
-        .dark .bg-primary { background-color: #007a63; } /* Slightly darker primary for contrast */
+        .dark .bg-primary { background-color: #007a63; } 
         .dark .hover\:bg-secondary:hover { background-color: #005f4c; } 
         
         /* Table Status Colors */
@@ -68,7 +67,7 @@
             <input type="number" id="modal-topup-amount" min="6.00" step="0.50" placeholder="e.g., 10.00" value="6.00"
                    class="w-full p-2 border border-gray-300 rounded-lg text-gray-800 focus:ring-primary focus:border-primary dark:bg-gray-700 dark:border-gray-600 dark:text-white">
             <div class="mt-4 flex justify-end space-x-3">
-                <button id="modal-cancel" type="button" class="py-2 px-4 bg-gray-200 text-gray-800 rounded-lg hover:bg-gray-300 transition dark:bg-gray-700 dark:text-white dark:hover:bg-gray-600">Cancel</button>
+                <button id="modal-cancel" type="button" class="py-2 px-4 bg-gray-200 text-gray-800 rounded-lg hover:bg-gray-300 transition">Cancel</button>
                 <button id="modal-pay" type="button" class="py-2 px-4 bg-primary text-white rounded-lg hover:bg-secondary transition">Pay</button>
             </div>
         </div>
@@ -129,7 +128,6 @@
             <h2 class="text-xl font-bold text-gray-800 dark:text-white mb-4 border-b pb-2">Recent Activity Log</h2>
 
             <!-- Order History Filters -->
-            <!-- 🛑 CRITICAL: This is the filtering section requested by the user 🛑 -->
             <div id="network-filters" class="flex justify-center space-x-4 mb-6 border-b border-gray-200 text-gray-600 dark:border-gray-700 dark:text-gray-400">
                 <div class="filter-tab active" data-network="All">All Activity</div>
                 <div class="filter-tab" data-network="MTN">MTN</div>
@@ -173,49 +171,41 @@
     function updateThemeIcon(isDark) {
         if (isDark) {
             htmlElement.classList.add('dark');
-            // Hide moon icon (path for dark mode detection)
-            document.querySelector('#theme-icon path:nth-child(1)').setAttribute('d', 'M10 2a1 1 0 011 1v1a1 1 0 11-2 0V3a1 1 0 011-1zm4 8a4 4 0 11-8 0 4 4 0 018 0zm-4 7a1 1 0 011 1v1a1 1 0 11-2 0v-1a1 1 0 011-1zm6.5-6.5a1 1 0 010 1.414l-.707.707a1 1 0 11-1.414-1.414l.707-.707a1 1 0 011.414 0zm-13 0a1 1 0 011.414 0l.707.707a1 1 0 11-1.414 1.414l-.707-.707a1 1 0 010-1.414zM3 10a1 1 0 011-1h1a1 1 0 110 2H4a1 1 0 01-1-1zm14 0a1 1 0 01-1 1h-1a1 1 0 110-2h1a1 1 0 011 1z');
+            iconMoon.classList.add('hidden');
+            iconSun.classList.remove('hidden');
         } else {
             htmlElement.classList.remove('dark');
-            // Show moon icon (path for light mode detection)
-            document.querySelector('#theme-icon path:nth-child(1)').setAttribute('d', 'M17.293 13.914A8.966 8.966 0 0112 18c-3.14 0-5.968-1.293-8.06-3.385A9.006 9.006 0 0012 21c5.152 0 9.428-3.791 10.378-8.586z');
+            iconMoon.classList.remove('hidden');
+            iconSun.classList.add('hidden');
         }
     }
-    
+
     // Initial Theme Setup
     const savedTheme = localStorage.getItem('theme');
     if (savedTheme === 'dark' || (!savedTheme && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
         htmlElement.classList.add('dark');
-        // Initial icon update handled by mutation below
     } else {
         htmlElement.classList.remove('dark');
     }
 
-    // Icon handling needs to be done slightly differently since we only have one SVG path in the HTML
-    // For simplicity and stability, we rely on the CSS/JS class toggle.
+    // Icon handling
+    document.addEventListener('DOMContentLoaded', () => {
+        const isDark = htmlElement.classList.contains('dark');
+        if (isDark) {
+            document.getElementById('theme-icon-moon').classList.add('hidden');
+            document.getElementById('theme-icon-sun').classList.remove('hidden');
+        } else {
+            document.getElementById('theme-icon-moon').classList.remove('hidden');
+            document.getElementById('theme-icon-sun').classList.add('hidden');
+        }
+    });
+
     themeToggle.addEventListener('click', () => {
         const newTheme = htmlElement.classList.contains('dark') ? 'light' : 'dark';
         localStorage.setItem('theme', newTheme);
-        applyTheme(newTheme);
+        updateThemeIcon(newTheme === 'dark');
     });
     
-    // Correcting the initial visual state of the toggle icon dynamically (using the provided SVG structure)
-    document.addEventListener('DOMContentLoaded', () => {
-        const isDark = htmlElement.classList.contains('dark');
-        const iconSvg = themeToggle.querySelector('svg');
-
-        iconSvg.innerHTML = ''; // Clear existing path structure
-        if (isDark) {
-            // Sun icon structure
-            iconSvg.innerHTML = '<path stroke-linecap="round" stroke-linejoin="round" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />';
-        } else {
-            // Moon icon structure
-            iconSvg.innerHTML = '<path stroke-linecap="round" stroke-linejoin="round" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />';
-        }
-    });
-    // --- THEME LOGIC END ---
-
-
     // CRITICAL FIX: Date formatter 
     function safeDateFormatter(isoString) {
         if (!isoString) return 'N/A';
@@ -236,7 +226,7 @@
     let userOrders = []; 
     let userEmail = null; 
     const MIN_TOPUP_GHS = 6.00;
-    const PAYSTACK_PUBLIC_KEY = 'pk_live_3be2ebebc6edd6fa9f5f9a7303c80a55ee9e0be1'; // Replace with your actual key if different
+    const PAYSTACK_PUBLIC_KEY = 'pk_live_3be2ebebc6edd6fa9f5f9a7303c80a55ee9e0be1'; 
     
     // --- DOM ELEMENTS ---
     const statusDiv = document.getElementById('status');
@@ -335,7 +325,7 @@
     function renderOrders(orders) {
         tableBody.innerHTML = '';
         if (orders.length === 0) {
-            statusDiv.textContent = "No orders found for this filter.";
+            statusDiv.textContent = "No orders found for this network.";
             return;
         }
 
@@ -374,23 +364,15 @@
         });
     }
     
-    // 🛑 FILTERING FUNCTIONALITY (User requirement: Differentiate Orders by Network)
+    // 🛑 FILTERING FUNCTIONALITY (Filters orders based on network tab selected)
     function filterAndRenderOrders(network) {
         let filtered = userOrders;
         
-        // Filter logic: Filter by network key, but always include wallet top-ups
         if (network !== 'All') {
-            filtered = userOrders.filter(order => 
-                order.network === network || 
-                (order.dataPlan === 'WALLET TOP-UP' && network === 'WALLET') // Although WALLET tab is not explicitly defined, this handles deposits gracefully
-            );
+            // Filter: Show orders matching the network
+            filtered = userOrders.filter(order => order.network === network);
         }
         
-        // Final fallback to ensure all deposits are shown when All is selected
-        if (network === 'All') {
-             filtered = userOrders;
-        }
-
         renderOrders(filtered);
     }
 
@@ -475,7 +457,7 @@
         const userDataEmail = await fetchBalance(); 
         
         // 1. Theme Toggle Logic
-        // Since the theme logic uses global variables, this is handled by the script block before DOMContentLoaded
+        // This is handled by the script block at the beginning
 
         if (userDataEmail) {
             // 2. Bind TopUp Modal Pay Button
@@ -508,5 +490,3 @@
         });
     });
 </script>
-</body>
-</html>
