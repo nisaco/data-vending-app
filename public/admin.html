@@ -544,6 +544,7 @@
             const button = event.target;
             currentOrderId = button.dataset.id;
             
+            // Find the order data to populate the modal fields
             const order = allOrders.find(o => o.id === currentOrderId);
 
             if (order) {
@@ -589,6 +590,7 @@
                 const data = await response.json();
 
                 if (response.ok) {
+                    showToast(data.message, 'success');
                     modalStatusMessage.textContent = data.message;
                     modalStatusMessage.classList.remove('text-yellow-600');
                     modalStatusMessage.classList.add('text-green-600');
@@ -605,12 +607,14 @@
                         renderOrders(allOrders); 
                     }, 1000);
                 } else {
+                    showToast(data.error || data.message || 'Update failed.', 'error');
                     modalStatusMessage.textContent = data.error || data.message || 'Update failed.';
                     modalStatusMessage.classList.remove('text-yellow-600');
                     modalStatusMessage.classList.add('text-red-500');
                 }
 
             } catch (error) {
+                showToast('Network error during update.', 'error');
                 modalStatusMessage.textContent = 'Network error during update.';
                 modalStatusMessage.classList.remove('text-yellow-600');
                 modalStatusMessage.classList.add('text-red-500');
@@ -658,7 +662,7 @@
             
             // 1. Theme Toggle: Handled by event listener logic above.
 
-            // 2. Get Admin Secret from URL 
+            // 2. Get Admin Secret from URL 
             const urlParams = new URLSearchParams(window.location.search);
             const initialSecret = urlParams.get('secret');
             if (initialSecret) {
@@ -703,9 +707,15 @@
             });
             
             // 6. Modal Listeners
+            // Event delegation for the action button listener is moved to renderOrders
+
             modalCancelBtn.addEventListener('click', closeModal);
-            document.querySelectorAll('.open-modal-btn').forEach(btn => {
-                btn.addEventListener('click', openUpdateModal);
-            });
+            
+            // Initial render check
+            if (htmlElement.classList.contains('dark')) {
+                 applyTheme('dark');
+            }
         });
     </script>
+</body>
+</html>
