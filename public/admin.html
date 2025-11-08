@@ -228,32 +228,6 @@
 
         </div>
     </div>
-    
-    <!-- Modal Backdrop (Update Status) -->
-    <div id="modal-backdrop" class="fixed inset-0 hidden items-center justify-center bg-black bg-opacity-75 z-50 opacity-0 transition-opacity duration-300">
-        <div id="status-modal" class="bg-white p-6 rounded-xl shadow-2xl w-full max-w-md transform scale-95 transition-all duration-300 dark:bg-gray-800">
-            <h3 class="text-xl font-bold text-gray-800 dark:text-white mb-4">Update Order Status</h3>
-            <div id="modal-current-order" class="text-sm text-gray-600 dark:text-gray-400 mb-4">
-                Reference: <span id="modal-order-ref" class="font-medium"></span>
-                <br> Current Status: <span id="modal-current-status" class="font-bold"></span>
-            </div>
-
-            <label for="new-status" class="block text-gray-700 dark:text-gray-300 mb-2">New Status</label>
-            <select id="new-status" class="w-full p-2 border border-gray-300 rounded-lg dark:bg-gray-700 dark:border-gray-600 dark:text-white">
-                <option value="data_sent">Data Sent (Fulfilled)</option>
-                <option value="pending_review">Pending Review</option>
-                <option value="data_failed">Data Failed</option>
-                <option value="payment_failed">Payment Failed</option>
-            </select>
-            
-            <div id="modal-status-message" class="mt-3 text-sm font-medium text-red-500"></div>
-
-            <div class="mt-6 flex justify-end space-x-3">
-                <button id="modal-cancel" type="button" class="py-2 px-4 bg-gray-200 text-gray-800 rounded-lg hover:bg-gray-300 transition dark:bg-gray-700 dark:text-white dark:hover:bg-gray-600">Cancel</button>
-                <button id="modal-update" type="button" class="py-2 px-4 bg-primary text-white rounded-lg hover:bg-secondary transition">Update</button>
-            </div>
-        </div>
-    </div>
 
     <!-- JavaScript Logic -->
     <script>
@@ -531,17 +505,16 @@
                 `;
             });
 
-            // The fix: Event delegation is now handled by the listener below, 
-            // so we don't attach individual listeners here.
+            // Note: The click listener for 'open-modal-btn' is attached via delegation outside this function.
         }
         
         // --- MODAL & ACTION LOGIC ---
         
         let currentOrderId = null;
 
-        function openUpdateModal(event) {
-            const button = event.target;
-            currentOrderId = button.dataset.id;
+        // Function to open the modal, accepts the clicked button element
+        function openUpdateModal(buttonElement) {
+            currentOrderId = buttonElement.dataset.id;
             
             // Find the order data to populate the modal fields
             const order = allOrders.find(o => o.id === currentOrderId);
@@ -675,21 +648,22 @@
             modalUpdateBtn.addEventListener('click', updateOrderStatus);
             modalCancelBtn.addEventListener('click', closeModal);
             
+            // 🛑 CRITICAL FIX: EVENT DELEGATION FOR ACTION BUTTONS 🛑
+            ordersTableBody.addEventListener('click', (e) => {
+                const targetButton = e.target.closest('.open-modal-btn');
+                if (targetButton) {
+                    e.preventDefault(); 
+                    // Pass the button element to the modal function
+                    openUpdateModal(targetButton); 
+                }
+            });
+
+
             // 4. Status Filter Listener (Applies filter immediately when value changes)
             statusFilter.addEventListener('change', () => {
                 // Rerender the orders based on the new status selected
                 renderOrders(allOrders); 
             });
-
-            // 🛑 CRITICAL FIX: EVENT DELEGATION LISTENER FOR ACTION BUTTONS
-            ordersTableBody.addEventListener('click', (e) => {
-                const targetButton = e.target.closest('.open-modal-btn');
-                if (targetButton) {
-                    e.preventDefault(); // Stop any default table action
-                    openUpdateModal(e.target); // Pass the button element to the modal function
-                }
-            });
-
 
             // 5. Tab Switching Logic
             tabsContainer.addEventListener('click', (e) => {
@@ -715,11 +689,7 @@
                 }
             });
             
-            // 6. Initial render check
-            if (htmlElement.classList.contains('dark')) {
-                 applyTheme('dark');
-            }
+            // 6. Modal Listeners
+            modalCancelBtn.addEventListener('click', closeModal);
         });
     </script>
-</body>
-</html>
