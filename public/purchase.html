@@ -3,6 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="icon" type="image/x-icon" href="apple-touch-icon.png">
     <title>Purchase Data - AJEnterprise</title>
     <!-- FAVICON LINK -->
     <link rel="icon" type="image/png" href="apple-touch-icon.png">
@@ -52,9 +53,21 @@
         .dark .network-tab { background-color: #282828; border-color: #374151; }
         .dark .network-tab.active { background-color: #1f2937; }
         .dark .bg-blue-50 { background-color: #1e3a8a; border-color: #3b82f6; color: #dbeafe; }
+
+        /* Toast Container for Notifications */
+        #toast-container {
+            position: fixed;
+            top: 1rem;
+            right: 1rem;
+            z-index: 1000;
+            max-width: 300px;
+        }
     </style>
 </head>
 <body class="bg-gray-50 min-h-screen font-sans transition-colors duration-300 dark:bg-[#121212]">
+
+    <!-- Toast Notification Container -->
+    <div id="toast-container"></div>
 
     <!-- Navbar (Fixed for Mobile View) -->
     <nav class="bg-white shadow-lg dark:bg-[#1f1f1f]">
@@ -172,7 +185,7 @@
                 </button>
             </form>
             
-            <div id="status" class="text-center mt-4 font-semibold min-h-[20px] dark:text-white"></div>
+            <div id="status" class="hidden"></div> <!-- Hidden status div -->
         </div>
     </div>
 
@@ -181,21 +194,52 @@
     
     <!-- JavaScript Logic -->
    <script>
+        // --- TOAST NOTIFICATION SYSTEM ---
+        function showToast(message, type = 'success') {
+            const container = document.getElementById('toast-container');
+            const colors = {
+                success: 'bg-green-500 border-green-700',
+                error: 'bg-red-500 border-red-700',
+                warning: 'bg-yellow-500 border-yellow-700',
+            };
+            const toast = document.createElement('div');
+            toast.className = `p-4 mb-2 text-white text-sm font-semibold rounded-lg shadow-lg border-b-4 ${colors[type]} transform translate-x-full transition-all duration-300 ease-out`;
+            toast.textContent = message;
+
+            container.prepend(toast);
+
+            // Animate in
+            setTimeout(() => {
+                toast.style.transform = 'translateX(0)';
+            }, 10);
+
+            // Animate out and remove
+            setTimeout(() => {
+                toast.style.transform = 'translateX(120%)';
+                setTimeout(() => {
+                    container.removeChild(toast);
+                }, 400);
+            }, 6000);
+        }
+        // --- END TOAST SYSTEM ---
+
         // --- THEME LOGIC START ---
         const htmlElement = document.documentElement;
-        const toggleButton = document.getElementById('theme-toggle');
-        const iconMoon = document.getElementById('theme-icon-moon');
-        const iconSun = document.getElementById('theme-icon-sun');
+        const themeToggle = document.getElementById('theme-toggle');
 
         function applyTheme(theme) {
-            if (theme === 'dark') {
+            const isDark = theme === 'dark';
+            const moonIcon = document.getElementById('theme-icon-moon');
+            const sunIcon = document.getElementById('theme-icon-sun');
+
+            if (isDark) {
                 htmlElement.classList.add('dark');
-                iconMoon.classList.add('hidden');
-                iconSun.classList.remove('hidden');
+                moonIcon.classList.add('hidden');
+                sunIcon.classList.remove('hidden');
             } else {
                 htmlElement.classList.remove('dark');
-                iconMoon.classList.remove('hidden');
-                iconSun.classList.add('hidden');
+                moonIcon.classList.remove('hidden');
+                sunIcon.classList.add('hidden');
             }
         }
 
@@ -208,7 +252,7 @@
             applyTheme('light');
         }
 
-        toggleButton.addEventListener('click', () => {
+        themeToggle.addEventListener('click', () => {
             const newTheme = htmlElement.classList.contains('dark') ? 'light' : 'dark';
             localStorage.setItem('theme', newTheme);
             applyTheme(newTheme);
@@ -220,7 +264,7 @@
         const networkInput = document.getElementById('network');
         const dataplanSelect = document.getElementById('dataplan');
         const paymentForm = document.getElementById('paymentForm');
-        const statusDiv = document.getElementById('status');
+        // const statusDiv = document.getElementById('status'); // NO LONGER USED
         const payButton = document.getElementById('pay-button');
         const phoneInput = document.getElementById('phone'); 
         const walletBalanceDisplay = document.getElementById('wallet-balance-display');
@@ -244,8 +288,6 @@
         // 🛑 CRITICAL FUNCTIONALITY (NO CHANGE IN LOGIC)
         function calculateTotalCharge(planPriceInPesewas) {
             // This logic MUST match the server's expected charge for verification
-            // The 2% fee logic is handled on the server side, but for simple Paystack initiation,
-            // we use the fixed 25 pesewas added in the initial successful deployment model.
             const CUSTOMER_FLAT_FEE_PESEWAS = 25; 
             const totalAmountCharged = planPriceInPesewas + CUSTOMER_FLAT_FEE_PESEWAS;
             return Math.round(totalAmountCharged);
@@ -253,7 +295,6 @@
         
         // --- UI UPDATE AND DATA FETCH ---
         function updatePayButton(selectedOption) {
-            // Safety check for null option
             if (!selectedOption) {
                 payButton.textContent = 'Select Plan';
                 payButton.disabled = true;
@@ -282,7 +323,7 @@
             } else {
                 const totalCharge = calculateTotalCharge(priceInPesewas);
                 const totalChargeGHS = (totalCharge / 100).toFixed(2);
-                payButton.textContent = `Pay GHS ${totalChargeGHS}`; // Show the final price including fee
+                payButton.textContent = `Pay GHS ${totalChargeGHS}`; 
                 payButton.disabled = false;
             }
         }
@@ -292,10 +333,12 @@
             dataplanSelect.innerHTML = '<option value="" data-amount="0" selected disabled>Loading plans...</option>';
             payButton.disabled = true;
             
-            // Correct API endpoint (no -wholesale or -retail)
             fetch(`/api/data-plans?network=${network}`)
                 .then(response => {
-                    if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+                    if (!response.ok) {
+                         showToast('Failed to connect to plan server.', 'error');
+                         throw new Error(`HTTP error! status: ${response.status}`);
+                    }
                     return response.json();
                 })
                 .then(plans => {
@@ -317,7 +360,7 @@
                 })
                 .catch((error) => { 
                     console.error("Error loading plans:", error);
-                    dataplanSelect.innerHTML = '<option value="" data-amount="0">Could not load plans (Server Error)</option>'; 
+                    dataplanSelect.innerHTML = '<option value="" data-amount="0">Could not load plans</option>'; 
                     updatePayButton(dataplanSelect.options[0]); 
                 });
         };
@@ -356,8 +399,7 @@
             const transactionUrl = '/paystack/verify'; 
 
             const paymentCallback = function(response) {
-                statusDiv.textContent = "Verifying payment, please wait...";
-                statusDiv.style.color = "orange";
+                showToast("Verifying payment, please wait...", 'warning');
                 
                 fetch(transactionUrl, {
                     method: 'POST',
@@ -369,8 +411,8 @@
                 })
                 .then(verifyResponse => verifyResponse.json())
                 .then(data => {
-                    statusDiv.textContent = data.message;
-                    statusDiv.style.color = data.status === 'success' ? 'green' : (data.status === 'pending' ? 'orange' : 'red');
+                    const statusType = data.status === 'success' ? 'success' : (data.status === 'pending' ? 'warning' : 'error');
+                    showToast(data.message, statusType);
                     
                     if (data.newBalance !== undefined) {
                         userWalletBalance = data.newBalance;
@@ -383,8 +425,7 @@
 
                 })
                 .catch(err => {
-                    statusDiv.textContent = "An error occurred during verification.";
-                    statusDiv.style.color = "red";
+                    showToast("An error occurred during verification.", 'error');
                 })
                 .finally(() => {
                     payButton.disabled = false;
@@ -407,8 +448,7 @@
                     },
                     callback: paymentCallback,
                     onClose: function() { 
-                        statusDiv.textContent = "Transaction cancelled."; 
-                        statusDiv.style.color = "red"; 
+                        showToast("Transaction cancelled.", 'error'); 
                         payButton.disabled = false;
                         updatePayButton(selected);
                     }
@@ -437,9 +477,9 @@
 
                 const data = await response.json();
 
-                statusDiv.textContent = data.message;
-                statusDiv.style.color = data.status === 'success' ? 'green' : (data.status === 'pending' ? 'orange' : 'red');
-
+                const statusType = data.status === 'success' ? 'success' : (data.status === 'pending' ? 'warning' : 'error');
+                showToast(data.message, statusType);
+                
                 await fetchUserInfo();
                 
                 if (data.status === 'success') {
@@ -447,8 +487,7 @@
                 }
 
             } catch (err) {
-                statusDiv.textContent = "An unknown error occurred during wallet transaction.";
-                statusDiv.style.color = "red";
+                showToast("An unknown error occurred during wallet transaction.", 'error');
             } finally {
                 payButton.disabled = false;
                 updatePayButton(selected);
@@ -517,15 +556,13 @@
                 const selectedMethod = paymentMethodsContainer.querySelector('.pay-option.active').dataset.method;
                 
                 if (!phoneInput.checkValidity()) {
-                    statusDiv.textContent = "Please enter a valid 10-digit phone number starting with 0.";
-                    statusDiv.style.color = "red";
+                    showToast("Please enter a valid 10-digit phone number starting with 0.", 'error');
                     phoneInput.focus();
                     return;
                 }
 
                 if (!selected || priceInPesewas === 0 || isNaN(priceInPesewas)) {
-                    statusDiv.textContent = "Please select a valid data plan.";
-                    statusDiv.style.color = "red";
+                    showToast("Please select a valid data plan.", 'error');
                     return;
                 }
                 
