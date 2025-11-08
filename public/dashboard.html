@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link rel="icon" type="image/x-icon" href="apple-touch-icon.png">
-    <title>My Dashboard - DataLink</title>
+    <title>My Dashboard - AJENTERPRISE</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         /* Define primary colors */
@@ -103,7 +103,7 @@
             <p class="text-center text-gray-500 mb-6 dark:text-gray-400">Review your wallet balance and transaction history.</p>
             
             <!-- Wallet Balance Card -->
-            <div class="bg-primary text-white p-6 rounded-xl shadow-lg mb-8">
+            <div class="bg-primary text-white p-6 rounded-xl shadow-lg mb-4">
                 <div class="flex justify-between items-start">
                     <div>
                         <p class="text-lg font-medium">Your Current Wallet Balance</p>
@@ -118,6 +118,15 @@
                 </div>
             </div>
             
+            <!-- 🛑 NEW: Onboarding/Welcome Banner 🛑 -->
+            <div id="welcome-banner" class="bg-yellow-50 border border-yellow-200 text-yellow-800 p-4 rounded-xl mb-6 flex justify-between items-center hidden dark:bg-yellow-900 dark:border-yellow-700 dark:text-yellow-200">
+                <p class="text-sm font-medium">
+                    👋 **Welcome to your dashboard!** Click **TopUp** above to add funds to your wallet and enjoy the best rates on mobile data.
+                </p>
+                <button id="dismiss-onboarding" class="text-yellow-700 hover:text-yellow-900 font-bold ml-4 dark:text-yellow-300 dark:hover:text-white">
+                    Got It!
+                </button>
+            </div>
             <!-- Notification Area -->
             <div id="notification-area" class="space-y-3 mb-6">
                 <!-- Notifications will be added here -->
@@ -128,7 +137,7 @@
             <h2 class="text-xl font-bold text-gray-800 dark:text-white mb-4 border-b pb-2">Recent Activity Log</h2>
 
             <!-- Order History Filters -->
-            <div id="network-filters" class="flex justify-center space-x-4 mb-6 border-b border-gray-200 text-gray-600 dark:border-gray-700 dark:text-gray-400">
+            <div id="network-filters" class="flex justify-start space-x-4 mb-6 border-b border-gray-200 text-gray-600 dark:border-gray-700 dark:text-gray-400 overflow-x-auto pb-1">
                 <div class="filter-tab active" data-network="All">All Activity</div>
                 <div class="filter-tab" data-network="MTN">MTN</div>
                 <div class="filter-tab" data-network="AirtelTigo">AirtelTigo</div>
@@ -165,19 +174,10 @@
     // --- THEME LOGIC START ---
     const htmlElement = document.documentElement;
     const themeToggle = document.getElementById('theme-toggle');
-    const iconMoon = document.getElementById('theme-icon-moon');
-    const iconSun = document.getElementById('theme-icon-sun');
 
     function updateThemeIcon(isDark) {
-        if (isDark) {
-            htmlElement.classList.add('dark');
-            iconMoon.classList.add('hidden');
-            iconSun.classList.remove('hidden');
-        } else {
-            htmlElement.classList.remove('dark');
-            iconMoon.classList.remove('hidden');
-            iconSun.classList.add('hidden');
-        }
+        // We rely on the CSS/JS class toggle for visibility and contrast
+        // The icons are hidden/shown based on the 'dark' class presence in the CSS style block.
     }
 
     // Initial Theme Setup
@@ -188,24 +188,32 @@
         htmlElement.classList.remove('dark');
     }
 
-    // Icon handling
-    document.addEventListener('DOMContentLoaded', () => {
-        const isDark = htmlElement.classList.contains('dark');
-        if (isDark) {
-            document.getElementById('theme-icon-moon').classList.add('hidden');
-            document.getElementById('theme-icon-sun').classList.remove('hidden');
-        } else {
-            document.getElementById('theme-icon-moon').classList.remove('hidden');
-            document.getElementById('theme-icon-sun').classList.add('hidden');
-        }
-    });
-
     themeToggle.addEventListener('click', () => {
         const newTheme = htmlElement.classList.contains('dark') ? 'light' : 'dark';
         localStorage.setItem('theme', newTheme);
         updateThemeIcon(newTheme === 'dark');
     });
     
+    document.addEventListener('DOMContentLoaded', () => {
+        // Initial visibility check for the icons based on the final HTML structure
+        const isDark = htmlElement.classList.contains('dark');
+        const moonIcon = document.getElementById('theme-icon-moon');
+        const sunIcon = document.getElementById('theme-icon-sun');
+
+        if (moonIcon && sunIcon) {
+            if (isDark) {
+                moonIcon.classList.add('hidden');
+                sunIcon.classList.remove('hidden');
+            } else {
+                moonIcon.classList.remove('hidden');
+                sunIcon.classList.add('hidden');
+            }
+        }
+    });
+
+    // --- THEME LOGIC END ---
+
+
     // CRITICAL FIX: Date formatter 
     function safeDateFormatter(isoString) {
         if (!isoString) return 'N/A';
@@ -239,8 +247,11 @@
     const modalAmountInput = document.getElementById('modal-topup-amount');
     const modalStatus = document.getElementById('modal-content-status');
     const notificationArea = document.getElementById('notification-area');
-    const topupModal = document.getElementById('topup-modal'); 
-
+    const topupModal = document.getElementById('topup-modal');
+    // Onboarding elements
+    const welcomeBanner = document.getElementById('welcome-banner');
+    const dismissBtn = document.getElementById('dismiss-onboarding');
+    const MAX_VIEWS = 5; // Show the banner a maximum of 5 times
 
     // --- NOTIFICATION HANDLER ---
     function showNotification(message, type = 'success') {
@@ -450,17 +461,28 @@
             }
         }).openIframe();
     };
+    
+    // --- ONBOARDING LOGIC ---
+    function checkOnboardingStatus() {
+        const viewCount = parseInt(localStorage.getItem('dashboard_onboarding_count') || '0');
+        if (viewCount < MAX_VIEWS) {
+            welcomeBanner.classList.remove('hidden');
+        }
+    }
 
+    function dismissOnboarding() {
+        let viewCount = parseInt(localStorage.getItem('dashboard_onboarding_count') || '0');
+        viewCount++;
+        localStorage.setItem('dashboard_onboarding_count', viewCount.toString());
+        welcomeBanner.classList.add('hidden');
+    }
 
     // --- INITIALIZATION & LISTENERS ---
     document.addEventListener('DOMContentLoaded', async () => {
         const userDataEmail = await fetchBalance(); 
         
-        // 1. Theme Toggle Logic
-        // This is handled by the script block at the beginning
-
         if (userDataEmail) {
-            // 2. Bind TopUp Modal Pay Button
+            // 1. Bind TopUp Modal Pay Button
             modalPayBtn.addEventListener('click', () => {
                 const amount = parseFloat(modalAmountInput.value);
                 if (isNaN(amount) || amount < MIN_TOPUP_GHS) {
@@ -473,9 +495,10 @@
         }
         fetchOrderHistory(); // Load initial history
 
-        // 3. Attach UI listeners
+        // 2. Attach UI listeners
         openTopupModalBtn.addEventListener('click', openModal);
         modalCancelBtn.addEventListener('click', closeModal);
+        dismissBtn.addEventListener('click', dismissOnboarding); // Onboarding dismiss
         
         // 🛑 Network Filter Listener
         filterContainer.addEventListener('click', (e) => {
@@ -484,9 +507,11 @@
                 document.querySelectorAll('.filter-tab').forEach(tab => tab.classList.remove('active'));
                 target.classList.add('active');
                 
-                // Trigger filter when a tab is clicked
                 filterAndRenderOrders(target.dataset.network);
             }
         });
+        
+        // 3. Run Onboarding Check after loading
+        checkOnboardingStatus();
     });
 </script>
