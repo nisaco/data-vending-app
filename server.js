@@ -846,6 +846,7 @@ app.get('/dashboard.html', isAuthenticated, (req, res) => res.sendFile(path.join
 app.get('/admin.html', (req, res) => res.sendFile(path.join(__dirname, 'public', 'admin.html')));
 app.get('/forgot.html', (req, res) => res.sendFile(path.join(__dirname, 'public', 'forgot.html')));
 app.get('/reset.html', (req, res) => res.sendFile(path.join(__dirname, 'public', 'reset.html')));
+app.get('/support.html', (req, res) => res.sendFile(path.join(__dirname, 'public', 'support.html'))); 
 
 
 // --- SERVER START ---
