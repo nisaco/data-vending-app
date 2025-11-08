@@ -531,9 +531,8 @@
                 `;
             });
 
-            document.querySelectorAll('.open-modal-btn').forEach(btn => {
-                btn.addEventListener('click', openUpdateModal);
-            });
+            // The fix: Event delegation is now handled by the listener below, 
+            // so we don't attach individual listeners here.
         }
         
         // --- MODAL & ACTION LOGIC ---
@@ -682,6 +681,16 @@
                 renderOrders(allOrders); 
             });
 
+            // 🛑 CRITICAL FIX: EVENT DELEGATION LISTENER FOR ACTION BUTTONS
+            ordersTableBody.addEventListener('click', (e) => {
+                const targetButton = e.target.closest('.open-modal-btn');
+                if (targetButton) {
+                    e.preventDefault(); // Stop any default table action
+                    openUpdateModal(e.target); // Pass the button element to the modal function
+                }
+            });
+
+
             // 5. Tab Switching Logic
             tabsContainer.addEventListener('click', (e) => {
                 const target = e.target.closest('.admin-tab');
@@ -706,12 +715,7 @@
                 }
             });
             
-            // 6. Modal Listeners
-            // Event delegation for the action button listener is moved to renderOrders
-
-            modalCancelBtn.addEventListener('click', closeModal);
-            
-            // Initial render check
+            // 6. Initial render check
             if (htmlElement.classList.contains('dark')) {
                  applyTheme('dark');
             }
