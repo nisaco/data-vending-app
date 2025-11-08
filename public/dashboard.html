@@ -4,7 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link rel="icon" type="image/x-icon" href="apple-touch-icon.png">
-    <title>My Dashboard - AJENTERPRISE</title>
+    
+    <title>My Dashboard - DataLink</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         /* Define primary colors */
@@ -53,9 +54,20 @@
             transition: opacity 0.3s ease;
             z-index: 50;
         }
+        /* Toast Container for Notifications */
+        #toast-container {
+            position: fixed;
+            top: 1rem;
+            right: 1rem;
+            z-index: 1000;
+            max-width: 300px;
+        }
     </style>
 </head>
 <body class="bg-gray-50 min-h-screen font-sans dark:bg-[#121212] dark:text-gray-200">
+    
+    <!-- Toast Notification Container -->
+    <div id="toast-container"></div>
     
     <!-- Modal Backdrop (TopUp) -->
     <div id="modal-backdrop" class="fixed inset-0 hidden items-center justify-center opacity-0 transition-opacity duration-300">
@@ -171,13 +183,41 @@
    <script src="https://js.paystack.co/v1/inline.js"></script>
 
 <script>
+    // --- TOAST NOTIFICATION SYSTEM ---
+    function showToast(message, type = 'success') {
+        const container = document.getElementById('toast-container');
+        const colors = {
+            success: 'bg-green-500 border-green-700',
+            error: 'bg-red-500 border-red-700',
+            warning: 'bg-yellow-500 border-yellow-700',
+        };
+        const toast = document.createElement('div');
+        toast.className = `p-4 mb-2 text-white text-sm font-semibold rounded-lg shadow-lg border-b-4 ${colors[type]} transform translate-x-full transition-all duration-300 ease-out`;
+        toast.textContent = message;
+
+        container.prepend(toast);
+
+        // Animate in
+        setTimeout(() => {
+            toast.style.transform = 'translateX(0)';
+        }, 10);
+
+        // Animate out and remove
+        setTimeout(() => {
+            toast.style.transform = 'translateX(120%)';
+            setTimeout(() => {
+                container.removeChild(toast);
+            }, 400);
+        }, 6000);
+    }
+    // --- END TOAST SYSTEM ---
+    
     // --- THEME LOGIC START ---
     const htmlElement = document.documentElement;
     const themeToggle = document.getElementById('theme-toggle');
 
     function updateThemeIcon(isDark) {
-        // We rely on the CSS/JS class toggle for visibility and contrast
-        // The icons are hidden/shown based on the 'dark' class presence in the CSS style block.
+        // This function visually updates the icons
     }
 
     // Initial Theme Setup
@@ -251,7 +291,8 @@
     // Onboarding elements
     const welcomeBanner = document.getElementById('welcome-banner');
     const dismissBtn = document.getElementById('dismiss-onboarding');
-    const MAX_VIEWS = 5; // Show the banner a maximum of 5 times
+    const MAX_VIEWS = 5; 
+
 
     // --- NOTIFICATION HANDLER ---
     function showNotification(message, type = 'success') {
@@ -297,8 +338,7 @@
                 }
                 return data.email; 
             } else if (response.status === 401) {
-                statusDiv.textContent = 'Session expired. Redirecting to login...';
-                statusDiv.style.color = 'red';
+                showToast('Session expired. Redirecting to login...', 'error');
                 setTimeout(() => window.location.href = '/login.html', 1000);
                 return null;
             }
@@ -313,7 +353,10 @@
             const response = await fetch('/api/my-orders');
             
             if (response.status === 401) return;
-            if (!response.ok) throw new Error('Could not fetch orders.');
+            if (!response.ok) {
+                 showToast('Could not connect to fetch order history.', 'error');
+                 throw new Error('Could not fetch orders.');
+            }
             
             const data = await response.json();
             userOrders = data.orders || [];
@@ -327,7 +370,7 @@
             filterAndRenderOrders(filterContainer.querySelector('.filter-tab.active').dataset.network);
 
         } catch (error) {
-            statusDiv.textContent = `Error fetching order history: ${error.message}`;
+            statusDiv.textContent = `Error fetching order history.`;
         }
     }
 
@@ -417,7 +460,7 @@
         modalPayBtn.textContent = 'Processing...';
 
         const paymentCallback = function(response) {
-            showNotification("Verifying top-up...", 'warning');
+            showToast("Verifying top-up...", 'warning');
             
             fetch('/api/topup', {
                 method: 'POST',
@@ -429,17 +472,17 @@
             })
             .then(verifyResponse => verifyResponse.json())
             .then(data => {
+                const statusType = data.status === 'success' ? 'success' : (data.status === 'pending' ? 'warning' : 'error');
+                showToast(data.message, statusType);
+                
                 if (data.status === 'success') {
                     fetchBalance(); 
                     fetchOrderHistory();
                     closeModal(); 
-                    showNotification(`Deposit successful! GHS ${(data.newBalance / 100).toFixed(2)} added to your wallet.`, 'success');
-                } else {
-                    showNotification(data.message, 'error');
                 }
             })
             .catch(err => {
-                showNotification("Top-up verification failed. Check logs for details.", 'error');
+                showToast("Top-up verification failed. Check logs for details.", 'error');
             })
             .finally(() => {
                 modalPayBtn.disabled = false;
@@ -455,7 +498,7 @@
             ref: 'DL-TOPUP-' + Math.floor((Math.random() * 1000000000) + 1),
             callback: paymentCallback,
             onClose: function() { 
-                showNotification("Top-up cancelled.", 'error');
+                showToast("Top-up cancelled.", 'error');
                 modalPayBtn.disabled = false;
                 modalPayBtn.textContent = 'Pay';
             }
