@@ -482,11 +482,11 @@
                 row.className = 'hover:bg-gray-50 transition duration-150 dark:hover:bg-gray-800';
 
                 row.innerHTML = `
-                    <!-- 1. Time (Date/Time) -->
+                    <!-- 1. Time -->
                     <td class="py-4 px-6 dark:text-gray-400 text-xs">${safeDateFormatter(order.created_at)}</td>
                     <!-- 2. User -->
                     <td class="py-4 px-6 font-medium text-gray-800 dark:text-gray-300">${order.username || 'N/A'}</td>
-                    <!-- 3. Phone (Recipient Phone) -->
+                    <!-- 3. Phone (CORRECTED) -->
                     <td class="py-4 px-6 dark:text-gray-400 text-xs">${displayPhone}</td>
                     <!-- 4. Item / Network -->
                     <td class="py-4 px-6 dark:text-gray-400 text-xs">${order.dataPlan} (${order.network})</td>
@@ -500,10 +500,10 @@
                             ${statusText}
                         </span>
                     </td>
-                    <!-- 7. Actions -->
+                    <!-- 7. Actions (CORRECTED) -->
                     <td class="py-4 px-6">
                         ${order.status === 'pending_review' ? 
-                            `<button data-id="${order.id}"
+                            `<button data-id="${order.id}" 
                              class="open-modal-btn text-white bg-blue-600 hover:bg-blue-700 text-xs font-medium py-1 px-3 rounded transition">
                              Update
                              </button>` : 'N/A'}
@@ -518,7 +518,7 @@
         
         let currentOrderId = null;
 
-        // 🛑 FIX: Function now accepts the target button element
+        // Function to open the modal, accepts the clicked button element
         function openUpdateModal(buttonElement) {
             currentOrderId = buttonElement.dataset.id;
             
