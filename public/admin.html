@@ -482,21 +482,28 @@
                 row.className = 'hover:bg-gray-50 transition duration-150 dark:hover:bg-gray-800';
 
                 row.innerHTML = `
+                    <!-- 1. Time (Date/Time) -->
                     <td class="py-4 px-6 dark:text-gray-400 text-xs">${safeDateFormatter(order.created_at)}</td>
+                    <!-- 2. User -->
                     <td class="py-4 px-6 font-medium text-gray-800 dark:text-gray-300">${order.username || 'N/A'}</td>
+                    <!-- 3. Phone (Recipient Phone) -->
                     <td class="py-4 px-6 dark:text-gray-400 text-xs">${displayPhone}</td>
+                    <!-- 4. Item / Network -->
                     <td class="py-4 px-6 dark:text-gray-400 text-xs">${order.dataPlan} (${order.network})</td>
+                    <!-- 5. Amount (GHS) -->
                     <td class="py-4 px-6 font-semibold ${amountColor}">
                         ${amountSign} GHS ${order.amount.toFixed(2)}
                     </td>
+                    <!-- 6. Status -->
                     <td class="py-4 px-6">
                         <span class="px-3 py-1 text-white text-xs font-bold uppercase rounded-full ${statusClass}">
                             ${statusText}
                         </span>
                     </td>
+                    <!-- 7. Actions -->
                     <td class="py-4 px-6">
                         ${order.status === 'pending_review' ? 
-                            `<button data-id="${order.id}" data-ref="${order.reference}" data-status="${order.status}" 
+                            `<button data-id="${order.id}"
                              class="open-modal-btn text-white bg-blue-600 hover:bg-blue-700 text-xs font-medium py-1 px-3 rounded transition">
                              Update
                              </button>` : 'N/A'}
@@ -511,6 +518,7 @@
         
         let currentOrderId = null;
 
+        // 🛑 FIX: Function now accepts the target button element
         function openUpdateModal(buttonElement) {
             currentOrderId = buttonElement.dataset.id;
             
@@ -518,7 +526,7 @@
             const order = allOrders.find(o => o.id === currentOrderId);
 
             if (order) {
-                modalOrderRef.textContent = order.reference.substring(0, 16) + '...';
+                modalOrderRef.textContent = order.reference ? order.reference.substring(0, 16) + '...' : currentOrderId.substring(0, 8) + '...';
                 modalCurrentStatus.textContent = statusMap[order.status] || order.status.replace(/_/g, ' ');
                 modalNewStatus.value = 'data_sent'; // Default selection
                 modalStatusMessage.textContent = ''; // Clear previous message
@@ -646,12 +654,13 @@
             modalUpdateBtn.addEventListener('click', updateOrderStatus);
             modalCancelBtn.addEventListener('click', closeModal);
             
-            // 🛑 CRITICAL FIX: EVENT DELEGATION FOR ACTION BUTTONS (Update Button Fix)
+            // 🛑 CRITICAL FIX: EVENT DELEGATION FOR ACTION BUTTONS 🛑
             ordersTableBody.addEventListener('click', (e) => {
+                // Check if the clicked element (or its closest ancestor) is the update button
                 const targetButton = e.target.closest('.open-modal-btn');
                 if (targetButton) {
                     e.preventDefault(); 
-                    // Pass the button element to the modal function
+                    // Pass the actual button element to the modal function
                     openUpdateModal(targetButton); 
                 }
             });
