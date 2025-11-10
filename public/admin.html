@@ -477,14 +477,13 @@
                 const amountSign = (order.dataPlan === 'WALLET TOP-UP') ? '+' : '-';
                 const amountColor = (order.dataPlan === 'WALLET TOP-UP') ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400';
 
-                const displayPhone = order.network === 'WALLET' ? 'N/A (Deposit)' : (order.phone_number || 'N/A');
+                const displayPhone = order.network === 'WALLET' ? 'N/A (Deposit)' : (order.phoneNumber || 'N/A');
 
                 row.className = 'hover:bg-gray-50 transition duration-150 dark:hover:bg-gray-800';
 
                 row.innerHTML = `
-                    <td class="py-4 px-6 dark:text-gray-400 text-xs font-mono">${order.id.substring(0, 8)}...</td>
-                    <td class="py-4 px-6 font-medium text-gray-800 dark:text-gray-300">${order.username || 'N/A'}</td>
                     <td class="py-4 px-6 dark:text-gray-400 text-xs">${safeDateFormatter(order.created_at)}</td>
+                    <td class="py-4 px-6 font-medium text-gray-800 dark:text-gray-300">${order.username || 'N/A'}</td>
                     <td class="py-4 px-6 dark:text-gray-400 text-xs">${displayPhone}</td>
                     <td class="py-4 px-6 dark:text-gray-400 text-xs">${order.dataPlan} (${order.network})</td>
                     <td class="py-4 px-6 font-semibold ${amountColor}">
@@ -512,7 +511,6 @@
         
         let currentOrderId = null;
 
-        // Function to open the modal, accepts the clicked button element
         function openUpdateModal(buttonElement) {
             currentOrderId = buttonElement.dataset.id;
             
@@ -648,7 +646,7 @@
             modalUpdateBtn.addEventListener('click', updateOrderStatus);
             modalCancelBtn.addEventListener('click', closeModal);
             
-            // 🛑 CRITICAL FIX: EVENT DELEGATION FOR ACTION BUTTONS 🛑
+            // 🛑 CRITICAL FIX: EVENT DELEGATION FOR ACTION BUTTONS (Update Button Fix)
             ordersTableBody.addEventListener('click', (e) => {
                 const targetButton = e.target.closest('.open-modal-btn');
                 if (targetButton) {
@@ -693,3 +691,4 @@
             modalCancelBtn.addEventListener('click', closeModal);
         });
     </script>
+
