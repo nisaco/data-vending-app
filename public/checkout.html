@@ -171,9 +171,27 @@
         let userWalletBalance = 0;
         let userEmail = '';
 
+        // --- THEME LOGIC START ---
+        const htmlElement = document.documentElement;
+        
+        function applyTheme(theme) {
+            if (theme === 'dark') {
+                htmlElement.classList.add('dark');
+            } else {
+                htmlElement.classList.remove('dark');
+            }
+        }
+        const savedTheme = localStorage.getItem('theme');
+        if (savedTheme) {
+            applyTheme(savedTheme);
+        } else if (window.matchMedia('(prefers-color-scheme: dark)').matches) {
+            applyTheme('dark');
+        }
+        // --- THEME LOGIC END ---
+
+
         // --- FEE CALCULATION (Must match server logic) ---
         function calculateBatchPaystackCharge(netTotalPesewas) {
-            // This calculation must match the logic for single order purchase cost estimation
             const CUSTOMER_FLAT_FEE_PESEWAS = 25; 
             const totalCharged = netTotalPesewas + CUSTOMER_FLAT_FEE_PESEWAS;
             return Math.round(totalCharged); 
@@ -213,7 +231,7 @@
 
             cartItemsBody.innerHTML = '';
             if (userCart.length === 0) {
-                cartItemsBody.innerHTML = '<tr><td colspan="4" class="text-center py-4 text-gray-500">Your cart is empty. <a href="/purchase.html" class="text-primary hover:underline">Add items</a></td></tr>';
+                cartItemsBody.innerHTML = '<tr><td colspan="4" class="text-center py-4 text-gray-500 dark:text-gray-400">Your cart is empty. <a href="/purchase.html" class="text-primary hover:underline">Add items</a></td></tr>';
                 processCheckoutButton.disabled = true;
             } else {
                 userCart.forEach(item => {
