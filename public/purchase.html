@@ -200,12 +200,10 @@
 
             container.prepend(toast);
 
-            // Animate in
             setTimeout(() => {
                 toast.style.transform = 'translateX(0)';
             }, 10);
 
-            // Animate out and remove
             setTimeout(() => {
                 toast.style.transform = 'translateX(120%)';
                 setTimeout(() => {
