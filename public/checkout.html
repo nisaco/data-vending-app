@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <link rel="icon" type="image/x-icon" href="apple-touch-icon.png">
+    <link rel="icon" type="image/x-icon" href="apple-touch-icon.png">
     <title>Checkout - AJEnterprise</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
@@ -90,6 +90,9 @@
                         </tfoot>
                     </table>
                 </div>
+                <div id="fee-note" class="text-xs text-gray-500 dark:text-gray-400 mt-4 text-center hidden">
+                    *A single payment processing fee will be applied to the total if using MoMo/Card.
+                </div>
             </div>
 
             <!-- Payment Selection -->
@@ -113,7 +116,7 @@
                 <button type="button" id="process-checkout-button" class="w-full py-4 bg-primary text-white text-lg font-bold rounded-xl shadow-lg transition hover:bg-secondary disabled:opacity-50">
                     Process Checkout (GHS 0.00)
                 </button>
-                <p id="checkout-message" class="text-center text-sm font-medium min-h-[20px]"></p>
+                <p id="checkout-message" class="text-center text-sm font-medium min-h-[20px] dark:text-white"></p>
             </div>
         </div>
     </div>
@@ -161,6 +164,7 @@
         const checkoutMessage = document.getElementById('checkout-message');
         const paymentMethodsContainer = document.getElementById('payment-methods');
         const walletBalanceDisplay = document.getElementById('wallet-balance-display');
+        const feeNote = document.getElementById('fee-note');
         
         let userCart = [];
         let grandTotalPesewas = 0;
@@ -168,10 +172,11 @@
         let userEmail = '';
 
         // --- FEE CALCULATION (Must match server logic) ---
-        function calculateFinalPaystackCharge(netDepositPesewas) {
-            const feeAmount = netDepositPesewas * FEE_RATE;
-            const finalCharge = netDepositPesewas + feeAmount;
-            return Math.ceil(finalCharge); 
+        function calculateBatchPaystackCharge(netTotalPesewas) {
+            // This calculation must match the logic for single order purchase cost estimation
+            const CUSTOMER_FLAT_FEE_PESEWAS = 25; 
+            const totalCharged = netTotalPesewas + CUSTOMER_FLAT_FEE_PESEWAS;
+            return Math.round(totalCharged); 
         }
 
         // --- CART MANAGEMENT & RENDERING ---
@@ -189,10 +194,11 @@
             loadCartAndRender();
         }
 
-        function removeItem(itemId) {
+        window.removeItem = function(itemId) { // Make removeItem globally accessible
             const cart = getCart();
-            const newCart = cart.filter(item => item.id !== itemId);
+            const newCart = cart.filter(item => item.id != itemId);
             saveCart(newCart);
+            showToast('Item removed from cart.', 'warning');
         }
 
         function clearCart() {
@@ -203,7 +209,7 @@
         function loadCartAndRender() {
             userCart = getCart();
             grandTotalPesewas = userCart.reduce((total, item) => total + item.amountPesewas, 0);
-            const totalGHS = (grandTotalPesewas / 100).toFixed(2);
+            const totalGHS = (grandTotalPesewas / 100);
 
             cartItemsBody.innerHTML = '';
             if (userCart.length === 0) {
@@ -226,7 +232,7 @@
             }
 
             // Update footer totals
-            cartTotalDisplay.textContent = `GHS ${totalGHS}`;
+            cartTotalDisplay.textContent = `GHS ${totalGHS.toFixed(2)}`;
             updateCheckoutButtonText();
         }
 
@@ -238,7 +244,10 @@
 
             if (userCart.length === 0) {
                 processCheckoutButton.textContent = "Cart is Empty";
+                feeNote.classList.add('hidden');
+                processCheckoutButton.disabled = true;
             } else if (selectedMethod === 'wallet') {
+                feeNote.classList.add('hidden');
                 if (grandTotalPesewas > userWalletBalance) {
                     processCheckoutButton.textContent = `Insufficient Funds (GHS ${totalGHS.toFixed(2)})`;
                     processCheckoutButton.disabled = true;
@@ -247,9 +256,10 @@
                     processCheckoutButton.disabled = false;
                 }
             } else if (selectedMethod === 'paystack') {
-                const totalChargedPesewas = calculateFinalPaystackCharge(grandTotalPesewas);
+                const totalChargedPesewas = calculateBatchPaystackCharge(grandTotalPesewas);
                 const totalChargedGHS = (totalChargedPesewas / 100).toFixed(2);
                 processCheckoutButton.textContent = `Pay GHS ${totalChargedGHS} via MoMo/Card`;
+                feeNote.classList.remove('hidden');
                 processCheckoutButton.disabled = false;
             }
         }
@@ -297,7 +307,7 @@
         async function handlePaystackCheckout() {
             if (userCart.length === 0 || grandTotalPesewas === 0) return;
 
-            const amountToCharge = calculateFinalPaystackCharge(grandTotalPesewas);
+            const amountToCharge = calculateBatchPaystackCharge(grandTotalPesewas);
 
             processCheckoutButton.disabled = true;
             processCheckoutButton.textContent = 'Initiating Payment Gateway...';
@@ -360,10 +370,25 @@
             }).openIframe();
         }
 
+        // Fetches user's current wallet balance
+        async function fetchUserInfo() {
+            try {
+                const response = await fetch('/api/user-info');
+                if (response.ok) {
+                    const data = await response.json();
+                    userWalletBalance = data.walletBalance;
+                    walletBalanceDisplay.textContent = `GHS ${(userWalletBalance / 100).toFixed(2)}`;
+                    userEmail = data.email;
+                }
+            } catch (error) {
+                console.error("Failed to load user info:", error);
+            }
+        }
+
+
         // --- INITIALIZATION ---
         document.addEventListener('DOMContentLoaded', async () => {
-            // Load user data first
-            userEmail = await fetchUserInfo() || '';
+            fetchUserInfo(); 
             loadCartAndRender();
 
             // Attach payment method selector listeners
