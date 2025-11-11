@@ -88,7 +88,7 @@
             <a href="/purchase.html" class="block text-gray-700 dark:text-gray-300 hover:text-primary font-medium">Buy Data</a>
             <a href="/dashboard.html" class="block text-primary font-bold">Dashboard</a>
             
-            <!-- 🛑 SUPPORT & POLICY LINKS 🛑 -->
+            <!-- SUPPORT & POLICY LINKS -->
             <a href="/support.html" class="block text-gray-700 dark:text-gray-300 hover:text-primary font-medium">Customer Support & FAQ</a>
             <a href="/privacy.html" target="_blank" class="block text-gray-700 dark:text-gray-300 hover:text-primary font-medium">Privacy Policy</a>
             
@@ -312,7 +312,7 @@
     // --- GLOBAL STATE & CONSTANTS ---
     let userOrders = []; 
     let userEmail = null; 
-    const MIN_TOPUP_GHS = 1.00; // 🛑 NEW MINIMUM 🛑
+    const MIN_TOPUP_GHS = 1.00; 
     const PAYSTACK_PUBLIC_KEY = 'pk_live_3be2ebebc6edd6fa9f5f9a7303c80a55ee9e0be1'; 
     
     // --- DOM ELEMENTS ---
@@ -394,6 +394,7 @@
         }
     }
 
+    // 🛑 AUTO-REFRESH FUNCTIONALITY 🛑
     async function fetchOrderHistory() {
         try {
             const response = await fetch('/api/my-orders');
@@ -412,7 +413,7 @@
                 return; 
             }
             
-            // Render all orders by default on load
+            // Render orders based on currently active filter
             filterAndRenderOrders(filterContainer.querySelector('.filter-tab.active').dataset.network);
 
         } catch (error) {
@@ -494,7 +495,7 @@
         setTimeout(() => {
             modalBackdrop.style.display = 'none';
             modalStatus.textContent = '';
-            modalAmountInput.value = MIN_TOPUP_GHS.toFixed(2); // Use new minimum
+            modalAmountInput.value = MIN_TOPUP_GHS.toFixed(2);
         }, 300);
     }
 
@@ -600,7 +601,10 @@
                 initiatePaystackTopup(amount, userDataEmail);
             });
         }
-        fetchOrderHistory(); // Load initial history
+        
+        // 🛑 START AUTO-REFRESH TIMER 🛑
+        fetchOrderHistory(); 
+        setInterval(fetchOrderHistory, 30000); // Refreshes orders every 30 seconds
 
         // 2. Attach UI listeners
         openTopupModalBtn.addEventListener('click', openModal);
