@@ -8,8 +8,7 @@ const sgMail = require('@sendgrid/mail');
 const axios = require('axios');
 const cron = require('node-cron');
 const crypto = require('crypto');
-const rateLimit = require('express-rate-limit'); // 🛑 NEW: Rate limiting
-// 🛑 IMPORT REQUIRED FOR SESSION PERSISTENCE 🛑
+const rateLimit = require('express-rate-limit'); 
 const MongoStore = require('connect-mongo');
 // Assuming database.js contains User, Order, and mongoose exports
 const { User, Order, mongoose } = require('./database.js'); 
@@ -25,20 +24,20 @@ const allPlans = {
     // PRICES ARE THE WHOLESALE COST (in PESEWAS)
     "MTN": [
         { id: '1', name: '1GB', price: 480 }, { id: '2', name: '2GB', price: 960 }, { id: '3', name: '3GB', price: 1420 }, 
-        { id: '4', name: '4GB', price: 2000 }, { id: '5', name: '5GB', price: 2400 }, { id: '6', name: '6GB', price: 2800 }, 
+        { id: '4', name: '4GB', price: 2000 }, { id: '5', name: '5GB', price: 2400 }, { id: '6', name: '6GB', price: 2700 }, 
         { id: '8', name: '8GB', price: 3600 }, { id: '10', name: '10GB', price: 4400 }, { id: '15', name: '15GB', price: 6400 },
-        { id: '20', name: '20GB', price: 8200 }, { id: '25', name: '25GB', price: 10200 }, { id: '30', name: '30GB', price: 12200 },
-        { id: '40', name: '40GB', price: 16200 }, { id: '50', name: '50GB', price: 19800 }
+        { id: '20', name: '20GB', price: 8200 }, { id: '25', name: '25GB', price: 10400 }, { id: '30', name: '30GB', price: 12000 },
+        { id: '40', name: '40GB', price: 16000 }, { id: '50', name: '50GB', price: 19850 }
     ],
     "AirtelTigo": [
-        { id: '1', name: '1GB', price: 400 }, { id: '2', name: '2GB', price: 800 }, { id: '3', name: '3GB', price: 1200 },  
-        { id: '4', name: '4GB', price: 1600 }, { id: '5', name: '5GB', price: 2000 }, { id: '6', name: '6GB', price: 2400 },  
-        { id: '7', name: '7GB', price: 2790 }, { id: '8', name: '8GB', price: 3200 }, { id: '9', name: '9GB', price: 3600 },  
+        { id: '1', name: '1GB', price: 420 }, { id: '2', name: '2GB', price: 830 }, { id: '3', name: '3GB', price: 1230 },  
+        { id: '4', name: '4GB', price: 1600 }, { id: '5', name: '5GB', price: 2200 }, { id: '6', name: '6GB', price: 2560 },  
+        { id: '7', name: '7GB', price: 2800 }, { id: '8', name: '8GB', price: 3200 }, { id: '9', name: '9GB', price: 3600 },  
         { id: '10', name: '10GB', price: 4200 }, { id: '12', name: '12GB', price: 5000 }, { id: '15', name: '15GB', price: 6130 },
         { id: '20', name: '20GB', price: 8210 }
     ],
     "Telecel": [
-        { id: '5', name: '5GB', price: 2300 }, { id: '10', name: '10GB', price: 4300 }, { id: '15', name: '15GB', price: 6220 }, 
+        { id: '5', name: '5GB', price: 2350 }, { id: '10', name: '10GB', price: 4400 }, { id: '15', name: '15GB', price: 6300 }, 
         { id: '20', name: '20GB', price: 8300 }, { id: '25', name: '25GB', price: 10300 }, { id: '30', name: '30GB', price: 12300 },
         { id: '40', name: '40GB', price: 15500 }, { id: '50', name: '50GB', price: 19500 }, { id: '100', name: '100GB', price: 40000}
     ]
@@ -255,7 +254,6 @@ app.set('trust proxy', 1);
 
 const sessionSecret = process.env.SESSION_SECRET || 'fallback-secret-for-local-dev-only-12345';
 
-// 🛑 Retrieve MONGO_URI from the environment (CRITICAL FIX)
 const mongoUri = process.env.MONGO_URI;
 
 app.use(session({
@@ -273,6 +271,17 @@ app.use(session({
     } 
 }));
 
+// 🛑 NEW: SECURITY HEADERS MIDDLEWARE 🛑
+app.use((req, res, next) => {
+    // Prevent browser from trying to guess content type (XSS defense)
+    res.setHeader('X-Content-Type-Options', 'nosniff');
+    // Prevents clickjacking attacks
+    res.setHeader('X-Frame-Options', 'SAMEORIGIN');
+    // Basic protection against XSS
+    res.setHeader('X-XSS-Protection', '1; mode=block');
+    next();
+});
+
 app.use(express.json());
 
 // --- ADDED HEALTH CHECK ENDPOINT ---
@@ -283,7 +292,7 @@ app.get('/health', (req, res) => {
 
 app.use(express.static(path.join(__dirname, 'public')));
 
-// 🛑 RATE LIMITING MIDDLEWARE 🛑
+// 🛑 RATE LIMITING MIDDLEWARE (Applied to Login route) 🛑
 const loginLimiter = rateLimit({
     windowMs: 15 * 60 * 1000, // 15 minutes
     max: 5, // Limit each IP to 5 requests per windowMs
@@ -752,7 +761,7 @@ app.get('/api/get-all-orders', async (req, res) => {
         const formattedOrders = orders.map(order => ({
             id: order._id,
             username: order.userId ? order.userId.username : 'Deleted User',
-            phone_number: order.phoneNumber || 'N/A', 
+            phoneNumber: order.phoneNumber, // Include full phoneNumber
             network: order.network || 'WALLET', 
             dataPlan: order.dataPlan,
             amount: order.amount,
@@ -846,7 +855,8 @@ app.get('/dashboard.html', isAuthenticated, (req, res) => res.sendFile(path.join
 app.get('/admin.html', (req, res) => res.sendFile(path.join(__dirname, 'public', 'admin.html')));
 app.get('/forgot.html', (req, res) => res.sendFile(path.join(__dirname, 'public', 'forgot.html')));
 app.get('/reset.html', (req, res) => res.sendFile(path.join(__dirname, 'public', 'reset.html')));
-app.get('/support.html', (req, res) => res.sendFile(path.join(__dirname, 'public', 'support.html'))); 
+app.get('/terms.html', (req, res) => res.sendFile(path.join(__dirname, 'public', 'terms.html')));
+app.get('/privacy.html', (req, res) => res.sendFile(path.join(__dirname, 'public', 'privacy.html')));
 
 
 // --- SERVER START ---
