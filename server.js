@@ -43,6 +43,7 @@ const allPlans = {
     ]
 };
 
+
 const NETWORK_KEY_MAP = {
     "MTN": 'MTN', 
     "AirtelTigo": 'AT', 
@@ -71,6 +72,14 @@ function calculateClientTopupFee(netDepositPesewas) {
     const feeAmount = netDepositPesewas * TOPUP_FEE_RATE;
     const finalCharge = netDepositPesewas + feeAmount;
     return Math.ceil(finalCharge); 
+}
+
+// 🛑 NEW: Helper to calculate Paystack fee for a batch order (single fee applied to total)
+function calculateBatchPaystackCharge(netTotalPesewas) {
+    // The fixed 25 pesewas is added here based on the purchase.html logic
+    const CUSTOMER_FLAT_FEE_PESEWAS = 25; 
+    const totalCharged = netTotalPesewas + CUSTOMER_FLAT_FEE_PESEWAS;
+    return Math.round(totalCharged); // Return the total amount to charge the user
 }
 
 async function sendAdminAlertEmail(order) {
@@ -105,11 +114,12 @@ async function sendAdminAlertEmail(order) {
 }
 
 async function executeDataPurchase(userId, orderDetails, paymentMethod) {
-    const { network, dataPlan, amount } = orderDetails;
+    const { network, dataPlan, amount, reference } = orderDetails;
     
     let finalStatus = 'payment_success'; 
-    const uniqueId = crypto.randomBytes(16).toString('hex');
-    const reference = `${paymentMethod.toUpperCase()}-${uniqueId}`;
+    
+    // If reference is not provided (single wallet purchase), generate one.
+    const purchaseReference = reference || `${paymentMethod.toUpperCase()}-${crypto.randomBytes(16).toString('hex')}`;
 
     // --- STEP 1: SETUP & VALIDATION ---
     const resellerApiUrl = RESELLER_API_BASE_URL;
@@ -129,7 +139,7 @@ async function executeDataPurchase(userId, orderDetails, paymentMethod) {
         network: networkKey,       
         capacity: dataPlan,          
         recipient: orderDetails.phoneNumber,      
-        client_ref: reference      
+        client_ref: purchaseReference      
     };
     
     // --- STEP 2: ATTEMPT DATA TRANSFER ---
@@ -178,7 +188,7 @@ async function executeDataPurchase(userId, orderDetails, paymentMethod) {
     // --- STEP 3: SAVE FINAL ORDER STATUS & ALERT ---
     await Order.create({
         userId: userId,
-        reference: reference,
+        reference: purchaseReference,
         phoneNumber: orderDetails.phoneNumber,
         network: network,
         dataPlan: dataPlan,
@@ -191,7 +201,7 @@ async function executeDataPurchase(userId, orderDetails, paymentMethod) {
         await sendAdminAlertEmail(orderDetails); 
     }
 
-    return { status: finalStatus, reference: reference };
+    return { status: finalStatus, reference: purchaseReference };
 }
 
 
@@ -253,7 +263,6 @@ async function runPendingOrderCheck() {
 app.set('trust proxy', 1); 
 
 const sessionSecret = process.env.SESSION_SECRET || 'fallback-secret-for-local-dev-only-12345';
-
 const mongoUri = process.env.MONGO_URI;
 
 app.use(session({
@@ -271,18 +280,15 @@ app.use(session({
     } 
 }));
 
-// 🛑 NEW: SECURITY HEADERS MIDDLEWARE 🛑
+app.use(express.json());
+
+// 🛑 SECURITY HEADERS MIDDLEWARE 🛑
 app.use((req, res, next) => {
-    // Prevent browser from trying to guess content type (XSS defense)
     res.setHeader('X-Content-Type-Options', 'nosniff');
-    // Prevents clickjacking attacks
     res.setHeader('X-Frame-Options', 'SAMEORIGIN');
-    // Basic protection against XSS
     res.setHeader('X-XSS-Protection', '1; mode=block');
     next();
 });
-
-app.use(express.json());
 
 // --- ADDED HEALTH CHECK ENDPOINT ---
 app.get('/health', (req, res) => {
@@ -424,6 +430,110 @@ app.post('/api/reset-password', isDbReady, async (req, res) => {
         res.status(500).json({ message: 'Server error while resetting password.' });
     }
 });
+
+// 🛑 NEW: Batch Checkout Endpoint 🛑
+app.post('/api/checkout-orders', isDbReady, isAuthenticated, async (req, res) => {
+    const { orders, paymentMethod, totalAmountPesewas, reference } = req.body;
+    const userId = req.session.user.id;
+    const totalGHS = totalAmountPesewas / 100;
+    
+    if (!orders || orders.length === 0 || !totalAmountPesewas) {
+        return res.status(400).json({ status: 'error', message: 'Cart is empty or total amount is missing.' });
+    }
+
+    let user;
+    let chargedAmountPesewas;
+    let paymentRef = reference;
+    let fulfilledCount = 0;
+
+    try {
+        user = await User.findById(userId);
+        if (!user) return res.status(404).json({ status: 'error', message: 'User not found.' });
+
+        // --- PHASE 1: HANDLE PAYMENT DEBIT/VERIFICATION ---
+
+        if (paymentMethod === 'wallet') {
+            chargedAmountPesewas = totalAmountPesewas;
+            if (user.walletBalance < chargedAmountPesewas) {
+                return res.status(400).json({ status: 'error', message: 'Insufficient wallet balance for batch order.' });
+            }
+            // Debit wallet atomically (deduct net cost of all items)
+            await User.findByIdAndUpdate(userId, { $inc: { walletBalance: -chargedAmountPesewas } });
+
+        } else if (paymentMethod === 'paystack' && paymentRef) {
+            chargedAmountPesewas = calculateBatchPaystackCharge(totalAmountPesewas);
+
+            // Verify Paystack payment (assuming Paystack verification logic runs here)
+            const paystackUrl = `https://api.paystack.co/transaction/verify/${paymentRef}`;
+            const paystackResponse = await axios.get(paystackUrl, { headers: { Authorization: `Bearer ${process.env.PAYSTACK_SECRET_KEY}` } });
+            const { data } = paystackResponse.data;
+
+            if (data.status !== 'success') {
+                return res.status(400).json({ status: 'error', message: 'Payment verification failed. Please try again.' });
+            }
+            // Use flexible check for paystack fees
+            const acceptableMin = Math.floor(chargedAmountPesewas * 0.95);
+            const acceptableMax = Math.ceil(chargedAmountPesewas * 1.05);
+
+            if (data.amount < acceptableMin || data.amount > acceptableMax) {
+                console.error(`Batch Fraud: Charged ${data.amount} expected ${chargedAmountPesewas}`);
+                return res.status(400).json({ status: 'error', message: 'Amount charged mismatch detected. Contact support.' });
+            }
+
+        } else {
+            return res.status(400).json({ status: 'error', message: 'Invalid payment method or missing reference.' });
+        }
+        
+        // Refresh user balance for session
+        const updatedUser = await User.findById(userId).select('walletBalance');
+        req.session.user.walletBalance = updatedUser.walletBalance;
+
+        // --- PHASE 2: EXECUTE BATCH ORDERS ---
+        
+        // Loop through each item and execute the data purchase individually
+        for (const item of orders) {
+            try {
+                const itemDetails = {
+                    network: item.network,
+                    dataPlan: item.dataPlanId,
+                    phoneNumber: item.phoneNumber,
+                    amount: item.amountPesewas / 100, // Store in GHS
+                    reference: paymentMethod === 'paystack' ? `${paymentRef}-ITEM-${item.id}` : undefined // Use payment ref for tracking if MoMo/Card
+                };
+                
+                // Execute purchase for single item
+                const result = await executeDataPurchase(userId, itemDetails, paymentMethod);
+                if (result.status === 'data_sent' || result.status === 'pending_review') {
+                    fulfilledCount++;
+                }
+
+            } catch (e) {
+                console.error(`Error processing single item in batch: ${e.message}`);
+                // Continue loop even if one item fails execution
+            }
+        }
+        
+        if (fulfilledCount > 0) {
+            return res.json({ 
+                status: 'success', 
+                message: `${fulfilledCount} out of ${orders.length} orders successfully placed. Check dashboard for status.`,
+                fulfilledCount: fulfilledCount
+            });
+        } else {
+             return res.status(500).json({ 
+                status: 'error', 
+                message: 'Payment verified, but zero orders could be fulfilled. Contact support.',
+                fulfilledCount: 0
+            });
+        }
+
+
+    } catch (error) {
+        console.error('Batch Checkout Error:', error);
+        res.status(500).json({ status: 'error', message: 'Server error during batch checkout.' });
+    }
+});
+
 
 app.post('/api/agent-signup', isDbReady, async (req, res) => {
     const { username, email, password } = req.body;
@@ -761,7 +871,7 @@ app.get('/api/get-all-orders', async (req, res) => {
         const formattedOrders = orders.map(order => ({
             id: order._id,
             username: order.userId ? order.userId.username : 'Deleted User',
-            phoneNumber: order.phoneNumber, // Include full phoneNumber
+            phoneNumber: order.phoneNumber, 
             network: order.network || 'WALLET', 
             dataPlan: order.dataPlan,
             amount: order.amount,
