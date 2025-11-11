@@ -1,0 +1,396 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="icon" type="image/x-icon" href="apple-touch-icon.png">
+    <title>Checkout - AJEnterprise</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        /* Define primary colors */
+        :root { --primary: #009879; --secondary: #007a63; }
+        .text-primary { color: var(--primary); }
+        .bg-primary { background-color: var(--primary); }
+        .hover\:bg-secondary:hover { background-color: var(--secondary); }
+        
+        /* Pay Option Styling */
+        .pay-option {
+            cursor: pointer;
+            transition: all 0.2s;
+            border-radius: 0.75rem;
+            border: 3px solid transparent; 
+        }
+        .pay-option.active {
+            border: 3px solid var(--primary); 
+            box-shadow: 0 4px 10px rgba(0, 152, 121, 0.2);
+        }
+        /* Dark Mode Styling */
+        .dark { background-color: #121212; color: #e0e0e0; }
+        .dark .bg-white { background-color: #1f1f1f; color: #e0e0e0; }
+        .dark .shadow-xl { box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.4), 0 10px 10px -5px rgba(0, 0, 0, 0.2); }
+        .dark .text-gray-700, .dark .text-gray-600 { color: #d1d5db; }
+        .dark input, .dark select { background-color: #374151; border-color: #4b5563; color: #f3f4f6; }
+        .dark .border-gray-300 { border-color: #4b5563; }
+
+        /* Toast Container for Notifications */
+        #toast-container {
+            position: fixed;
+            top: 1rem;
+            right: 1rem;
+            z-index: 1000;
+            max-width: 300px;
+        }
+    </style>
+</head>
+<body class="bg-gray-50 min-h-screen font-sans transition-colors duration-300 dark:bg-[#121212]">
+
+    <!-- Toast Notification Container -->
+    <div id="toast-container"></div>
+
+    <!-- Navbar -->
+    <nav class="bg-white shadow-lg dark:bg-[#1f1f1f]">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex justify-between items-center h-16">
+            <a href="/purchase.html" class="text-xl font-bold text-primary">AJENTERPRISE</a>
+            <div class="flex space-x-4 items-center">
+                <span id="wallet-balance-display" class="text-sm font-semibold text-gray-700 dark:text-gray-400">GHS 0.00</span>
+                <a href="/dashboard.html" class="text-gray-600 dark:text-gray-400 hover:text-primary transition font-medium">Dashboard</a>
+            </div>
+        </div>
+    </nav>
+    
+    <!-- Main Content Container -->
+    <div class="container mx-auto p-4 max-w-2xl">
+        <div class="bg-white p-6 md:p-8 rounded-2xl shadow-xl mt-8 border border-gray-100 dark:bg-[#1f1f1f] dark:border-gray-700">
+            <h1 class="text-3xl font-extrabold text-center text-gray-800 dark:text-white mb-6">
+                Complete Your Batch Order
+            </h1>
+
+            <!-- Order Summary Table -->
+            <div class="mb-8">
+                <h2 class="text-xl font-semibold text-gray-800 dark:text-white mb-3 border-b pb-2">Order Summary</h2>
+                <div class="overflow-x-auto">
+                    <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+                        <thead>
+                            <tr class="text-left text-xs font-medium text-gray-500 uppercase tracking-wider dark:text-gray-400">
+                                <th class="py-3 px-2">Item</th>
+                                <th class="py-3 px-2">Recipient</th>
+                                <th class="py-3 px-2">Cost (GHS)</th>
+                                <th class="py-3 px-2">Action</th>
+                            </tr>
+                        </thead>
+                        <tbody id="cart-items" class="bg-white divide-y divide-gray-200 dark:bg-[#1f1f1f] dark:divide-gray-700">
+                            <!-- Cart items will be inserted here -->
+                        </tbody>
+                        <tfoot class="font-bold">
+                            <tr>
+                                <td colspan="2" class="py-3 px-2 text-gray-800 dark:text-white">Total Cost:</td>
+                                <td id="cart-total-display" class="py-3 px-2 text-primary text-lg">GHS 0.00</td>
+                                <td class="py-3 px-2"></td>
+                            </tr>
+                        </tfoot>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Payment Selection -->
+            <div id="payment-section" class="space-y-6">
+                <h2 class="text-xl font-semibold text-gray-800 dark:text-white border-b pb-2">Choose Payment Method</h2>
+
+                <div id="payment-methods" class="grid grid-cols-2 gap-4">
+                    <!-- Wallet Option -->
+                    <div class="pay-option p-4 shadow-lg text-center active dark:bg-[#282828]" data-method="wallet">
+                        <p class="font-bold text-lg text-gray-800 dark:text-white">Wallet</p>
+                        <p class="text-xs text-gray-500 dark:text-gray-400">Instant & Fee-Free</p>
+                    </div>
+                    <!-- Paystack Option -->
+                    <div class="pay-option p-4 shadow-lg text-center dark:bg-[#282828]" data-method="paystack">
+                        <p class="font-bold text-lg text-gray-800 dark:text-white">Mobile Money / Card</p>
+                        <p class="text-xs text-red-500 font-bold">1 Transaction Fee Applied</p>
+                    </div>
+                </div>
+
+                <!-- Final Pay Button -->
+                <button type="button" id="process-checkout-button" class="w-full py-4 bg-primary text-white text-lg font-bold rounded-xl shadow-lg transition hover:bg-secondary disabled:opacity-50">
+                    Process Checkout (GHS 0.00)
+                </button>
+                <p id="checkout-message" class="text-center text-sm font-medium min-h-[20px]"></p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Paystack SDK -->
+    <script src="https://js.paystack.co/v1/inline.js"></script>
+    
+    <!-- JavaScript Logic -->
+    <script>
+        // --- TOAST NOTIFICATION SYSTEM ---
+        function showToast(message, type = 'success') {
+            const container = document.getElementById('toast-container');
+            const colors = {
+                success: 'bg-green-500 border-green-700',
+                error: 'bg-red-500 border-red-700',
+                warning: 'bg-yellow-500 border-yellow-700',
+            };
+            const toast = document.createElement('div');
+            toast.className = `p-4 mb-2 text-white text-sm font-semibold rounded-lg shadow-lg border-b-4 ${colors[type]} transform translate-x-full transition-all duration-300 ease-out`;
+            toast.textContent = message;
+
+            container.prepend(toast);
+
+            setTimeout(() => {
+                toast.style.transform = 'translateX(0)';
+            }, 10);
+
+            setTimeout(() => {
+                toast.style.transform = 'translateX(120%)';
+                setTimeout(() => {
+                    container.removeChild(toast);
+                }, 400);
+            }, 6000);
+        }
+        // --- END TOAST SYSTEM ---
+
+        // --- GLOBAL CONSTANTS ---
+        const PAYSTACK_PUBLIC_KEY = 'pk_live_3be2ebebc6edd6fa9f5f9a7303c80a55ee9e0be1'; 
+        const FEE_RATE = 0.02; // 2% fee rate
+
+        // --- DOM ELEMENTS ---
+        const cartItemsBody = document.getElementById('cart-items');
+        const cartTotalDisplay = document.getElementById('cart-total-display');
+        const processCheckoutButton = document.getElementById('process-checkout-button');
+        const checkoutMessage = document.getElementById('checkout-message');
+        const paymentMethodsContainer = document.getElementById('payment-methods');
+        const walletBalanceDisplay = document.getElementById('wallet-balance-display');
+        
+        let userCart = [];
+        let grandTotalPesewas = 0;
+        let userWalletBalance = 0;
+        let userEmail = '';
+
+        // --- FEE CALCULATION (Must match server logic) ---
+        function calculateFinalPaystackCharge(netDepositPesewas) {
+            const feeAmount = netDepositPesewas * FEE_RATE;
+            const finalCharge = netDepositPesewas + feeAmount;
+            return Math.ceil(finalCharge); 
+        }
+
+        // --- CART MANAGEMENT & RENDERING ---
+        function getCart() {
+            try {
+                return JSON.parse(localStorage.getItem('userCart') || '[]');
+            } catch (e) {
+                console.error("Error parsing cart:", e);
+                return [];
+            }
+        }
+
+        function saveCart(cart) {
+            localStorage.setItem('userCart', JSON.stringify(cart));
+            loadCartAndRender();
+        }
+
+        function removeItem(itemId) {
+            const cart = getCart();
+            const newCart = cart.filter(item => item.id !== itemId);
+            saveCart(newCart);
+        }
+
+        function clearCart() {
+            localStorage.removeItem('userCart');
+            loadCartAndRender();
+        }
+
+        function loadCartAndRender() {
+            userCart = getCart();
+            grandTotalPesewas = userCart.reduce((total, item) => total + item.amountPesewas, 0);
+            const totalGHS = (grandTotalPesewas / 100).toFixed(2);
+
+            cartItemsBody.innerHTML = '';
+            if (userCart.length === 0) {
+                cartItemsBody.innerHTML = '<tr><td colspan="4" class="text-center py-4 text-gray-500">Your cart is empty. <a href="/purchase.html" class="text-primary hover:underline">Add items</a></td></tr>';
+                processCheckoutButton.disabled = true;
+            } else {
+                userCart.forEach(item => {
+                    const row = cartItemsBody.insertRow();
+                    row.className = 'text-gray-700 dark:text-gray-300';
+                    row.innerHTML = `
+                        <td class="py-2 px-2">${item.dataPlanName} (${item.network})</td>
+                        <td class="py-2 px-2 text-xs">${item.phoneNumber}</td>
+                        <td class="py-2 px-2 font-semibold">GHS ${item.amountGHS}</td>
+                        <td class="py-2 px-2">
+                            <button onclick="removeItem(${item.id})" class="text-red-500 hover:text-red-700 text-xs">Remove</button>
+                        </td>
+                    `;
+                });
+                processCheckoutButton.disabled = false;
+            }
+
+            // Update footer totals
+            cartTotalDisplay.textContent = `GHS ${totalGHS}`;
+            updateCheckoutButtonText();
+        }
+
+        // --- UI & PAYMENT HANDLERS ---
+
+        function updateCheckoutButtonText() {
+            const selectedMethod = paymentMethodsContainer.querySelector('.pay-option.active')?.dataset.method;
+            const totalGHS = (grandTotalPesewas / 100);
+
+            if (userCart.length === 0) {
+                processCheckoutButton.textContent = "Cart is Empty";
+            } else if (selectedMethod === 'wallet') {
+                if (grandTotalPesewas > userWalletBalance) {
+                    processCheckoutButton.textContent = `Insufficient Funds (GHS ${totalGHS.toFixed(2)})`;
+                    processCheckoutButton.disabled = true;
+                } else {
+                    processCheckoutButton.textContent = `Pay GHS ${totalGHS.toFixed(2)} with Wallet`;
+                    processCheckoutButton.disabled = false;
+                }
+            } else if (selectedMethod === 'paystack') {
+                const totalChargedPesewas = calculateFinalPaystackCharge(grandTotalPesewas);
+                const totalChargedGHS = (totalChargedPesewas / 100).toFixed(2);
+                processCheckoutButton.textContent = `Pay GHS ${totalChargedGHS} via MoMo/Card`;
+                processCheckoutButton.disabled = false;
+            }
+        }
+
+        async function handleWalletCheckout() {
+            if (userCart.length === 0 || grandTotalPesewas === 0) return;
+            
+            processCheckoutButton.disabled = true;
+            processCheckoutButton.textContent = 'Processing Batch Order...';
+            checkoutMessage.textContent = 'Debiting wallet and fulfilling orders...';
+            checkoutMessage.style.color = 'orange';
+
+            try {
+                const response = await fetch('/api/checkout-orders', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        orders: userCart,
+                        paymentMethod: 'wallet',
+                        totalAmountPesewas: grandTotalPesewas
+                    })
+                });
+
+                const data = await response.json();
+                
+                if (data.status === 'success') {
+                    showToast(data.message, 'success');
+                    checkoutMessage.textContent = `Success! ${data.fulfilledCount} orders placed. Check dashboard for status.`;
+                    checkoutMessage.style.color = 'green';
+                    clearCart();
+                    await fetchUserInfo();
+                } else {
+                    throw new Error(data.message || 'Checkout failed.');
+                }
+            } catch (error) {
+                showToast(`Checkout Error: ${error.message}`, 'error');
+                checkoutMessage.textContent = `Error: ${error.message}`;
+                checkoutMessage.style.color = 'red';
+            } finally {
+                processCheckoutButton.disabled = false;
+                updateCheckoutButtonText();
+            }
+        }
+
+        async function handlePaystackCheckout() {
+            if (userCart.length === 0 || grandTotalPesewas === 0) return;
+
+            const amountToCharge = calculateFinalPaystackCharge(grandTotalPesewas);
+
+            processCheckoutButton.disabled = true;
+            processCheckoutButton.textContent = 'Initiating Payment Gateway...';
+
+            const paymentCallback = function(response) {
+                checkoutMessage.textContent = "Verifying payment and submitting batch order...";
+                checkoutMessage.style.color = 'orange';
+
+                fetch('/api/checkout-orders', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        reference: response.reference,
+                        orders: userCart,
+                        paymentMethod: 'paystack',
+                        totalAmountPesewas: grandTotalPesewas // Net cost before Paystack fee
+                    }),
+                })
+                .then(verifyResponse => verifyResponse.json())
+                .then(data => {
+                    const statusType = data.status === 'success' ? 'success' : 'error';
+                    showToast(data.message, statusType);
+                    checkoutMessage.textContent = data.message;
+                    checkoutMessage.style.color = statusType === 'success' ? 'green' : 'red';
+                    
+                    if (data.status === 'success') {
+                        clearCart();
+                        fetchUserInfo();
+                    }
+                })
+                .catch(err => {
+                    showToast("Verification failed.", 'error');
+                    checkoutMessage.textContent = "Verification failed. Check console for details.";
+                    checkoutMessage.style.color = 'red';
+                })
+                .finally(() => {
+                    processCheckoutButton.disabled = false;
+                    updateCheckoutButtonText();
+                });
+            };
+
+            PaystackPop.setup({
+                key: PAYSTACK_PUBLIC_KEY,
+                email: userEmail,
+                amount: amountToCharge, // Amount must be in pesewas
+                currency: 'GHS',
+                ref: 'BATCH-' + Date.now() + Math.random().toString(36).substring(2, 9),
+                split_code: "SPL_ImOSmBVWFj", // If applicable
+                metadata: {
+                    cart_size: userCart.length,
+                    total_ghs: (grandTotalPesewas / 100).toFixed(2)
+                },
+                callback: paymentCallback,
+                onClose: function() {
+                    checkoutMessage.textContent = "Payment cancelled.";
+                    checkoutMessage.style.color = 'red';
+                    processCheckoutButton.disabled = false;
+                    updateCheckoutButtonText();
+                }
+            }).openIframe();
+        }
+
+        // --- INITIALIZATION ---
+        document.addEventListener('DOMContentLoaded', async () => {
+            // Load user data first
+            userEmail = await fetchUserInfo() || '';
+            loadCartAndRender();
+
+            // Attach payment method selector listeners
+            paymentMethodsContainer.addEventListener('click', (e) => {
+                const target = e.target.closest('.pay-option');
+                if (target) {
+                    document.querySelectorAll('.pay-option').forEach(option => option.classList.remove('active'));
+                    target.classList.add('active');
+                    updateCheckoutButtonText();
+                }
+            });
+
+            // Attach checkout handler
+            processCheckoutButton.addEventListener('click', () => {
+                const selectedMethod = paymentMethodsContainer.querySelector('.pay-option.active')?.dataset.method;
+                if (userCart.length === 0) {
+                    showToast("Your cart is empty!", 'warning');
+                    return;
+                }
+
+                if (selectedMethod === 'wallet') {
+                    handleWalletCheckout();
+                } else if (selectedMethod === 'paystack') {
+                    handlePaystackCheckout();
+                }
+            });
+        });
+    </script>
+</body>
+</html>
