@@ -1,7 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link rel="icon" type="image/x-icon" href="apple-touch-icon.png">
@@ -147,8 +146,7 @@
                     const data = await response.json();
 
                     if (response.ok || response.status === 404) {
-                        // The server intentionally returns 404/200 with a vague success message 
-                        // to prevent user enumeration attacks.
+                        // The server intentionally returns a vague success message to prevent user enumeration attacks.
                         setStatus('If the email is registered, a password reset link has been sent.', 'success');
                     } else {
                         setStatus(data.message || 'Recovery failed due to a server error.', 'error');
