@@ -92,7 +92,13 @@
                 <span class="text-sm font-semibold text-gray-700 dark:text-gray-400 whitespace-nowrap hidden sm:inline">
                     Balance: <span id="wallet-balance-display" class="text-primary font-extrabold">GHS 0.00</span>
                 </span>
-                
+
+                <!-- 🛑 New Cart Button 🛑 -->
+                <a href="/checkout.html" id="cart-link" class="relative p-2 text-gray-600 dark:text-gray-400 hover:text-primary transition">
+                    <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M3 3h2l.4 2M7 13h10l1.2-5H6.5M7 13L6 21H18L17 13M9 19a1 1 0 11-2 0 1 1 0 012 0zm7 0a1 1 0 11-2 0 1 1 0 012 0z" /></svg>
+                    <span id="cart-count" class="absolute top-0 right-0 inline-flex items-center justify-center px-2 py-1 text-xs font-bold leading-none text-red-100 transform translate-x-1/2 -translate-y-1/2 bg-red-600 rounded-full">0</span>
+                </a>
+
                 <a href="/dashboard.html" class="text-gray-600 dark:text-gray-400 hover:text-primary transition font-medium">Dashboard</a>
                 <a href="/api/logout" class="text-red-500 hover:text-red-700 transition font-medium">Logout</a>
             </div>
@@ -103,13 +109,13 @@
     <div class="container mx-auto p-4 max-w-2xl">
         <div class="bg-white p-6 md:p-8 rounded-2xl shadow-xl mt-8 border border-gray-100 dark:bg-[#1f1f1f] dark:border-gray-700">
             <h1 class="text-3xl font-extrabold text-center text-gray-800 mb-2 dark:text-white transition-colors duration-300">
-                Buy Mobile Data
+                Add Data to Cart
             </h1>
             <p class="text-center text-gray-500 mb-8 dark:text-gray-400 transition-colors duration-300">
-                Select your network and plan to get started.
+                Select your plan and recipient to add to your batch order.
             </p>
 
-            <form id="paymentForm" class="space-y-6">
+            <form id="purchaseForm" class="space-y-6">
                 
                 <!-- Network Selection Tabs -->
                 <label class="block text-gray-700 font-semibold mb-3 dark:text-gray-300">Choose Network</label>
@@ -161,28 +167,15 @@
                     <input type="email" id="email" name="email" placeholder="your.email@example.com" class="w-full p-3 border border-gray-300 rounded-lg focus:ring-primary focus:border-primary transition">
                 </div>
                 
-                <!-- Payment Method Selection -->
-                <label class="block text-gray-700 font-semibold mb-3 dark:text-gray-300">Choose Payment Method</label>
-                <div id="payment-methods" class="grid grid-cols-2 gap-4">
-                    <!-- Wallet Option -->
-                    <div class="pay-option p-4 shadow-lg text-center active dark:bg-[#282828]" data-method="wallet">
-                        <p class="font-bold text-lg text-gray-800 dark:text-white">Use Wallet</p>
-                        <p class="text-xs text-gray-500 dark:text-gray-400">Instant & Fee-Free</p>
-                    </div>
-                    <!-- Paystack Option -->
-                    <div class="pay-option p-4 shadow-lg text-center dark:bg-[#282828]" data-method="paystack">
-                        <p class="font-bold text-lg text-gray-800 dark:text-white">Mobile Money / Card</p>
-                        <p class="text-red-500 font-extrabold text-xl">via Paystack</p>
-                        <p class="text-xs text-gray-500 dark:text-gray-400">External Fees Apply</p>
-                    </div>
-                </div>
-
-
-                <!-- Pay Button -->
-                <button type="submit" id="pay-button" class="w-full py-4 bg-primary text-white text-lg font-bold rounded-xl shadow-lg transition hover:bg-secondary disabled:opacity-50">
-                    Pay Now
+                <!-- Add to Cart Button -->
+                <button type="submit" id="add-to-cart-button" class="w-full py-4 bg-primary text-white text-lg font-bold rounded-xl shadow-lg transition hover:bg-secondary disabled:opacity-50">
+                    Add to Cart
                 </button>
             </form>
+
+            <a href="/checkout.html" class="block text-center mt-4 text-primary hover:underline font-semibold">
+                Go to Checkout
+            </a>
             
             <div id="status" class="hidden"></div> 
         </div>
@@ -263,79 +256,72 @@
             const regex = /^0[0-9]{9}$/; // 10 digits starting with 0
             return regex.test(number);
         }
-        
+
+        // --- CART MANAGEMENT ---
+        function getCart() {
+            try {
+                return JSON.parse(localStorage.getItem('userCart') || '[]');
+            } catch (e) {
+                console.error("Error parsing cart:", e);
+                return [];
+            }
+        }
+
+        function saveCart(cart) {
+            localStorage.setItem('userCart', JSON.stringify(cart));
+            updateCartCount();
+        }
+
+        function updateCartCount() {
+            const cart = getCart();
+            document.getElementById('cart-count').textContent = cart.length;
+        }
+
         // --- FINAL GLOBAL CONSTANTS & ELEMENTS ---
         const networkTabs = document.getElementById('network-tabs');
         const networkInput = document.getElementById('network');
         const dataplanSelect = document.getElementById('dataplan');
-        const paymentForm = document.getElementById('paymentForm');
-        const payButton = document.getElementById('pay-button');
+        const purchaseForm = document.getElementById('purchaseForm');
+        const addToCartButton = document.getElementById('add-to-cart-button');
         const phoneInput = document.getElementById('phone'); 
         const emailInput = document.getElementById('email');
         const walletBalanceDisplay = document.getElementById('wallet-balance-display');
-        const paymentMethodsContainer = document.getElementById('payment-methods');
 
         let userWalletBalance = 0; 
-        
         const PAYSTACK_PUBLIC_KEY = 'pk_live_3be2ebebc6edd6fa9f5f9a7303c80a55ee9e0be1'; 
         
-        // --- HELPER: Clears form inputs after successful transaction ---
-        function clearForm() {
-            phoneInput.value = '';
-            emailInput.value = '';
-            const defaultOption = dataplanSelect.querySelector('option[data-amount="0"][disabled]');
-            if (defaultOption) {
-                dataplanSelect.value = defaultOption.value;
-                updatePayButton(defaultOption);
-            }
-        }
-
-        // 🛑 CRITICAL FUNCTIONALITY (NO CHANGE IN LOGIC)
-        function calculateTotalCharge(planPriceInPesewas) {
-            const CUSTOMER_FLAT_FEE_PESEWAS = 25; 
-            const totalAmountCharged = planPriceInPesewas + CUSTOMER_FLAT_FEE_PESEWAS;
-            return Math.round(totalAmountCharged);
+        // --- HELPER: Calculates Cost (No fee calculation needed here) ---
+        function calculatePlanCost(planPriceInPesewas) {
+            // This is just the wholesale cost, used for displaying prices.
+            return planPriceInPesewas;
         }
         
         // --- UI UPDATE AND DATA FETCH ---
-        function updatePayButton(selectedOption) {
+        function updateAddButton(selectedOption) {
             if (!selectedOption) {
-                payButton.textContent = 'Select Plan';
-                payButton.disabled = true;
+                addToCartButton.textContent = 'Select Plan';
+                addToCartButton.disabled = true;
                 return;
             }
 
             const priceInPesewas = parseInt(selectedOption.dataset.amount) || 0;
-            const selectedMethod = paymentMethodsContainer.querySelector('.pay-option.active').dataset.method;
             
             if (priceInPesewas === 0) {
-                payButton.textContent = 'Pay Now';
-                payButton.disabled = true;
+                addToCartButton.textContent = 'Select Plan';
+                addToCartButton.disabled = true;
                 return;
             }
             
             const sellingPriceGHS = (priceInPesewas / 100).toFixed(2);
             
-            if (selectedMethod === 'wallet') {
-                if (priceInPesewas > userWalletBalance) {
-                    payButton.textContent = `Insufficient Funds (GHS ${sellingPriceGHS})`;
-                    payButton.disabled = true;
-                } else {
-                    payButton.textContent = `Pay GHS ${sellingPriceGHS} with Wallet`;
-                    payButton.disabled = false;
-                }
-            } else {
-                const totalCharge = calculateTotalCharge(priceInPesewas);
-                const totalChargeGHS = (totalCharge / 100).toFixed(2);
-                payButton.textContent = `Pay GHS ${totalChargeGHS}`; 
-                payButton.disabled = false;
-            }
+            addToCartButton.textContent = `Add GHS ${sellingPriceGHS} to Cart`; 
+            addToCartButton.disabled = false;
         }
 
         // Fetches plans based on the selected network
         const fetchPlansForNetwork = (network) => {
             dataplanSelect.innerHTML = '<option value="" data-amount="0" selected disabled>Loading plans...</option>';
-            payButton.disabled = true;
+            addToCartButton.disabled = true;
             
             fetch(`/api/data-plans?network=${network}`)
                 .then(response => {
@@ -360,12 +346,12 @@
                     if (plans.length > 0) {
                         dataplanSelect.selectedIndex = 1;
                     }
-                    updatePayButton(dataplanSelect.options[dataplanSelect.selectedIndex]);
+                    updateAddButton(dataplanSelect.options[dataplanSelect.selectedIndex]);
                 })
                 .catch((error) => { 
                     console.error("Error loading plans:", error);
                     dataplanSelect.innerHTML = '<option value="" data-amount="0">Could not load plans</option>'; 
-                    updatePayButton(dataplanSelect.options[0]); 
+                    updateAddButton(dataplanSelect.options[0]); 
                 });
         };
 
@@ -390,131 +376,63 @@
             }
         }
         
-        // --- PURCHASE LOGIC ---
-        const handlePaystackTransaction = (transactionType) => {
+        // --- ADD TO CART LOGIC ---
+        function handleAddToCart() {
             const selected = dataplanSelect.options[dataplanSelect.selectedIndex];
             const priceInPesewas = parseInt(selected.dataset.amount);
-            
-            let amountToCharge = calculateTotalCharge(priceInPesewas); 
-            
-            payButton.disabled = true;
-            payButton.textContent = 'Initiating Checkout...';
-            
-            const transactionUrl = '/paystack/verify'; 
 
-            const paymentCallback = function(response) {
-                showToast("Verifying payment, please wait...", 'warning');
-                
-                fetch(transactionUrl, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ 
-                        reference: response.reference, 
-                        amount: amountToCharge / 100 
-                    }),
-                })
-                .then(verifyResponse => verifyResponse.json())
-                .then(data => {
-                    const statusType = data.status === 'success' ? 'success' : (data.status === 'pending' ? 'warning' : 'error');
-                    showToast(data.message, statusType);
-                    
-                    if (data.newBalance !== undefined) {
-                        userWalletBalance = data.newBalance;
-                        walletBalanceDisplay.textContent = `GHS ${(userWalletBalance / 100).toFixed(2)}`;
-                    }
-                    
-                    if (data.status === 'success') {
-                        clearForm(); 
-                    }
-
-                })
-                .catch(err => {
-                    showToast("An error occurred during verification.", 'error');
-                })
-                .finally(() => {
-                    payButton.disabled = false;
-                    updatePayButton(selected);
-                });
-            };
-            
-            fetchUserInfo().then(userEmail => {
-                PaystackPop.setup({
-                    key: PAYSTACK_PUBLIC_KEY, 
-                    email: document.getElementById('email').value || userEmail, 
-                    amount: amountToCharge, 
-                    currency: 'GHS',
-                    ref: 'DL-' + Math.floor((Math.random() * 1000000000) + 1),
-                    split_code: "SPL_ImOSmBVWFj",
-                    metadata: { 
-                        phone_number: phoneInput.value, 
-                        network: networkInput.value, 
-                        data_plan: selected.value,
-                    },
-                    callback: paymentCallback,
-                    onClose: function() { 
-                        showToast("Transaction cancelled.", 'error'); 
-                        payButton.disabled = false;
-                        updatePayButton(selected);
-                    }
-                }).openIframe();
-            });
-        };
-        
-        const handleWalletPurchase = async () => {
-            const selected = dataplanSelect.options[dataplanSelect.selectedIndex];
-            const priceInPesewas = parseInt(selected.dataset.amount);
-            
-            payButton.disabled = true;
-            payButton.textContent = 'Processing Wallet Payment...';
-
-            try {
-                const response = await fetch('/api/wallet-purchase', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        network: networkInput.value,
-                        dataPlan: selected.value,
-                        phone_number: phoneInput.value,
-                        amountInPesewas: priceInPesewas 
-                    })
-                });
-
-                const data = await response.json();
-
-                const statusType = data.status === 'success' ? 'success' : (data.status === 'pending' ? 'warning' : 'error');
-                showToast(data.message, statusType);
-                
-                await fetchUserInfo();
-                
-                if (data.status === 'success') {
-                    clearForm(); 
-                }
-
-            } catch (err) {
-                showToast("An unknown error occurred during wallet transaction.", 'error');
-            } finally {
-                payButton.disabled = false;
-                updatePayButton(selected);
+            // 🛑 CLIENT-SIDE VALIDATION 🛑
+            if (!validatePhoneNumber(phoneInput.value)) {
+                showToast("Error: Phone number must be 10 digits and start with '0'.", 'error');
+                phoneInput.focus();
+                return;
             }
-        };
+            if (emailInput.value && !emailInput.checkValidity()) {
+                showToast("Error: Please enter a valid email address.", 'error');
+                emailInput.focus();
+                return;
+            }
+            if (priceInPesewas === 0 || isNaN(priceInPesewas)) {
+                showToast("Please select a valid data plan.", 'error');
+                return;
+            }
+            
+            const item = {
+                id: Date.now() + Math.random(), // unique ID for local cart tracking
+                network: networkInput.value,
+                dataPlanId: selected.value,
+                dataPlanName: selected.textContent.split(' - ')[0],
+                phoneNumber: phoneInput.value,
+                amountPesewas: priceInPesewas,
+                amountGHS: (priceInPesewas / 100).toFixed(2),
+                email: emailInput.value || 'N/A'
+            };
+
+            const cart = getCart();
+            cart.push(item);
+            saveCart(cart);
+
+            showToast(`${item.dataPlanName} for ${item.phoneNumber} added to cart!`, 'success');
+            
+            // Optionally clear inputs after adding
+            phoneInput.value = '';
+            emailInput.value = '';
+            updateAddButton(dataplanSelect.options[dataplanSelect.selectedIndex]);
+        }
 
 
         // --- INITIALIZATION & LISTENERS ---
         document.addEventListener('DOMContentLoaded', async () => {
             
-            // 1. Fetch User Info (This updates userWalletBalance and the display)
             await fetchUserInfo(); 
+            updateCartCount(); // Load initial cart count
             
             // 2. Set Default Network & Load Plans 
             const defaultTab = document.querySelector('.network-tab[data-network="MTN"]');
             if (defaultTab) {
-                // Remove active state from any element that might have it
                 document.querySelectorAll('.network-tab').forEach(tab => tab.classList.remove('active', 'border-primary', 'border-transparent'));
-                
-                // Set the default tab as active
                 defaultTab.classList.add('active', 'border-primary');
                 defaultTab.classList.remove('border-transparent');
-                
                 networkInput.value = 'MTN';
                 fetchPlansForNetwork('MTN');
             }
@@ -537,50 +455,13 @@
                 }
             });
             
-            paymentMethodsContainer.addEventListener('click', (e) => {
-                let target = e.target.closest('.pay-option');
-                if (target) {
-                    document.querySelectorAll('.pay-option').forEach(option => option.classList.remove('active'));
-                    target.classList.add('active');
-                    
-                    const selected = dataplanSelect.options[dataplanSelect.selectedIndex];
-                    if (selected) updatePayButton(selected);
-                }
-            });
-            
-            dataplanSelect.addEventListener('change', (e) => updatePayButton(e.target.options[e.target.selectedIndex]));
+            dataplanSelect.addEventListener('change', (e) => updateAddButton(e.target.options[e.target.selectedIndex]));
 
 
-            // 4. Form Submission Handler 
-            paymentForm.addEventListener("submit", function(e) {
+            // 4. Form Submission Handler (Now handles Add To Cart)
+            purchaseForm.addEventListener("submit", function(e) {
                 e.preventDefault();
-                
-                const selected = dataplanSelect.options[dataplanSelect.selectedIndex];
-                const priceInPesewas = parseInt(selected.dataset.amount);
-                const selectedMethod = paymentMethodsContainer.querySelector('.pay-option.active').dataset.method;
-                
-                // 🛑 NEW: CLIENT-SIDE VALIDATION 🛑
-                if (!validatePhoneNumber(phoneInput.value)) {
-                    showToast("Error: Phone number must be 10 digits and start with '0'.", 'error');
-                    phoneInput.focus();
-                    return;
-                }
-                if (emailInput.value && !emailInput.checkValidity()) {
-                    showToast("Error: Please enter a valid email address.", 'error');
-                    emailInput.focus();
-                    return;
-                }
-                
-                if (!selected || priceInPesewas === 0 || isNaN(priceInPesewas)) {
-                    showToast("Please select a valid data plan.", 'error');
-                    return;
-                }
-                
-                if (selectedMethod === 'paystack') {
-                    handlePaystackTransaction('purchase');
-                } else if (selectedMethod === 'wallet') {
-                    handleWalletPurchase();
-                }
+                handleAddToCart();
             });
         });
     </script>
