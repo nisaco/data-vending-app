@@ -24,25 +24,24 @@ const allPlans = {
     // PRICES ARE THE WHOLESALE COST (in PESEWAS)
     "MTN": [
         { id: '1', name: '1GB', price: 480 }, { id: '2', name: '2GB', price: 960 }, { id: '3', name: '3GB', price: 1420 }, 
-        { id: '4', name: '4GB', price: 2000 }, { id: '5', name: '5GB', price: 2400 }, { id: '6', name: '6GB', price: 2700 }, 
+        { id: '4', name: '4GB', price: 2000 }, { id: '5', name: '5GB', price: 2400 }, { id: '6', name: '6GB', price: 2800 }, 
         { id: '8', name: '8GB', price: 3600 }, { id: '10', name: '10GB', price: 4400 }, { id: '15', name: '15GB', price: 6400 },
-        { id: '20', name: '20GB', price: 8200 }, { id: '25', name: '25GB', price: 10400 }, { id: '30', name: '30GB', price: 12000 },
-        { id: '40', name: '40GB', price: 16000 }, { id: '50', name: '50GB', price: 19850 }
+        { id: '20', name: '20GB', price: 8200 }, { id: '25', name: '25GB', price: 10200 }, { id: '30', name: '30GB', price: 12200 },
+        { id: '40', name: '40GB', price: 16200 }, { id: '50', name: '50GB', price: 19800 }
     ],
     "AirtelTigo": [
-        { id: '1', name: '1GB', price: 420 }, { id: '2', name: '2GB', price: 830 }, { id: '3', name: '3GB', price: 1230 },  
-        { id: '4', name: '4GB', price: 1600 }, { id: '5', name: '5GB', price: 2200 }, { id: '6', name: '6GB', price: 2560 },  
-        { id: '7', name: '7GB', price: 2800 }, { id: '8', name: '8GB', price: 3200 }, { id: '9', name: '9GB', price: 3600 },  
+        { id: '1', name: '1GB', price: 400 }, { id: '2', name: '2GB', price: 800 }, { id: '3', name: '3GB', price: 1200 },  
+        { id: '4', name: '4GB', price: 1600 }, { id: '5', name: '5GB', price: 2000 }, { id: '6', name: '6GB', price: 2400 },  
+        { id: '7', name: '7GB', price: 2790 }, { id: '8', name: '8GB', price: 3200 }, { id: '9', name: '9GB', price: 3600 },  
         { id: '10', name: '10GB', price: 4200 }, { id: '12', name: '12GB', price: 5000 }, { id: '15', name: '15GB', price: 6130 },
         { id: '20', name: '20GB', price: 8210 }
     ],
     "Telecel": [
-        { id: '5', name: '5GB', price: 2350 }, { id: '10', name: '10GB', price: 4400 }, { id: '15', name: '15GB', price: 6300 }, 
+        { id: '5', name: '5GB', price: 2300 }, { id: '10', name: '10GB', price: 4300 }, { id: '15', name: '15GB', price: 6220 }, 
         { id: '20', name: '20GB', price: 8300 }, { id: '25', name: '25GB', price: 10300 }, { id: '30', name: '30GB', price: 12300 },
         { id: '40', name: '40GB', price: 15500 }, { id: '50', name: '50GB', price: 19500 }, { id: '100', name: '100GB', price: 40000}
     ]
 };
-
 
 const NETWORK_KEY_MAP = {
     "MTN": 'MTN', 
@@ -76,7 +75,7 @@ function calculateClientTopupFee(netDepositPesewas) {
 
 // 🛑 NEW: Helper to calculate Paystack fee for a batch order (single fee applied to total)
 function calculateBatchPaystackCharge(netTotalPesewas) {
-    // The fixed 25 pesewas is added here based on the purchase.html logic
+    // The fixed 25 pesewas fee is used here based on the purchase.html logic
     const CUSTOMER_FLAT_FEE_PESEWAS = 25; 
     const totalCharged = netTotalPesewas + CUSTOMER_FLAT_FEE_PESEWAS;
     return Math.round(totalCharged); // Return the total amount to charge the user
@@ -428,6 +427,1048 @@ app.post('/api/reset-password', isDbReady, async (req, res) => {
 
     } catch (error) {
         res.status(500).json({ message: 'Server error while resetting password.' });
+    }
+});
+
+app.post('/api/agent-signup', isDbReady, async (req, res) => {
+    const { username, email, password } = req.body;
+    if (!username || !email || !password) return res.status(400).json({ message: 'All fields are required.' });
+    
+    const existingUser = await User.findOne({ $or: [{ username }, { email }] });
+    if (existingUser) {
+        return res.status(400).json({ message: 'User already exists.' });
+    }
+
+    try {
+        const hashedPassword = await bcrypt.hash(password, 10);
+        
+        const finalRegistrationCharge = calculateClientTopupFee(AGENT_REGISTRATION_FEE_PESEWAS);
+        
+        const tempUser = await User.create({ 
+            username, 
+            email, 
+            password: hashedPassword, 
+            walletBalance: 0, 
+            role: 'Agent_Pending' 
+        });
+
+        res.status(200).json({ 
+            message: 'Initiate payment for registration.',
+            userId: tempUser._id,
+            amountPesewas: finalRegistrationCharge 
+        });
+
+    } catch (error) {
+        console.error('Agent signup initiation error:', error);
+        res.status(500).json({ message: 'Server error during agent signup initiation.' }); 
+    }
+});
+
+app.post('/api/verify-agent-payment', async (req, res) => {
+    const { reference, userId } = req.body;
+    
+    const expectedCharge = calculateClientTopupFee(AGENT_REGISTRATION_FEE_PESEWAS);
+
+    try {
+        const paystackUrl = `https://api.paystack.co/transaction/verify/${reference}`;
+        const paystackResponse = await axios.get(paystackUrl, { 
+            headers: { Authorization: `Bearer ${process.env.PAYSTACK_SECRET_KEY}` } 
+        });
+        const { status, data } = paystackResponse.data;
+        
+        const acceptableMinimum = Math.floor(expectedCharge * 0.95);
+        const acceptableMaximum = Math.ceil(expectedCharge * 1.05);
+        
+        if (data.status === 'success' && data.amount >= acceptableMinimum && data.amount <= acceptableMaximum) {
+            
+            const user = await User.findByIdAndUpdate(
+                userId, 
+                { role: 'Agent' }, 
+                { new: true }
+            );
+
+            if (user) {
+                return res.json({ message: 'Registration successful! You are now an Agent.', role: 'Agent' });
+            }
+        }
+        
+        res.status(400).json({ message: 'Payment verification failed. Please try again.' });
+
+    } catch (error) {
+        console.error('Agent payment verification error:', error);
+        await User.findByIdAndDelete(userId);
+        res.status(500).json({ message: 'Verification failed. Contact support.' });
+    }
+});
+
+
+// --- DATA & PROTECTED PAGES ---
+
+app.get('/api/data-plans', isDbReady, async (req, res) => { 
+    const costPlans = allPlans[req.query.network] || [];
+    
+    const markupPesewas = 0; 
+
+    const sellingPlans = costPlans.map(p => {
+        const FIXED_MARKUP = markupPesewas; 
+        const rawSellingPrice = p.price + FIXED_MARKUP;
+        const sellingPrice = Math.ceil(rawSellingPrice / 5) * 5; 
+        
+        return { id: p.id, name: p.name, price: sellingPrice };
+    });
+
+    res.json(sellingPlans);
+});
+
+app.get('/api/my-orders', isDbReady, isAuthenticated, async (req, res) => {
+    try {
+        const orders = await Order.find({ userId: req.session.user.id })
+                                    .sort({ createdAt: -1 }); 
+        res.json({ orders });
+    } catch (error) {
+        res.status(500).json({ error: "Failed to fetch orders" });
+    }
+});
+
+
+// --- WALLET & PAYMENT ROUTES ---
+app.post('/api/topup', isDbReady, isAuthenticated, async (req, res) => {
+    const { reference, amount } = req.body; 
+    if (!reference || !amount) {
+        return res.status(400).json({ status: 'error', message: 'Reference and amount are required.' });
+    }
+    
+    let netDepositAmountGHS = amount; 
+    let topupAmountPesewas = Math.round(netDepositAmountGHS * 100);
+    const userId = req.session.user.id;
+
+    const finalChargedAmountPesewas = calculateClientTopupFee(topupAmountPesewas);
+
+    try {
+        // --- STEP 1: VERIFY PAYMENT WITH PAYSTACK ---
+        const paystackUrl = `https://api.paystack.co/transaction/verify/${reference}`;
+        const paystackResponse = await axios.get(paystackUrl, { 
+            headers: { Authorization: `Bearer ${process.env.PAYSTACK_SECRET_KEY}` } 
+        });
+        const { status, data } = paystackResponse.data;
+
+        if (!status || data.status !== 'success') {
+            let userMessage = `Payment status is currently ${data.status || 'unknown'}. If your money was deducted, please wait 30 seconds and try again, or contact support with reference: ${reference}.`;
+            console.error(`Topup Verification Failed: Paystack status is not 'success'. Status: ${data.status}. Reference: ${reference}`);
+            return res.status(400).json({ status: 'error', message: userMessage });
+        }
+        
+        if (data.amount <= 0) {
+            console.error(`Topup Verification Failed: Paystack reported charged amount as ${data.amount}. Reference: ${reference}`);
+            return res.status(400).json({ status: 'error', message: 'The transaction reference provided is invalid or associated with a failed payment.' });
+        }
+
+        // --- STEP 2: FLEXIBLE AMOUNT CHECK ---
+        const acceptableMinimum = Math.floor(finalChargedAmountPesewas * 0.95); 
+        const acceptableMaximum = Math.ceil(finalChargedAmountPesewas * 1.05);
+
+        if (data.amount < acceptableMinimum || data.amount > acceptableMaximum) {
+            console.error(`Fraud Alert: Paystack charged ${data.amount} but expected range was ${acceptableMinimum}-${acceptableMaximum}. Reference: ${reference}`);
+            return res.status(400).json({ status: 'error', message: 'Amount charged mismatch detected. Please contact support immediately.' });
+        }
+        
+        // --- STEP 3: UPDATE USER WALLET BALANCE (NET DEPOSIT) ---
+        const updatedUser = await User.findByIdAndUpdate(
+            userId,
+            { $inc: { walletBalance: topupAmountPesewas } }, 
+            { new: true, runValidators: true }
+        );
+        
+        req.session.user.walletBalance = updatedUser.walletBalance; 
+
+        // Log the top-up as a successful order for tracking
+        await Order.create({
+            userId: userId,
+            reference: reference,
+            amount: finalChargedAmountPesewas / 100, 
+            status: 'topup_successful',
+            paymentMethod: 'paystack',
+            dataPlan: 'WALLET TOP-UP',
+            network: 'WALLET'
+        });
+
+        res.json({ status: 'success', message: `Wallet topped up successfully! GHS ${netDepositAmountGHS.toFixed(2)} deposited.`, newBalance: updatedUser.walletBalance });
+
+    } catch (error) {
+        console.error('Topup Verification Error:', error);
+        res.status(500).json({ status: 'error', message: 'An internal server error occurred during top-up.' });
+    }
+});
+
+app.post('/api/wallet-purchase', isDbReady, isAuthenticated, async (req, res) => {
+    const { network, dataPlan, phone_number, amountInPesewas } = req.body;
+    const userId = req.session.user.id;
+    
+    if (!network || !dataPlan || !phone_number || !amountInPesewas) {
+        return res.status(400).json({ message: 'Missing required order details.' });
+    }
+
+    try {
+        const user = await User.findById(userId);
+        if (!user) return res.status(404).json({ message: 'User not found.' });
+
+        // 1. Check Balance
+        if (user.walletBalance < amountInPesewas) {
+            return res.status(400).json({ message: 'Insufficient wallet balance.' });
+        }
+
+        // 2. Debit Wallet (Atomically)
+        const debitResult = await User.findByIdAndUpdate(
+            userId,
+            { $inc: { walletBalance: -amountInPesewas } },
+            { new: true, runValidators: true }
+        );
+        
+        req.session.user.walletBalance = debitResult.walletBalance;
+
+        // 3. Execute Data Purchase
+        const result = await executeDataPurchase(userId, {
+            network,
+            dataPlan,
+            phoneNumber: phone_number,
+            amount: amountInPesewas / 100 
+        }, 'wallet');
+        
+        if (result.status === 'data_sent') {
+            return res.json({ status: 'success', message: `Data successfully sent from wallet!` });
+        } else {
+            return res.status(202).json({ 
+                status: 'pending', 
+                message: `Data purchase initiated. Status: ${result.status}. Check dashboard.` 
+            });
+        }
+
+    } catch (error) {
+        console.error('Wallet Purchase Error:', error);
+        res.status(500).json({ message: 'Server error during wallet purchase.' });
+    }
+});
+
+app.post('/paystack/verify', isDbReady, isAuthenticated, async (req, res) => {
+    const { reference } = req.body;
+    if (!reference) return res.status(400).json({ status: 'error', message: 'Reference is required.' });
+
+    let orderDetails = null; 
+    
+    try {
+        // --- STEP 1: VERIFY PAYMENT WITH PAYSTACK ---
+        const paystackUrl = `https://api.paystack.co/transaction/verify/${reference}`;
+        const paystackResponse = await axios.get(paystackUrl, { 
+            headers: { Authorization: `Bearer ${process.env.PAYSTACK_SECRET_KEY}` } 
+        });
+        const { status, data } = paystackResponse.data;
+
+        if (!status || data.status !== 'success') {
+            return res.status(400).json({ status: 'error', message: 'Payment verification failed.' });
+        }
+
+        const { phone_number, network, data_plan } = data.metadata; 
+        const amountInGHS = data.amount / 100;
+        const userId = req.session.user.id;
+        
+        orderDetails = {
+            userId: userId,
+            reference: reference,
+            phoneNumber: phone_number,
+            network: network,
+            dataPlan: data_plan,
+            amount: amountInGHS,
+            status: 'payment_success'
+        };
+        
+        // Execute the data transfer and save order 
+        const result = await executeDataPurchase(userId, orderDetails, 'paystack');
+
+        if (result.status === 'data_sent') {
+            return res.json({ status: 'success', message: `Payment verified. Data transfer successful!` });
+        } else {
+            return res.status(202).json({ 
+                status: 'pending', 
+                message: `Payment successful! Data transfer is pending manual review. Contact support with reference: ${reference}.` 
+            });
+        }
+
+    } catch (error) {
+        let errorMessage = 'An internal server error occurred during verification.';
+        
+        if (error.response && error.response.data && error.response.data.error) {
+            errorMessage = `External API Error: ${error.response.data.error}`;
+        } else if (error.message) {
+            errorMessage = `Network Error: ${error.message}`;
+            
+            console.error('Fatal Verification Failure:', error); 
+        }
+        
+        return res.status(500).json({ status: 'error', message: errorMessage });
+    }
+});
+
+// 🛑 NEW: Batch Checkout Endpoint 🛑
+app.post('/api/checkout-orders', isDbReady, isAuthenticated, async (req, res) => {
+    const { orders, paymentMethod, totalAmountPesewas, reference } = req.body;
+    const userId = req.session.user.id;
+    const totalGHS = totalAmountPesewas / 100;
+    
+    if (!orders || orders.length === 0 || !totalAmountPesewas) {
+        return res.status(400).json({ status: 'error', message: 'Cart is empty or total amount is missing.' });
+    }
+
+    let user;
+    let chargedAmountPesewas;
+    let paymentRef = reference;
+    let fulfilledCount = 0;
+
+    try {
+        user = await User.findById(userId);
+        if (!user) return res.status(404).json({ status: 'error', message: 'User not found.' });
+
+        // --- PHASE 1: HANDLE PAYMENT DEBIT/VERIFICATION ---
+
+        if (paymentMethod === 'wallet') {
+            chargedAmountPesewas = totalAmountPesewas;
+            if (user.walletBalance < chargedAmountPesewas) {
+                return res.status(400).json({ status: 'error', message: 'Insufficient wallet balance for batch order.' });
+            }
+            // Debit wallet atomically (deduct net cost of all items)
+            await User.findByIdAndUpdate(userId, { $inc: { walletBalance: -chargedAmountPesewas } });
+
+        } else if (paymentMethod === 'paystack' && paymentRef) {
+            chargedAmountPesewas = calculateBatchPaystackCharge(totalAmountPesewas);
+
+            // Verify Paystack payment (assuming Paystack verification logic runs here)
+            const paystackUrl = `https://api.paystack.co/transaction/verify/${paymentRef}`;
+            const paystackResponse = await axios.get(paystackUrl, { headers: { Authorization: `Bearer ${process.env.PAYSTACK_SECRET_KEY}` } });
+            const { data } = paystackResponse.data;
+
+            if (data.status !== 'success') {
+                return res.status(400).json({ status: 'error', message: 'Payment verification failed. Please try again.' });
+            }
+            // Use flexible check for paystack fees
+            const acceptableMin = Math.floor(chargedAmountPesewas * 0.95);
+            const acceptableMax = Math.ceil(chargedAmountPesewas * 1.05);
+
+            if (data.amount < acceptableMin || data.amount > acceptableMax) {
+                console.error(`Batch Fraud: Charged ${data.amount} expected ${chargedAmountPesewas}`);
+                return res.status(400).json({ status: 'error', message: 'Amount charged mismatch detected. Contact support.' });
+            }
+
+        } else {
+            return res.status(400).json({ status: 'error', message: 'Invalid payment method or missing reference.' });
+        }
+        
+        // Refresh user balance for session
+        const updatedUser = await User.findById(userId).select('walletBalance');
+        req.session.user.walletBalance = updatedUser.walletBalance;
+
+        // --- PHASE 2: EXECUTE BATCH ORDERS ---
+        
+        // Loop through each item and execute the data purchase individually
+        for (const item of orders) {
+            try {
+                const itemDetails = {
+                    network: item.network,
+                    dataPlan: item.dataPlanId,
+                    phoneNumber: item.phoneNumber,
+                    amount: item.amountPesewas / 100, // Store in GHS
+                    reference: paymentMethod === 'paystack' ? `${paymentRef}-ITEM-${item.id}` : undefined // Use payment ref for tracking if MoMo/Card
+                };
+                
+                // Execute purchase for single item
+                const result = await executeDataPurchase(userId, itemDetails, paymentMethod);
+                if (result.status === 'data_sent' || result.status === 'pending_review') {
+                    fulfilledCount++;
+                }
+
+            } catch (e) {
+                console.error(`Error processing single item in batch: ${e.message}`);
+                // Continue loop even if one item fails execution
+            }
+        }
+        
+        if (fulfilledCount > 0) {
+            return res.json({ 
+                status: 'success', 
+                message: `${fulfilledCount} out of ${orders.length} orders successfully placed. Check dashboard for status.`,
+                fulfilledCount: fulfilledCount
+            });
+        } else {
+             return res.status(500).json({ 
+                status: 'error', 
+                message: 'Payment verified, but zero orders could be fulfilled. Contact support.',
+                fulfilledCount: 0
+            });
+        }
+
+
+    } catch (error) {
+        console.error('Batch Checkout Error:', error);
+        res.status(500).json({ status: 'error', message: 'Server error during batch checkout.' });
+    }
+});
+
+
+app.post('/api/agent-signup', isDbReady, async (req, res) => {
+    const { username, email, password } = req.body;
+    if (!username || !email || !password) return res.status(400).json({ message: 'All fields are required.' });
+    
+    const existingUser = await User.findOne({ $or: [{ username }, { email }] });
+    if (existingUser) {
+        return res.status(400).json({ message: 'User already exists.' });
+    }
+
+    try {
+        const hashedPassword = await bcrypt.hash(password, 10);
+        
+        const finalRegistrationCharge = calculateClientTopupFee(AGENT_REGISTRATION_FEE_PESEWAS);
+        
+        const tempUser = await User.create({ 
+            username, 
+            email, 
+            password: hashedPassword, 
+            walletBalance: 0, 
+            role: 'Agent_Pending' 
+        });
+
+        res.status(200).json({ 
+            message: 'Initiate payment for registration.',
+            userId: tempUser._id,
+            amountPesewas: finalRegistrationCharge 
+        });
+
+    } catch (error) {
+        console.error('Agent signup initiation error:', error);
+        res.status(500).json({ message: 'Server error during agent signup initiation.' }); 
+    }
+});
+
+app.post('/api/verify-agent-payment', async (req, res) => {
+    const { reference, userId } = req.body;
+    
+    const expectedCharge = calculateClientTopupFee(AGENT_REGISTRATION_FEE_PESEWAS);
+
+    try {
+        const paystackUrl = `https://api.paystack.co/transaction/verify/${reference}`;
+        const paystackResponse = await axios.get(paystackUrl, { 
+            headers: { Authorization: `Bearer ${process.env.PAYSTACK_SECRET_KEY}` } 
+        });
+        const { status, data } = paystackResponse.data;
+        
+        const acceptableMinimum = Math.floor(expectedCharge * 0.95);
+        const acceptableMaximum = Math.ceil(expectedCharge * 1.05);
+        
+        if (data.status === 'success' && data.amount >= acceptableMinimum && data.amount <= acceptableMaximum) {
+            
+            const user = await User.findByIdAndUpdate(
+                userId, 
+                { role: 'Agent' }, 
+                { new: true }
+            );
+
+            if (user) {
+                return res.json({ message: 'Registration successful! You are now an Agent.', role: 'Agent' });
+            }
+        }
+        
+        res.status(400).json({ message: 'Payment verification failed. Please try again.' });
+
+    } catch (error) {
+        console.error('Agent payment verification error:', error);
+        await User.findByIdAndDelete(userId);
+        res.status(500).json({ message: 'Verification failed. Contact support.' });
+    }
+});
+
+
+// --- DATA & PROTECTED PAGES ---
+
+app.get('/api/data-plans', isDbReady, async (req, res) => { 
+    const costPlans = allPlans[req.query.network] || [];
+    
+    const markupPesewas = 0; 
+
+    const sellingPlans = costPlans.map(p => {
+        const FIXED_MARKUP = markupPesewas; 
+        const rawSellingPrice = p.price + FIXED_MARKUP;
+        const sellingPrice = Math.ceil(rawSellingPrice / 5) * 5; 
+        
+        return { id: p.id, name: p.name, price: sellingPrice };
+    });
+
+    res.json(sellingPlans);
+});
+
+app.get('/api/my-orders', isDbReady, isAuthenticated, async (req, res) => {
+    try {
+        const orders = await Order.find({ userId: req.session.user.id })
+                                    .sort({ createdAt: -1 }); 
+        res.json({ orders });
+    } catch (error) {
+        res.status(500).json({ error: "Failed to fetch orders" });
+    }
+});
+
+
+// --- WALLET & PAYMENT ROUTES ---
+app.post('/api/topup', isDbReady, isAuthenticated, async (req, res) => {
+    const { reference, amount } = req.body; 
+    if (!reference || !amount) {
+        return res.status(400).json({ status: 'error', message: 'Reference and amount are required.' });
+    }
+    
+    let netDepositAmountGHS = amount; 
+    let topupAmountPesewas = Math.round(netDepositAmountGHS * 100);
+    const userId = req.session.user.id;
+
+    const finalChargedAmountPesewas = calculateClientTopupFee(topupAmountPesewas);
+
+    try {
+        // --- STEP 1: VERIFY PAYMENT WITH PAYSTACK ---
+        const paystackUrl = `https://api.paystack.co/transaction/verify/${reference}`;
+        const paystackResponse = await axios.get(paystackUrl, { 
+            headers: { Authorization: `Bearer ${process.env.PAYSTACK_SECRET_KEY}` } 
+        });
+        const { status, data } = paystackResponse.data;
+
+        if (!status || data.status !== 'success') {
+            let userMessage = `Payment status is currently ${data.status || 'unknown'}. If your money was deducted, please wait 30 seconds and try again, or contact support with reference: ${reference}.`;
+            console.error(`Topup Verification Failed: Paystack status is not 'success'. Status: ${data.status}. Reference: ${reference}`);
+            return res.status(400).json({ status: 'error', message: userMessage });
+        }
+        
+        if (data.amount <= 0) {
+            console.error(`Topup Verification Failed: Paystack reported charged amount as ${data.amount}. Reference: ${reference}`);
+            return res.status(400).json({ status: 'error', message: 'The transaction reference provided is invalid or associated with a failed payment.' });
+        }
+
+        // --- STEP 2: FLEXIBLE AMOUNT CHECK ---
+        const acceptableMinimum = Math.floor(finalChargedAmountPesewas * 0.95); 
+        const acceptableMaximum = Math.ceil(finalChargedAmountPesewas * 1.05);
+
+        if (data.amount < acceptableMinimum || data.amount > acceptableMaximum) {
+            console.error(`Fraud Alert: Paystack charged ${data.amount} but expected range was ${acceptableMinimum}-${acceptableMaximum}. Reference: ${reference}`);
+            return res.status(400).json({ status: 'error', message: 'Amount charged mismatch detected. Please contact support immediately.' });
+        }
+        
+        // --- STEP 3: UPDATE USER WALLET BALANCE (NET DEPOSIT) ---
+        const updatedUser = await User.findByIdAndUpdate(
+            userId,
+            { $inc: { walletBalance: topupAmountPesewas } }, 
+            { new: true, runValidators: true }
+        );
+        
+        req.session.user.walletBalance = updatedUser.walletBalance; 
+
+        // Log the top-up as a successful order for tracking
+        await Order.create({
+            userId: userId,
+            reference: reference,
+            amount: finalChargedAmountPesewas / 100, 
+            status: 'topup_successful',
+            paymentMethod: 'paystack',
+            dataPlan: 'WALLET TOP-UP',
+            network: 'WALLET'
+        });
+
+        res.json({ status: 'success', message: `Wallet topped up successfully! GHS ${netDepositAmountGHS.toFixed(2)} deposited.`, newBalance: updatedUser.walletBalance });
+
+    } catch (error) {
+        console.error('Topup Verification Error:', error);
+        res.status(500).json({ status: 'error', message: 'An internal server error occurred during top-up.' });
+    }
+});
+
+app.post('/api/wallet-purchase', isDbReady, isAuthenticated, async (req, res) => {
+    const { network, dataPlan, phone_number, amountInPesewas } = req.body;
+    const userId = req.session.user.id;
+    
+    if (!network || !dataPlan || !phone_number || !amountInPesewas) {
+        return res.status(400).json({ message: 'Missing required order details.' });
+    }
+
+    try {
+        const user = await User.findById(userId);
+        if (!user) return res.status(404).json({ message: 'User not found.' });
+
+        // 1. Check Balance
+        if (user.walletBalance < amountInPesewas) {
+            return res.status(400).json({ message: 'Insufficient wallet balance.' });
+        }
+
+        // 2. Debit Wallet (Atomically)
+        const debitResult = await User.findByIdAndUpdate(
+            userId,
+            { $inc: { walletBalance: -amountInPesewas } },
+            { new: true, runValidators: true }
+        );
+        
+        req.session.user.walletBalance = debitResult.walletBalance;
+
+        // 3. Execute Data Purchase
+        const result = await executeDataPurchase(userId, {
+            network,
+            dataPlan,
+            phoneNumber: phone_number,
+            amount: amountInPesewas / 100 
+        }, 'wallet');
+        
+        if (result.status === 'data_sent') {
+            return res.json({ status: 'success', message: `Data successfully sent from wallet!` });
+        } else {
+            return res.status(202).json({ 
+                status: 'pending', 
+                message: `Data purchase initiated. Status: ${result.status}. Check dashboard.` 
+            });
+        }
+
+    } catch (error) {
+        console.error('Wallet Purchase Error:', error);
+        res.status(500).json({ message: 'Server error during wallet purchase.' });
+    }
+});
+
+app.post('/paystack/verify', isDbReady, isAuthenticated, async (req, res) => {
+    const { reference } = req.body;
+    if (!reference) return res.status(400).json({ status: 'error', message: 'Reference is required.' });
+
+    let orderDetails = null; 
+    
+    try {
+        // --- STEP 1: VERIFY PAYMENT WITH PAYSTACK ---
+        const paystackUrl = `https://api.paystack.co/transaction/verify/${reference}`;
+        const paystackResponse = await axios.get(paystackUrl, { 
+            headers: { Authorization: `Bearer ${process.env.PAYSTACK_SECRET_KEY}` } 
+        });
+        const { status, data } = paystackResponse.data;
+
+        if (!status || data.status !== 'success') {
+            return res.status(400).json({ status: 'error', message: 'Payment verification failed.' });
+        }
+
+        const { phone_number, network, data_plan } = data.metadata; 
+        const amountInGHS = data.amount / 100;
+        const userId = req.session.user.id;
+        
+        orderDetails = {
+            userId: userId,
+            reference: reference,
+            phoneNumber: phone_number,
+            network: network,
+            dataPlan: data_plan,
+            amount: amountInGHS,
+            status: 'payment_success'
+        };
+        
+        // Execute the data transfer and save order 
+        const result = await executeDataPurchase(userId, orderDetails, 'paystack');
+
+        if (result.status === 'data_sent') {
+            return res.json({ status: 'success', message: `Payment verified. Data transfer successful!` });
+        } else {
+            return res.status(202).json({ 
+                status: 'pending', 
+                message: `Payment successful! Data transfer is pending manual review. Contact support with reference: ${reference}.` 
+            });
+        }
+
+    } catch (error) {
+        let errorMessage = 'An internal server error occurred during verification.';
+        
+        if (error.response && error.response.data && error.response.data.error) {
+            errorMessage = `External API Error: ${error.response.data.error}`;
+        } else if (error.message) {
+            errorMessage = `Network Error: ${error.message}`;
+            
+            console.error('Fatal Verification Failure:', error); 
+        }
+        
+        return res.status(500).json({ status: 'error', message: errorMessage });
+    }
+});
+
+// 🛑 NEW: Batch Checkout Endpoint 🛑
+app.post('/api/checkout-orders', isDbReady, isAuthenticated, async (req, res) => {
+    const { orders, paymentMethod, totalAmountPesewas, reference } = req.body;
+    const userId = req.session.user.id;
+    const totalGHS = totalAmountPesewas / 100;
+    
+    if (!orders || orders.length === 0 || !totalAmountPesewas) {
+        return res.status(400).json({ status: 'error', message: 'Cart is empty or total amount is missing.' });
+    }
+
+    let user;
+    let chargedAmountPesewas;
+    let paymentRef = reference;
+    let fulfilledCount = 0;
+
+    try {
+        user = await User.findById(userId);
+        if (!user) return res.status(404).json({ status: 'error', message: 'User not found.' });
+
+        // --- PHASE 1: HANDLE PAYMENT DEBIT/VERIFICATION ---
+
+        if (paymentMethod === 'wallet') {
+            chargedAmountPesewas = totalAmountPesewas;
+            if (user.walletBalance < chargedAmountPesewas) {
+                return res.status(400).json({ status: 'error', message: 'Insufficient wallet balance for batch order.' });
+            }
+            // Debit wallet atomically (deduct net cost of all items)
+            await User.findByIdAndUpdate(userId, { $inc: { walletBalance: -chargedAmountPesewas } });
+
+        } else if (paymentMethod === 'paystack' && paymentRef) {
+            chargedAmountPesewas = calculateBatchPaystackCharge(totalAmountPesewas);
+
+            // Verify Paystack payment (assuming Paystack verification logic runs here)
+            const paystackUrl = `https://api.paystack.co/transaction/verify/${paymentRef}`;
+            const paystackResponse = await axios.get(paystackUrl, { headers: { Authorization: `Bearer ${process.env.PAYSTACK_SECRET_KEY}` } });
+            const { data } = paystackResponse.data;
+
+            if (data.status !== 'success') {
+                return res.status(400).json({ status: 'error', message: 'Payment verification failed. Please try again.' });
+            }
+            // Use flexible check for paystack fees
+            const acceptableMin = Math.floor(chargedAmountPesewas * 0.95);
+            const acceptableMax = Math.ceil(chargedAmountPesewas * 1.05);
+
+            if (data.amount < acceptableMin || data.amount > acceptableMax) {
+                console.error(`Batch Fraud: Charged ${data.amount} expected ${chargedAmountPesewas}`);
+                return res.status(400).json({ status: 'error', message: 'Amount charged mismatch detected. Contact support.' });
+            }
+
+        } else {
+            return res.status(400).json({ status: 'error', message: 'Invalid payment method or missing reference.' });
+        }
+        
+        // Refresh user balance for session
+        const updatedUser = await User.findById(userId).select('walletBalance');
+        req.session.user.walletBalance = updatedUser.walletBalance;
+
+        // --- PHASE 2: EXECUTE BATCH ORDERS ---
+        
+        // Loop through each item and execute the data purchase individually
+        for (const item of orders) {
+            try {
+                const itemDetails = {
+                    network: item.network,
+                    dataPlan: item.dataPlanId,
+                    phoneNumber: item.phoneNumber,
+                    amount: item.amountPesewas / 100, // Store in GHS
+                    reference: paymentMethod === 'paystack' ? `${paymentRef}-ITEM-${item.id}` : undefined // Use payment ref for tracking if MoMo/Card
+                };
+                
+                // Execute purchase for single item
+                const result = await executeDataPurchase(userId, itemDetails, paymentMethod);
+                if (result.status === 'data_sent' || result.status === 'pending_review') {
+                    fulfilledCount++;
+                }
+
+            } catch (e) {
+                console.error(`Error processing single item in batch: ${e.message}`);
+                // Continue loop even if one item fails execution
+            }
+        }
+        
+        if (fulfilledCount > 0) {
+            return res.json({ 
+                status: 'success', 
+                message: `${fulfilledCount} out of ${orders.length} orders successfully placed. Check dashboard for status.`,
+                fulfilledCount: fulfilledCount
+            });
+        } else {
+             return res.status(500).json({ 
+                status: 'error', 
+                message: 'Payment verified, but zero orders could be fulfilled. Contact support.',
+                fulfilledCount: 0
+            });
+        }
+
+
+    } catch (error) {
+        console.error('Batch Checkout Error:', error);
+        res.status(500).json({ status: 'error', message: 'Server error during batch checkout.' });
+    }
+});
+
+
+app.post('/api/agent-signup', isDbReady, async (req, res) => {
+    const { username, email, password } = req.body;
+    if (!username || !email || !password) return res.status(400).json({ message: 'All fields are required.' });
+    
+    const existingUser = await User.findOne({ $or: [{ username }, { email }] });
+    if (existingUser) {
+        return res.status(400).json({ message: 'User already exists.' });
+    }
+
+    try {
+        const hashedPassword = await bcrypt.hash(password, 10);
+        
+        const finalRegistrationCharge = calculateClientTopupFee(AGENT_REGISTRATION_FEE_PESEWAS);
+        
+        const tempUser = await User.create({ 
+            username, 
+            email, 
+            password: hashedPassword, 
+            walletBalance: 0, 
+            role: 'Agent_Pending' 
+        });
+
+        res.status(200).json({ 
+            message: 'Initiate payment for registration.',
+            userId: tempUser._id,
+            amountPesewas: finalRegistrationCharge 
+        });
+
+    } catch (error) {
+        console.error('Agent signup initiation error:', error);
+        res.status(500).json({ message: 'Server error during agent signup initiation.' }); 
+    }
+});
+
+app.post('/api/verify-agent-payment', async (req, res) => {
+    const { reference, userId } = req.body;
+    
+    const expectedCharge = calculateClientTopupFee(AGENT_REGISTRATION_FEE_PESEWAS);
+
+    try {
+        const paystackUrl = `https://api.paystack.co/transaction/verify/${reference}`;
+        const paystackResponse = await axios.get(paystackUrl, { 
+            headers: { Authorization: `Bearer ${process.env.PAYSTACK_SECRET_KEY}` } 
+        });
+        const { status, data } = paystackResponse.data;
+        
+        const acceptableMinimum = Math.floor(expectedCharge * 0.95);
+        const acceptableMaximum = Math.ceil(expectedCharge * 1.05);
+        
+        if (data.status === 'success' && data.amount >= acceptableMinimum && data.amount <= acceptableMaximum) {
+            
+            const user = await User.findByIdAndUpdate(
+                userId, 
+                { role: 'Agent' }, 
+                { new: true }
+            );
+
+            if (user) {
+                return res.json({ message: 'Registration successful! You are now an Agent.', role: 'Agent' });
+            }
+        }
+        
+        res.status(400).json({ message: 'Payment verification failed. Please try again.' });
+
+    } catch (error) {
+        console.error('Agent payment verification error:', error);
+        await User.findByIdAndDelete(userId);
+        res.status(500).json({ message: 'Verification failed. Contact support.' });
+    }
+});
+
+
+// --- DATA & PROTECTED PAGES ---
+
+app.get('/api/data-plans', isDbReady, async (req, res) => { 
+    const costPlans = allPlans[req.query.network] || [];
+    
+    const markupPesewas = 0; 
+
+    const sellingPlans = costPlans.map(p => {
+        const FIXED_MARKUP = markupPesewas; 
+        const rawSellingPrice = p.price + FIXED_MARKUP;
+        const sellingPrice = Math.ceil(rawSellingPrice / 5) * 5; 
+        
+        return { id: p.id, name: p.name, price: sellingPrice };
+    });
+
+    res.json(sellingPlans);
+});
+
+app.get('/api/my-orders', isDbReady, isAuthenticated, async (req, res) => {
+    try {
+        const orders = await Order.find({ userId: req.session.user.id })
+                                    .sort({ createdAt: -1 }); 
+        res.json({ orders });
+    } catch (error) {
+        res.status(500).json({ error: "Failed to fetch orders" });
+    }
+});
+
+
+// --- WALLET & PAYMENT ROUTES ---
+app.post('/api/topup', isDbReady, isAuthenticated, async (req, res) => {
+    const { reference, amount } = req.body; 
+    if (!reference || !amount) {
+        return res.status(400).json({ status: 'error', message: 'Reference and amount are required.' });
+    }
+    
+    let netDepositAmountGHS = amount; 
+    let topupAmountPesewas = Math.round(netDepositAmountGHS * 100);
+    const userId = req.session.user.id;
+
+    const finalChargedAmountPesewas = calculateClientTopupFee(topupAmountPesewas);
+
+    try {
+        // --- STEP 1: VERIFY PAYMENT WITH PAYSTACK ---
+        const paystackUrl = `https://api.paystack.co/transaction/verify/${reference}`;
+        const paystackResponse = await axios.get(paystackUrl, { 
+            headers: { Authorization: `Bearer ${process.env.PAYSTACK_SECRET_KEY}` } 
+        });
+        const { status, data } = paystackResponse.data;
+
+        if (!status || data.status !== 'success') {
+            let userMessage = `Payment status is currently ${data.status || 'unknown'}. If your money was deducted, please wait 30 seconds and try again, or contact support with reference: ${reference}.`;
+            console.error(`Topup Verification Failed: Paystack status is not 'success'. Status: ${data.status}. Reference: ${reference}`);
+            return res.status(400).json({ status: 'error', message: userMessage });
+        }
+        
+        if (data.amount <= 0) {
+            console.error(`Topup Verification Failed: Paystack reported charged amount as ${data.amount}. Reference: ${reference}`);
+            return res.status(400).json({ status: 'error', message: 'The transaction reference provided is invalid or associated with a failed payment.' });
+        }
+
+        // --- STEP 2: FLEXIBLE AMOUNT CHECK ---
+        const acceptableMinimum = Math.floor(finalChargedAmountPesewas * 0.95); 
+        const acceptableMaximum = Math.ceil(finalChargedAmountPesewas * 1.05);
+
+        if (data.amount < acceptableMinimum || data.amount > acceptableMaximum) {
+            console.error(`Fraud Alert: Paystack charged ${data.amount} but expected range was ${acceptableMinimum}-${acceptableMaximum}. Reference: ${reference}`);
+            return res.status(400).json({ status: 'error', message: 'Amount charged mismatch detected. Please contact support immediately.' });
+        }
+        
+        // --- STEP 3: UPDATE USER WALLET BALANCE (NET DEPOSIT) ---
+        const updatedUser = await User.findByIdAndUpdate(
+            userId,
+            { $inc: { walletBalance: topupAmountPesewas } }, 
+            { new: true, runValidators: true }
+        );
+        
+        req.session.user.walletBalance = updatedUser.walletBalance; 
+
+        // Log the top-up as a successful order for tracking
+        await Order.create({
+            userId: userId,
+            reference: reference,
+            amount: finalChargedAmountPesewas / 100, 
+            status: 'topup_successful',
+            paymentMethod: 'paystack',
+            dataPlan: 'WALLET TOP-UP',
+            network: 'WALLET'
+        });
+
+        res.json({ status: 'success', message: `Wallet topped up successfully! GHS ${netDepositAmountGHS.toFixed(2)} deposited.`, newBalance: updatedUser.walletBalance });
+
+    } catch (error) {
+        console.error('Topup Verification Error:', error);
+        res.status(500).json({ status: 'error', message: 'An internal server error occurred during top-up.' });
+    }
+});
+
+app.post('/api/wallet-purchase', isDbReady, isAuthenticated, async (req, res) => {
+    const { network, dataPlan, phone_number, amountInPesewas } = req.body;
+    const userId = req.session.user.id;
+    
+    if (!network || !dataPlan || !phone_number || !amountInPesewas) {
+        return res.status(400).json({ message: 'Missing required order details.' });
+    }
+
+    try {
+        const user = await User.findById(userId);
+        if (!user) return res.status(404).json({ message: 'User not found.' });
+
+        // 1. Check Balance
+        if (user.walletBalance < amountInPesewas) {
+            return res.status(400).json({ message: 'Insufficient wallet balance.' });
+        }
+
+        // 2. Debit Wallet (Atomically)
+        const debitResult = await User.findByIdAndUpdate(
+            userId,
+            { $inc: { walletBalance: -amountInPesewas } },
+            { new: true, runValidators: true }
+        );
+        
+        req.session.user.walletBalance = debitResult.walletBalance;
+
+        // 3. Execute Data Purchase
+        const result = await executeDataPurchase(userId, {
+            network,
+            dataPlan,
+            phoneNumber: phone_number,
+            amount: amountInPesewas / 100 
+        }, 'wallet');
+        
+        if (result.status === 'data_sent') {
+            return res.json({ status: 'success', message: `Data successfully sent from wallet!` });
+        } else {
+            return res.status(202).json({ 
+                status: 'pending', 
+                message: `Data purchase initiated. Status: ${result.status}. Check dashboard.` 
+            });
+        }
+
+    } catch (error) {
+        console.error('Wallet Purchase Error:', error);
+        res.status(500).json({ message: 'Server error during wallet purchase.' });
+    }
+});
+
+app.post('/paystack/verify', isDbReady, isAuthenticated, async (req, res) => {
+    const { reference } = req.body;
+    if (!reference) return res.status(400).json({ status: 'error', message: 'Reference is required.' });
+
+    let orderDetails = null; 
+    
+    try {
+        // --- STEP 1: VERIFY PAYMENT WITH PAYSTACK ---
+        const paystackUrl = `https://api.paystack.co/transaction/verify/${reference}`;
+        const paystackResponse = await axios.get(paystackUrl, { 
+            headers: { Authorization: `Bearer ${process.env.PAYSTACK_SECRET_KEY}` } 
+        });
+        const { status, data } = paystackResponse.data;
+
+        if (!status || data.status !== 'success') {
+            return res.status(400).json({ status: 'error', message: 'Payment verification failed.' });
+        }
+
+        const { phone_number, network, data_plan } = data.metadata; 
+        const amountInGHS = data.amount / 100;
+        const userId = req.session.user.id;
+        
+        orderDetails = {
+            userId: userId,
+            reference: reference,
+            phoneNumber: phone_number,
+            network: network,
+            dataPlan: data_plan,
+            amount: amountInGHS,
+            status: 'payment_success'
+        };
+        
+        // Execute the data transfer and save order 
+        const result = await executeDataPurchase(userId, orderDetails, 'paystack');
+
+        if (result.status === 'data_sent') {
+            return res.json({ status: 'success', message: `Payment verified. Data transfer successful!` });
+        } else {
+            return res.status(202).json({ 
+                status: 'pending', 
+                message: `Payment successful! Data transfer is pending manual review. Contact support with reference: ${reference}.` 
+            });
+        }
+
+    } catch (error) {
+        let errorMessage = 'An internal server error occurred during verification.';
+        
+        if (error.response && error.response.data && error.response.data.error) {
+            errorMessage = `External API Error: ${error.response.data.error}`;
+        } else if (error.message) {
+            errorMessage = `Network Error: ${error.message}`;
+            
+            console.error('Fatal Verification Failure:', error); 
+        }
+        
+        return res.status(500).json({ status: 'error', message: errorMessage });
     }
 });
 
@@ -961,6 +2002,7 @@ app.get('/api/admin/metrics', async (req, res) => {
 app.get('/', (req, res) => res.sendFile(path.join(__dirname, 'public', 'index.html')));
 app.get('/signup.html', (req, res) => res.sendFile(path.join(__dirname, 'public', 'signup.html')));
 app.get('/purchase.html', isAuthenticated, (req, res) => res.sendFile(path.join(__dirname, 'public', 'purchase.html')));
+app.get('/checkout.html', isAuthenticated, (req, res) => res.sendFile(path.join(__dirname, 'public', 'checkout.html')));
 app.get('/dashboard.html', isAuthenticated, (req, res) => res.sendFile(path.join(__dirname, 'public', 'dashboard.html')));
 app.get('/admin.html', (req, res) => res.sendFile(path.join(__dirname, 'public', 'admin.html')));
 app.get('/forgot.html', (req, res) => res.sendFile(path.join(__dirname, 'public', 'forgot.html')));
