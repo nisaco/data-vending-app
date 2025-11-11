@@ -59,6 +59,7 @@
             transform: translateX(-100%);
             transition: transform 0.3s ease-in-out;
             z-index: 60; /* Higher than modal backdrop */
+            box-shadow: 10px 0 20px rgba(0, 0, 0, 0.4);
         }
         #sidebar.open {
             transform: translateX(0);
@@ -78,15 +79,19 @@
     
     <!-- Toast Notification Container -->
     <div id="toast-container"></div>
-    
+
     <!-- Navigation Drawer (Sidebar) -->
     <div id="sidebar-backdrop" class="fixed inset-0 bg-black bg-opacity-50 z-50 hidden transition-opacity duration-300"></div>
-    <div id="sidebar" class="fixed top-0 left-0 h-full bg-white shadow-2xl dark:bg-[#1f1f1f] p-5">
+    <div id="sidebar" class="fixed top-0 left-0 h-full bg-white dark:bg-[#1f1f1f] p-5">
         <h3 class="text-2xl font-bold text-gray-800 dark:text-white mb-6">Menu</h3>
         <div class="space-y-4">
             <a href="/purchase.html" class="block text-gray-700 dark:text-gray-300 hover:text-primary font-medium">Buy Data</a>
             <a href="/dashboard.html" class="block text-primary font-bold">Dashboard</a>
+            
+            <!-- 🛑 SUPPORT & POLICY LINKS 🛑 -->
             <a href="/support.html" class="block text-gray-700 dark:text-gray-300 hover:text-primary font-medium">Customer Support & FAQ</a>
+            <a href="/privacy.html" target="_blank" class="block text-gray-700 dark:text-gray-300 hover:text-primary font-medium">Privacy Policy</a>
+            
             <a href="/api/logout" class="block text-red-500 hover:text-red-700 font-medium pt-4 border-t border-gray-200 dark:border-gray-700">Logout</a>
         </div>
         <button id="close-sidebar" class="absolute top-4 right-4 text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-white">
@@ -100,8 +105,8 @@
         <div id="topup-modal" class="bg-white p-6 rounded-xl shadow-2xl w-full max-w-sm transform scale-95 transition-all duration-300 dark:bg-gray-800">
             <h3 class="text-xl font-bold text-gray-800 dark:text-white mb-4">Deposit to Wallet</h3>
             <div id="modal-content-status" class="text-sm font-medium mb-3 text-red-500"></div>
-            <label for="modal-topup-amount" class="block text-gray-700 dark:text-gray-300 mb-2">Amount (GHS, Min 6.00)</label>
-            <input type="number" id="modal-topup-amount" min="6.00" step="0.50" placeholder="e.g., 10.00" value="6.00"
+            <label for="modal-topup-amount" class="block text-gray-700 dark:text-gray-300 mb-2">Amount (GHS, Min 1.00)</label>
+            <input type="number" id="modal-topup-amount" min="1.00" step="0.50" placeholder="e.g., 10.00" value="1.00"
                    class="w-full p-2 border border-gray-300 rounded-lg text-gray-800 focus:ring-primary focus:border-primary dark:bg-gray-700 dark:border-gray-600 dark:text-white">
             <div class="mt-4 flex justify-end space-x-3">
                 <button id="modal-cancel" type="button" class="py-2 px-4 bg-gray-200 text-gray-800 rounded-lg hover:bg-gray-300 transition">Cancel</button>
@@ -307,7 +312,7 @@
     // --- GLOBAL STATE & CONSTANTS ---
     let userOrders = []; 
     let userEmail = null; 
-    const MIN_TOPUP_GHS = 6.00;
+    const MIN_TOPUP_GHS = 1.00; // 🛑 NEW MINIMUM 🛑
     const PAYSTACK_PUBLIC_KEY = 'pk_live_3be2ebebc6edd6fa9f5f9a7303c80a55ee9e0be1'; 
     
     // --- DOM ELEMENTS ---
@@ -333,6 +338,7 @@
     const openSidebarBtn = document.getElementById('open-sidebar');
     const closeSidebarBtn = document.getElementById('close-sidebar');
     const sidebarBackdrop = document.getElementById('sidebar-backdrop');
+
 
     // --- NOTIFICATION HANDLER ---
     function showNotification(message, type = 'success') {
@@ -488,12 +494,17 @@
         setTimeout(() => {
             modalBackdrop.style.display = 'none';
             modalStatus.textContent = '';
-            modalAmountInput.value = MIN_TOPUP_GHS.toFixed(2);
+            modalAmountInput.value = MIN_TOPUP_GHS.toFixed(2); // Use new minimum
         }, 300);
     }
 
     // --- PAYSTACK INTEGRATION ---
     const initiatePaystackTopup = (amountInGHS, userEmail) => {
+        if (amountInGHS < MIN_TOPUP_GHS) {
+            modalStatus.textContent = `Minimum top-up is GHS ${MIN_TOPUP_GHS.toFixed(2)}.`;
+            return;
+        }
+
         const finalChargedAmount = calculateFinalPaystackCharge(amountInGHS);
         
         modalPayBtn.disabled = true;
@@ -578,10 +589,13 @@
             // 1. Bind TopUp Modal Pay Button
             modalPayBtn.addEventListener('click', () => {
                 const amount = parseFloat(modalAmountInput.value);
+                
+                // 🛑 CRITICAL MINIMUM CHECK 🛑
                 if (isNaN(amount) || amount < MIN_TOPUP_GHS) {
                     modalStatus.textContent = `Please enter a valid amount (Min GHS ${MIN_TOPUP_GHS.toFixed(2)}).`;
                     return;
                 }
+                
                 modalStatus.textContent = ''; 
                 initiatePaystackTopup(amount, userDataEmail);
             });
