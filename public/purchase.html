@@ -3,7 +3,6 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <link rel="icon" type="image/x-icon" href="apple-touch-icon.png">
     <title>Purchase Data - AJEnterprise</title>
     <!-- FAVICON LINK -->
     <link rel="icon" type="image/png" href="apple-touch-icon.png">
@@ -153,13 +152,13 @@
                 <!-- Phone Number -->
                 <div class="form-group">
                     <label for="phone" class="block text-gray-700 font-medium mb-2 dark:text-gray-300">Recipient Phone Number</label>
-                    <input type="tel" id="phone" pattern="0[0-9]{9}" maxlength="10" placeholder="e.g., 0501234567" required class="w-full p-3 border border-gray-300 rounded-lg focus:ring-primary focus:border-primary transition">
+                    <input type="tel" id="phone" name="phone" placeholder="e.g., 0501234567" required class="w-full p-3 border border-gray-300 rounded-lg focus:ring-primary focus:border-primary transition">
                 </div>
                 
                 <!-- Email for Receipt -->
                 <div class="form-group">
                     <label for="email" class="block text-sm font-medium text-gray-700 mb-2 dark:text-gray-300">Email for Receipt (Optional)</label>
-                    <input type="email" id="email" placeholder="your.email@example.com" class="w-full p-3 border border-gray-300 rounded-lg focus:ring-primary focus:border-primary transition">
+                    <input type="email" id="email" name="email" placeholder="your.email@example.com" class="w-full p-3 border border-gray-300 rounded-lg focus:ring-primary focus:border-primary transition">
                 </div>
                 
                 <!-- Payment Method Selection -->
@@ -185,7 +184,7 @@
                 </button>
             </form>
             
-            <div id="status" class="hidden"></div> <!-- Hidden status div -->
+            <div id="status" class="hidden"></div> 
         </div>
     </div>
 
@@ -225,7 +224,7 @@
 
         // --- THEME LOGIC START ---
         const htmlElement = document.documentElement;
-        const themeToggle = document.getElementById('theme-toggle');
+        const toggleButton = document.getElementById('theme-toggle');
 
         function applyTheme(theme) {
             const isDark = theme === 'dark';
@@ -252,21 +251,27 @@
             applyTheme('light');
         }
 
-        themeToggle.addEventListener('click', () => {
+        toggleButton.addEventListener('click', () => {
             const newTheme = htmlElement.classList.contains('dark') ? 'light' : 'dark';
             localStorage.setItem('theme', newTheme);
             applyTheme(newTheme);
         });
         // --- THEME LOGIC END ---
 
+        // --- VALIDATION HELPERS ---
+        function validatePhoneNumber(number) {
+            const regex = /^0[0-9]{9}$/; // 10 digits starting with 0
+            return regex.test(number);
+        }
+        
         // --- FINAL GLOBAL CONSTANTS & ELEMENTS ---
         const networkTabs = document.getElementById('network-tabs');
         const networkInput = document.getElementById('network');
         const dataplanSelect = document.getElementById('dataplan');
         const paymentForm = document.getElementById('paymentForm');
-        // const statusDiv = document.getElementById('status'); // NO LONGER USED
         const payButton = document.getElementById('pay-button');
         const phoneInput = document.getElementById('phone'); 
+        const emailInput = document.getElementById('email');
         const walletBalanceDisplay = document.getElementById('wallet-balance-display');
         const paymentMethodsContainer = document.getElementById('payment-methods');
 
@@ -277,7 +282,7 @@
         // --- HELPER: Clears form inputs after successful transaction ---
         function clearForm() {
             phoneInput.value = '';
-            document.getElementById('email').value = '';
+            emailInput.value = '';
             const defaultOption = dataplanSelect.querySelector('option[data-amount="0"][disabled]');
             if (defaultOption) {
                 dataplanSelect.value = defaultOption.value;
@@ -287,7 +292,6 @@
 
         // 🛑 CRITICAL FUNCTIONALITY (NO CHANGE IN LOGIC)
         function calculateTotalCharge(planPriceInPesewas) {
-            // This logic MUST match the server's expected charge for verification
             const CUSTOMER_FLAT_FEE_PESEWAS = 25; 
             const totalAmountCharged = planPriceInPesewas + CUSTOMER_FLAT_FEE_PESEWAS;
             return Math.round(totalAmountCharged);
@@ -555,12 +559,18 @@
                 const priceInPesewas = parseInt(selected.dataset.amount);
                 const selectedMethod = paymentMethodsContainer.querySelector('.pay-option.active').dataset.method;
                 
-                if (!phoneInput.checkValidity()) {
-                    showToast("Please enter a valid 10-digit phone number starting with 0.", 'error');
+                // 🛑 NEW: CLIENT-SIDE VALIDATION 🛑
+                if (!validatePhoneNumber(phoneInput.value)) {
+                    showToast("Error: Phone number must be 10 digits and start with '0'.", 'error');
                     phoneInput.focus();
                     return;
                 }
-
+                if (emailInput.value && !emailInput.checkValidity()) {
+                    showToast("Error: Please enter a valid email address.", 'error');
+                    emailInput.focus();
+                    return;
+                }
+                
                 if (!selected || priceInPesewas === 0 || isNaN(priceInPesewas)) {
                     showToast("Please select a valid data plan.", 'error');
                     return;
