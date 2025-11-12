@@ -216,11 +216,12 @@
                                 <th scope="col" class="py-3 px-6">Email</th>
                                 <th scope="col" class="py-3 px-6">Role</th>
                                 <th scope="col" class="py-3 px-6">Online Status</th>
-                                <th scope="col" class="py-3 px-6 rounded-tr-xl">Joined</th>
+                                <th scope="col" class="py-3 px-6">Joined</th>
+                                <th scope="col" class="py-3 px-6 rounded-tr-xl">Delete</th>
                             </tr>
                         </thead>
                         <tbody id="clientsTableBody" class="bg-white divide-y divide-gray-100 dark:bg-[#1f1f1f] dark:divide-gray-700">
-                            <tr><td colspan="5" class="py-4 text-center text-gray-400">Client data requires authentication.</td></tr>
+                            <tr><td colspan="6" class="py-4 text-center text-gray-400">Client data requires authentication.</td></tr>
                         </tbody>
                     </table>
                 </div>
@@ -390,7 +391,6 @@
                 
                 const data = await response.json();
                 allOrders = data.orders || [];
-                // Render all orders initially, allowing the filter to be applied afterwards
                 renderOrders(allOrders);
 
             } catch (error) {
@@ -401,7 +401,7 @@
 
         async function fetchAllUsers() {
             clientsStatusDiv.textContent = 'Loading client data...';
-            clientsTableBody.innerHTML = '<tr><td colspan="5" class="py-4 text-center text-blue-500 font-medium">Loading...</td></tr>';
+            clientsTableBody.innerHTML = '<tr><td colspan="6" class="py-4 text-center text-blue-500 font-medium">Loading...</td></tr>';
             
             try {
                 const secret = adminSecretInput.value.trim();
@@ -455,10 +455,6 @@
                     </td>
                 `;
             });
-            // Re-attach delete listeners
-            document.querySelectorAll('.delete-user-btn').forEach(btn => {
-                btn.addEventListener('click', confirmDeleteUser);
-            });
         }
         
         function renderOrders(orders) {
@@ -496,7 +492,7 @@
                     <td class="py-4 px-6 dark:text-gray-400 text-xs">${safeDateFormatter(order.created_at)}</td>
                     <!-- 2. User -->
                     <td class="py-4 px-6 font-medium text-gray-800 dark:text-gray-300">${order.username || 'N/A'}</td>
-                    <!-- 3. Phone (Recipient Phone) -->
+                    <!-- 3. Phone (CORRECTED) -->
                     <td class="py-4 px-6 dark:text-gray-400 text-xs">${displayPhone}</td>
                     <!-- 4. Item / Network -->
                     <td class="py-4 px-6 dark:text-gray-400 text-xs">${order.dataPlan} (${order.network})</td>
@@ -510,7 +506,7 @@
                             ${statusText}
                         </span>
                     </td>
-                    <!-- 7. Actions -->
+                    <!-- 7. Actions (Button) -->
                     <td class="py-4 px-6">
                         ${order.status === 'pending_review' ? 
                             `<button data-id="${order.id}" 
@@ -520,8 +516,6 @@
                     </td>
                 `;
             });
-
-            // Note: The click listener for 'open-modal-btn' is attached via delegation outside this function.
         }
         
         // --- MODAL & ACTION LOGIC ---
@@ -531,7 +525,6 @@
         function openUpdateModal(buttonElement) {
             currentOrderId = buttonElement.dataset.id;
             
-            // Find the order data to populate the modal fields
             const order = allOrders.find(o => o.id === currentOrderId);
 
             if (order) {
@@ -674,6 +667,7 @@
 
                 showToast("Metrics and User count loaded successfully.", 'success');
                 
+                // Fetch transactions and users concurrently
                 await Promise.all([fetchAllOrders(), fetchAllUsers()]);
 
             } catch (error) {
@@ -695,6 +689,7 @@
             const initialSecret = urlParams.get('secret');
             if (initialSecret) {
                 adminSecretInput.value = initialSecret;
+                // Auto-fetch data if secret is in URL
                 fetchAllData();
             }
 
@@ -703,7 +698,7 @@
             modalUpdateBtn.addEventListener('click', updateOrderStatus);
             modalCancelBtn.addEventListener('click', closeModal);
             
-            // 🛑 CRITICAL FIX: EVENT DELEGATION FOR ACTION BUTTONS (MODAL & DELETE) 🛑
+            // 🛑 CRITICAL FIX: EVENT DELEGATION FOR ORDER ACTION BUTTONS 🛑
             ordersTableBody.addEventListener('click', (e) => {
                 const targetButton = e.target.closest('.open-modal-btn');
                 if (targetButton) {
@@ -711,7 +706,9 @@
                     openUpdateModal(targetButton); 
                 }
             });
-            clientsTableBody.addEventListener('click', confirmDeleteUser); // Client delete handler
+            
+            // 🛑 CRITICAL FIX: EVENT DELEGATION FOR CLIENT DELETE BUTTONS 🛑
+            clientsTableBody.addEventListener('click', confirmDeleteUser);
 
 
             // 4. Status Filter Listener (Applies filter immediately when value changes)
@@ -740,5 +737,3 @@
             });
         });
     </script>
-
-
