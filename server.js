@@ -2010,6 +2010,12 @@ app.get('/reset.html', (req, res) => res.sendFile(path.join(__dirname, 'public',
 app.get('/terms.html', (req, res) => res.sendFile(path.join(__dirname, 'public', 'terms.html')));
 app.get('/privacy.html', (req, res) => res.sendFile(path.join(__dirname, 'public', 'privacy.html')));
 
+// 🛑 NEW: 404 CATCH-ALL ROUTE (MUST BE THE LAST ROUTE) 🛑
+app.use((req, res, next) => {
+    // Send the custom 404 HTML file for any requests not handled above
+    res.status(404).sendFile(path.join(__dirname, 'public', '404.html'));
+});
+
 
 // --- SERVER START ---
 const server = app.listen(PORT, '0.0.0.0', () => {
