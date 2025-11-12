@@ -501,7 +501,7 @@ app.post('/api/verify-agent-payment', async (req, res) => {
 });
 
 
-// 🛑 NEW: ADMIN DELETE USER ENDPOINT 🛑
+// 🛑 ADMIN DELETE USER ENDPOINT 🛑 (Active, corrected definition)
 app.delete('/api/admin/delete-user', async (req, res) => {
     const { userId, adminSecret } = req.body;
     
@@ -881,39 +881,6 @@ app.get('/api/admin/metrics', async (req, res) => {
     } catch (error) {
         console.error('Metrics error:', error);
         res.status(500).json({ error: 'Failed to calculate metrics' });
-    }
-});
-
-// 🛑 NEW: ADMIN DELETE USER ENDPOINT 🛑
-app.delete('/api/admin/delete-user', async (req, res) => {
-    const { userId, adminSecret } = req.body;
-    
-    if (adminSecret !== process.env.ADMIN_SECRET) {
-        return res.status(403).json({ error: 'Unauthorized: Invalid Admin Secret' });
-    }
-
-    if (!userId) {
-        return res.status(400).json({ error: 'User ID is required for deletion.' });
-    }
-
-    try {
-        // 1. Delete all associated orders first
-        const ordersResult = await Order.deleteMany({ userId: userId });
-
-        // 2. Delete the user
-        const userResult = await User.findByIdAndDelete(userId);
-
-        if (!userResult) {
-            return res.status(404).json({ message: 'User not found.' });
-        }
-
-        res.json({ 
-            status: 'success', 
-            message: `User '${userResult.username}' and ${ordersResult.deletedCount} associated orders deleted successfully.` 
-        });
-    } catch (error) {
-        console.error('User Deletion Error:', error);
-        res.status(500).json({ error: 'Failed to delete user and associated data.' });
     }
 });
 
