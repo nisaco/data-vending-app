@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>404 - Page Not Found</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        :root { --primary: #009879; }
+        .text-primary { color: var(--primary); }
+        .dark { background-color: #121212; color: #e0e0e0; }
+        .dark .bg-gray-700 { background-color: #1f1f1f; }
+        .dark .text-gray-400 { color: #9ca3af; }
+    </style>
+</head>
+<body class="bg-gray-50 min-h-screen flex items-center justify-center font-sans p-4 transition-colors duration-300 dark:bg-[#121212]">
+
+    <div class="text-center bg-white p-10 rounded-xl shadow-2xl dark:bg-gray-700 max-w-lg mx-auto">
+        <div class="text-7xl font-extrabold text-red-600 mb-4">
+            404
+        </div>
+        <h1 class="text-3xl font-bold text-gray-800 dark:text-white mb-3">
+            Page Not Found
+        </h1>
+        <p class="text-gray-600 dark:text-gray-400 mb-6">
+            The resource you requested could not be located on the platform.
+            The link may be broken or the page may have been moved.
+        </p>
+
+        <a href="/login.html" class="inline-block py-2 px-6 bg-primary text-white font-semibold rounded-lg shadow-md hover:bg-secondary transition duration-200">
+            Go to Login Page
+        </a>
+    </div>
+
+</body>
+</html>
+
