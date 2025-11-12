@@ -447,7 +447,17 @@
                         </span>
                     </td>
                     <td class="py-4 px-6 text-xs dark:text-gray-400">${safeDateFormatter(user.signedUp)}</td>
+                    <td class="py-4 px-6">
+                        <button data-id="${user._id}" 
+                         class="delete-user-btn bg-red-600 hover:bg-red-700 text-white text-xs font-medium py-1 px-3 rounded transition">
+                         Delete
+                         </button>
+                    </td>
                 `;
+            });
+            // Re-attach delete listeners
+            document.querySelectorAll('.delete-user-btn').forEach(btn => {
+                btn.addEventListener('click', confirmDeleteUser);
             });
         }
         
@@ -486,7 +496,7 @@
                     <td class="py-4 px-6 dark:text-gray-400 text-xs">${safeDateFormatter(order.created_at)}</td>
                     <!-- 2. User -->
                     <td class="py-4 px-6 font-medium text-gray-800 dark:text-gray-300">${order.username || 'N/A'}</td>
-                    <!-- 3. Phone (CORRECTED) -->
+                    <!-- 3. Phone (Recipient Phone) -->
                     <td class="py-4 px-6 dark:text-gray-400 text-xs">${displayPhone}</td>
                     <!-- 4. Item / Network -->
                     <td class="py-4 px-6 dark:text-gray-400 text-xs">${order.dataPlan} (${order.network})</td>
@@ -500,7 +510,7 @@
                             ${statusText}
                         </span>
                     </td>
-                    <!-- 7. Actions (CORRECTED) -->
+                    <!-- 7. Actions -->
                     <td class="py-4 px-6">
                         ${order.status === 'pending_review' ? 
                             `<button data-id="${order.id}" 
@@ -518,7 +528,6 @@
         
         let currentOrderId = null;
 
-        // Function to open the modal, accepts the clicked button element
         function openUpdateModal(buttonElement) {
             currentOrderId = buttonElement.dataset.id;
             
@@ -601,8 +610,51 @@
                 modalUpdateBtn.textContent = 'Update';
             }
         }
+
+        // --- DELETE CLIENT LOGIC ---
+        async function deleteClient(userId) {
+            const secret = adminSecretInput.value.trim();
+            if (!secret) {
+                showToast('Admin secret required to delete user.', 'error');
+                return;
+            }
+
+            try {
+                const response = await fetch('/api/admin/delete-user', {
+                    method: 'DELETE',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ userId, adminSecret: secret })
+                });
+
+                const data = await response.json();
+                
+                if (response.ok) {
+                    showToast(data.message, 'success');
+                    // Refresh both client list and order list immediately
+                    await Promise.all([fetchAllUsers(), fetchAllOrders()]);
+                    
+                    // Update global metrics after deletion
+                    fetchMetrics(); 
+
+                } else {
+                    showToast(data.error || data.message || 'Deletion failed.', 'error');
+                }
+            } catch (error) {
+                showToast('Network error during client deletion.', 'error');
+            }
+        }
+
+        function confirmDeleteUser(e) {
+            const button = e.target.closest('.delete-user-btn');
+            if (button) {
+                const userId = button.dataset.id;
+                if (confirm(`WARNING: Are you sure you want to permanently delete user ${userId.substring(0, 8)}...? This cannot be undone and will delete ALL their orders.`)) {
+                    deleteClient(userId);
+                }
+            }
+        }
         
-        // --- MAIN FETCH TRIGGER ---
+        // --- MAIN FETCH TRIGGER (UNCHANGED) ---
         
         async function fetchAllData() {
             const secret = adminSecretInput.value.trim();
@@ -615,7 +667,6 @@
             fetchDataBtn.textContent = 'Loading...';
             
             try {
-                // Fetch metrics first
                 const metricsReady = await fetchMetrics();
                 if (!metricsReady) {
                     throw new Error("Failed to load core metrics. Check secret.");
@@ -623,7 +674,6 @@
 
                 showToast("Metrics and User count loaded successfully.", 'success');
                 
-                // Fetch transactions and users concurrently
                 await Promise.all([fetchAllOrders(), fetchAllUsers()]);
 
             } catch (error) {
@@ -645,7 +695,6 @@
             const initialSecret = urlParams.get('secret');
             if (initialSecret) {
                 adminSecretInput.value = initialSecret;
-                // Auto-fetch data if secret is in URL
                 fetchAllData();
             }
 
@@ -654,21 +703,19 @@
             modalUpdateBtn.addEventListener('click', updateOrderStatus);
             modalCancelBtn.addEventListener('click', closeModal);
             
-            // 🛑 CRITICAL FIX: EVENT DELEGATION FOR ACTION BUTTONS 🛑
+            // 🛑 CRITICAL FIX: EVENT DELEGATION FOR ACTION BUTTONS (MODAL & DELETE) 🛑
             ordersTableBody.addEventListener('click', (e) => {
-                // Check if the clicked element (or its closest ancestor) is the update button
                 const targetButton = e.target.closest('.open-modal-btn');
                 if (targetButton) {
                     e.preventDefault(); 
-                    // Pass the actual button element to the modal function
                     openUpdateModal(targetButton); 
                 }
             });
+            clientsTableBody.addEventListener('click', confirmDeleteUser); // Client delete handler
 
 
             // 4. Status Filter Listener (Applies filter immediately when value changes)
             statusFilter.addEventListener('change', () => {
-                // Rerender the orders based on the new status selected
                 renderOrders(allOrders); 
             });
 
@@ -684,20 +731,14 @@
 
                     if (target.dataset.tab === 'transactions') {
                         tabContentTransactions.classList.remove('hidden');
-                        renderOrders(allOrders); // Re-render orders based on current data and filter
+                        renderOrders(allOrders); 
                     } else if (target.dataset.tab === 'clients') {
                         tabContentClients.classList.remove('hidden');
-                        if (allUsers.length > 0) {
-                            renderUsers(allUsers);
-                        } else {
-                            fetchAllUsers();
-                        }
+                        renderUsers(allUsers);
                     }
                 }
             });
-            
-            // 6. Modal Listeners
-            modalCancelBtn.addEventListener('click', closeModal);
         });
     </script>
+
 
