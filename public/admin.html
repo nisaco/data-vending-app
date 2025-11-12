@@ -522,9 +522,11 @@
         
         let currentOrderId = null;
 
+        // Function to open the modal, accepts the clicked button element
         function openUpdateModal(buttonElement) {
             currentOrderId = buttonElement.dataset.id;
             
+            // Find the order data to populate the modal fields
             const order = allOrders.find(o => o.id === currentOrderId);
 
             if (order) {
