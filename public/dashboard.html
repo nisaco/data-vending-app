@@ -4,10 +4,9 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link rel="icon" type="image/x-icon" href="apple-touch-icon.png">
-    <title>My Dashboard - AJENTERPRISE</title>
+    <title>My Dashboard - DataLink</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
-        /* Define primary colors */
         :root { --primary: #009879; --secondary: #007a63; }
         .text-primary { color: var(--primary); }
         .bg-primary { background-color: var(--primary); }
@@ -85,16 +84,25 @@
     <div id="sidebar" class="fixed top-0 left-0 h-full bg-white dark:bg-[#1f1f1f] p-5">
         <h3 class="text-2xl font-bold text-gray-800 dark:text-white mb-6">Menu</h3>
         
-        <!-- 🛑 Wallet Balance in Sidebar 🛑 -->
+        <!-- Wallet Balance in Sidebar -->
         <div class="mb-6 pb-4 border-b border-gray-200 dark:border-gray-700">
             <p class="text-sm text-gray-600 dark:text-gray-400 font-medium">Current Balance:</p>
             <p id="sidebar-wallet-balance" class="text-2xl font-extrabold text-primary">GHS 0.00</p>
+            <!-- 🛑 New Payout Wallet Display 🛑 -->
+            <div id="sidebar-payout-balance" class="text-xs text-gray-500 dark:text-gray-400 mt-1">Payout: GHS 0.00</div>
         </div>
 
         <div class="space-y-4">
             <a href="/purchase.html" class="block text-gray-700 dark:text-gray-300 hover:text-primary font-medium">Buy Data</a>
             <a href="/dashboard.html" class="block text-primary font-bold">Dashboard</a>
             
+            <!-- 🛑 AGENT SHOP MANAGER LINK 🛑 -->
+            <div id="agent-shop-manager" class="pt-4 border-t border-gray-200 dark:border-gray-700">
+                 <button id="create-shop-link" class="w-full text-left py-2 px-3 bg-green-500 text-white font-bold rounded-lg hover:bg-green-600 transition text-sm">
+                    Create My Shop
+                 </button>
+            </div>
+
             <a href="/support.html" class="block text-gray-700 dark:text-gray-300 hover:text-primary font-medium">Customer Support & FAQ</a>
             <a href="/privacy.html" target="_blank" class="block text-gray-700 dark:text-gray-300 hover:text-primary font-medium">Privacy Policy</a>
             
@@ -316,6 +324,7 @@
     // --- GLOBAL STATE & CONSTANTS ---
     let userOrders = []; 
     let userEmail = null; 
+    let userInfo = {}; // New variable to store full user info (role, shopId, payoutWalletBalance)
     const MIN_TOPUP_GHS = 1.00; 
     const PAYSTACK_PUBLIC_KEY = 'pk_live_3be2ebebc6edd6fa9f5f9a7303c80a55ee9e0be1'; 
     
@@ -343,6 +352,8 @@
     const closeSidebarBtn = document.getElementById('close-sidebar');
     const sidebarBackdrop = document.getElementById('sidebar-backdrop');
     const sidebarWalletBalance = document.getElementById('sidebar-wallet-balance');
+    const sidebarPayoutBalance = document.getElementById('sidebar-payout-balance');
+    const agentShopManagerDiv = document.getElementById('agent-shop-manager');
 
 
     // --- NOTIFICATION HANDLER ---
@@ -381,11 +392,16 @@
             const response = await fetch('/api/user-info');
             if (response.ok) {
                 const data = await response.json();
+                
+                userInfo = data; // Store full user object
+                
                 const formattedBalance = `GHS ${(data.walletBalance / 100).toFixed(2)}`;
+                const formattedPayout = `Payout: GHS ${(data.payoutWalletBalance / 100).toFixed(2)}`;
 
-                // Update both the main card and the sidebar
+                // Update displays
                 balanceDisplay.textContent = formattedBalance;
                 sidebarWalletBalance.textContent = formattedBalance;
+                sidebarPayoutBalance.textContent = formattedPayout;
                 
                 userEmail = data.email; 
                 
@@ -401,10 +417,12 @@
         } catch (error) {
             balanceDisplay.textContent = 'GHS Err';
             sidebarWalletBalance.textContent = 'GHS Err';
+            sidebarPayoutBalance.textContent = 'Payout: GHS Err';
             return null;
         }
     }
 
+    // 🛑 AUTO-REFRESH FUNCTIONALITY 🛑
     async function fetchOrderHistory() {
         try {
             const response = await fetch('/api/my-orders');
@@ -423,7 +441,7 @@
                 return; 
             }
             
-            // Render all orders by default on load
+            // Render orders based on currently active filter
             filterAndRenderOrders(filterContainer.querySelector('.filter-tab.active').dataset.network);
 
         } catch (error) {
@@ -590,6 +608,37 @@
         sidebar.classList.toggle('open');
         sidebarBackdrop.classList.toggle('hidden');
     }
+    
+    // 🛑 AGENT SHOP LOGIC 🛑
+    async function handleCreateShop() {
+        closeSidebar();
+        showToast("Creating your shop...", 'warning');
+
+        try {
+            const response = await fetch('/api/agent/create-shop', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ shopName: `${userInfo.username}'s Store` })
+            });
+
+            const data = await response.json();
+            const statusType = data.status === 'success' ? 'success' : 'error';
+            showToast(data.message, statusType);
+
+            if (data.status === 'success') {
+                // Update user info and navigate to the new agent dashboard
+                await fetchBalance(); // Fetches new shopId
+                
+                // Change button to link
+                const linkButton = document.getElementById('create-shop-link');
+                linkButton.textContent = 'Go to Shop Manager';
+                linkButton.onclick = () => { closeSidebar(); window.location.href = `/agent_dashboard.html`; };
+            }
+
+        } catch (error) {
+            showToast("Failed to create shop.", 'error');
+        }
+    }
 
 
     // --- INITIALIZATION & LISTENERS ---
@@ -614,10 +663,27 @@
                 modalStatus.textContent = ''; 
                 initiatePaystackTopup(amount, userDataEmail);
             });
+            
+            // 2. Display Agent Shop Link/Button
+            const createShopLinkButton = document.getElementById('create-shop-link');
+
+            if (userInfo.role === 'Agent') {
+                agentShopManagerDiv.classList.remove('hidden');
+
+                if (userInfo.shopId) {
+                    // Agent has a shop: Link to their manager page
+                    createShopLinkButton.textContent = 'Go to Shop Manager';
+                    createShopLinkButton.onclick = () => { closeSidebar(); window.location.href = '/agent_dashboard.html'; };
+                } else {
+                    // Agent needs to create a shop
+                    createShopLinkButton.textContent = 'Create My Shop';
+                    createShopLinkButton.addEventListener('click', handleCreateShop);
+                }
+            }
         }
         
 
-        // 2. Attach UI listeners
+        // 3. Attach UI listeners
         openTopupModalBtn.addEventListener('click', openModal);
         modalCancelBtn.addEventListener('click', closeModal);
         dismissBtn.addEventListener('click', dismissOnboarding); // Onboarding dismiss
@@ -638,7 +704,8 @@
             }
         });
         
-        // 3. Run Onboarding Check after loading
+        // 4. Run Onboarding Check after loading
         checkOnboardingStatus();
     });
 </script>
+
