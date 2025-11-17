@@ -34,7 +34,7 @@ const agentShopSchema = new mongoose.Schema({
     userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true, unique: true },
     shopId: { type: String, required: true, unique: true },
     shopName: { type: String, default: 'My Data Shop' },
-    // Custom price settings (Markup in percent or fixed amount)
+    // Custom price settings (Markup in pesewas)
     customMarkups: {
         MTN: { type: Number, default: 0 },
         AirtelTigo: { type: Number, default: 0 },
