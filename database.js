@@ -1,44 +1,54 @@
 const mongoose = require('mongoose');
 
-// --- 1. CONNECTION ---
-async function connectDB() {
-    try {
-        await mongoose.connect(process.env.MONGO_URI);
-        console.log('Connected to MongoDB successfully.');
-    } catch (err) {
-        console.error('MongoDB connection error:', err);
-        // We removed process.exit(1) to let Express start, but the error will still be logged.
-    }
-}
-
-connectDB();
-
-// --- 2. SCHEMAS AND MODELS ---
+// Define User Schema (Existing)
 const userSchema = new mongoose.Schema({
     username: { type: String, required: true, unique: true },
     email: { type: String, required: true, unique: true },
     password: { type: String, required: true },
-    walletBalance: { type: Number, default: 0 }, 
-    role: { type: String, enum: ['Client', 'Agent', 'Agent_Pending'], default: 'Client' }, // CRITICAL: Final Roles
-    resetToken: String,         
-    resetTokenExpires: Date,    
-    createdAt: { type: Date, default: Date.now }
-});
+    walletBalance: { type: Number, default: 0 },
+    role: { type: String, enum: ['Client', 'Agent', 'Agent_Pending'], default: 'Client' },
+    // 🛑 NEW: Agent's Payout Wallet (Profit Commission) 🛑
+    payoutWalletBalance: { type: Number, default: 0 }, 
+    resetToken: String,
+    resetTokenExpires: Date,
+    // Link to AgentShop
+    shopId: { type: String, unique: true, sparse: true } 
+}, { timestamps: true });
 
+// Define Order Schema (Existing)
 const orderSchema = new mongoose.Schema({
     userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
-    reference: { type: String, required: true },
-    phoneNumber: { type: String },
-    network: { type: String },
-    dataPlan: { type: String },
-    amount: { type: Number },
-    status: { type: String, default: 'pending' },
-    paymentMethod: { type: String, default: 'paystack' }, 
-    createdAt: { type: Date, default: Date.now }
-});
+    reference: { type: String, required: true, unique: true },
+    phoneNumber: String,
+    network: String,
+    dataPlan: String,
+    amount: Number, // Amount charged to customer (in GHS)
+    status: { type: String, default: 'payment_success' },
+    paymentMethod: String,
+    // 🛑 NEW: Store Profit Margin for Payout Tracking 🛑
+    profitMargin: { type: Number, default: 0 } 
+}, { timestamps: true });
+
+// 🛑 NEW MODEL: AgentShop Schema 🛑
+const agentShopSchema = new mongoose.Schema({
+    userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true, unique: true },
+    shopId: { type: String, required: true, unique: true },
+    shopName: { type: String, default: 'My Data Shop' },
+    // Custom price settings (Markup in percent or fixed amount)
+    customMarkups: {
+        MTN: { type: Number, default: 0 },
+        AirtelTigo: { type: Number, default: 0 },
+        Telecel: { type: Number, default: 0 }
+    }
+}, { timestamps: true });
+
+// Database Connection Logic (Assumed to be correct)
+mongoose.connect(process.env.MONGO_URI, { useNewUrlParser: true, useUnifiedTopology: true })
+    .then(() => console.log('MongoDB connection successful.'))
+    .catch(err => console.error('MongoDB connection error:', err));
 
 const User = mongoose.model('User', userSchema);
 const Order = mongoose.model('Order', orderSchema);
+const AgentShop = mongoose.model('AgentShop', agentShopSchema); // Export new model
 
-// Export models AND the mongoose instance
-module.exports = { User, Order, mongoose };
+module.exports = { User, Order, AgentShop, mongoose };
