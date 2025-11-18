@@ -1,0 +1,355 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="icon" type="image/x-icon" href="apple-touch-icon.png">
+    <title>Buy Data - Agent Shop</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        :root { --primary: #009879; --secondary: #007a63; }
+        .text-primary { color: var(--primary); }
+        .bg-primary { background-color: var(--primary); }
+        .hover\:bg-secondary:hover { background-color: var(--secondary); }
+        
+        .dark { background-color: #121212; color: #e0e0e0; }
+        .dark .bg-white { background-color: #1f1f1f; color: #e0e0e0; }
+        .dark .shadow-xl { box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.4), 0 10px 10px -5px rgba(0, 0, 0, 0.2); }
+        .dark .text-gray-700, .dark .text-gray-600 { color: #d1d5db; }
+        .dark input, .dark select { background-color: #374151; border-color: #4b5563; color: #f3f4f6; }
+        .dark .network-tab { background-color: #282828; border-color: #374151; }
+        .dark .network-tab.active { background-color: #1f2937; }
+
+        /* Toast Container */
+        #toast-container {
+            position: fixed;
+            top: 1rem;
+            right: 1rem;
+            z-index: 1000;
+            max-width: 300px;
+        }
+        
+        .input-error {
+            border-color: #ef4444 !important;
+            box-shadow: 0 0 0 2px #fca5a5 !important;
+        }
+    </style>
+</head>
+<body class="bg-gray-50 min-h-screen font-sans dark:bg-[#121212]">
+
+    <!-- Toast Notification Container -->
+    <div id="toast-container"></div>
+
+    <!-- Main Content Container -->
+    <div class="container mx-auto p-4 max-w-2xl">
+        <div class="bg-white p-6 md:p-8 rounded-2xl shadow-xl mt-8 border border-gray-100 dark:bg-[#1f1f1f] dark:border-gray-700">
+            <h1 class="text-3xl font-extrabold text-center text-gray-800 dark:text-white mb-2 transition-colors duration-300">
+                <span id="shop-name-display">Loading Shop...</span>
+            </h1>
+            <p class="text-center text-gray-500 mb-8 dark:text-gray-400 transition-colors duration-300">
+                Purchase mobile data directly from this authorized agent.
+            </p>
+
+            <form id="purchaseForm" class="space-y-6">
+                
+                <input type="hidden" id="shopId" name="shopId">
+                <input type="hidden" id="network" name="network" value="MTN">
+                <input type="hidden" id="payment-method" value="paystack">
+
+                <!-- Network Selection Tabs -->
+                <label class="block text-gray-700 font-semibold mb-3 dark:text-gray-300">Choose Network</label>
+                <div id="network-tabs" class="grid grid-cols-3 gap-4">
+                    <!-- MTN -->
+                    <div class="network-tab p-4 cursor-pointer shadow-md text-center text-sm font-bold active border-primary" data-network="MTN">MTN</div>
+                    <!-- AirtelTigo -->
+                    <div class="network-tab p-4 cursor-pointer shadow-md text-center text-sm font-bold border-transparent" data-network="AirtelTigo">AirtelTigo</div>
+                    <!-- Telecel -->
+                    <div class="network-tab p-4 cursor-pointer shadow-md text-center text-sm font-bold border-transparent" data-network="Telecel">Telecel</div>
+                </div>
+                
+                <!-- Data Plan Selection -->
+                <div class="form-group">
+                    <label for="dataplan" class="block text-gray-700 font-medium mb-2 dark:text-gray-300">Select Data Plan</label>
+                    <select id="dataplan" required class="w-full p-3 border border-gray-300 rounded-lg focus:ring-primary focus:border-primary transition">
+                        <option value="" data-amount="0" selected disabled>Loading plans...</option>
+                    </select>
+                </div>
+                
+                <!-- Phone Number -->
+                <div class="form-group">
+                    <label for="phone" class="block text-gray-700 font-medium mb-2 dark:text-gray-300">Recipient Phone Number</label>
+                    <input type="tel" id="phone" name="phone" placeholder="e.g., 0501234567" required class="w-full p-3 border border-gray-300 rounded-lg focus:ring-primary focus:border-primary transition">
+                    <p id="phone-feedback" class="text-xs text-red-500 mt-1"></p>
+                </div>
+                
+                <!-- Email for Receipt -->
+                <div class="form-group">
+                    <label for="email" class="block text-sm font-medium text-gray-700 mb-2 dark:text-gray-300">Email for Receipt</label>
+                    <input type="email" id="email" name="email" placeholder="your.email@example.com" required class="w-full p-3 border border-gray-300 rounded-lg focus:ring-primary focus:border-primary transition">
+                </div>
+                
+                <!-- Pay Button (MOMO Only) -->
+                <button type="submit" id="pay-button" class="w-full py-4 bg-primary text-white text-lg font-bold rounded-xl shadow-lg transition hover:bg-secondary disabled:opacity-50">
+                    Pay Now via MoMo/Card
+                </button>
+                <p class="text-center text-xs text-gray-500 dark:text-gray-400">All payments processed securely by Paystack. A single transaction fee applies.</p>
+            </form>
+            
+        </div>
+    </div>
+
+    <!-- Paystack SDK -->
+    <script src="https://js.paystack.co/v1/inline.js"></script>
+    
+    <!-- JavaScript Logic -->
+   <script>
+        // --- TOAST NOTIFICATION SYSTEM ---
+        function showToast(message, type = 'success') {
+            const container = document.getElementById('toast-container');
+            const colors = {
+                success: 'bg-green-500 border-green-700',
+                error: 'bg-red-500 border-red-700',
+                warning: 'bg-yellow-500 border-yellow-700',
+            };
+            const toast = document.createElement('div');
+            toast.className = `p-4 mb-2 text-white text-sm font-semibold rounded-lg shadow-lg border-b-4 ${colors[type]} transform translate-x-full transition-all duration-300 ease-out`;
+            toast.textContent = message;
+
+            container.prepend(toast);
+
+            setTimeout(() => {
+                toast.style.transform = 'translateX(0)';
+            }, 10);
+
+            setTimeout(() => {
+                toast.style.transform = 'translateX(120%)';
+                setTimeout(() => {
+                    container.removeChild(toast);
+                }, 400);
+            }, 6000);
+        }
+        // --- END TOAST SYSTEM ---
+
+        // --- VALIDATION HELPERS ---
+        function validatePhoneNumber(number) {
+            const regex = /^0[0-9]{9}$/; 
+            return regex.test(number);
+        }
+
+        // --- FEE CALCULATION (Must match server logic) ---
+        function calculateBatchPaystackCharge(netTotalPesewas) {
+            const CUSTOMER_FLAT_FEE_PESEWAS = 25; 
+            const totalCharged = netTotalPesewas + CUSTOMER_FLAT_FEE_PESEWAS;
+            return Math.round(totalCharged); 
+        }
+
+
+        // --- GLOBAL CONSTANTS & ELEMENTS ---
+        const PAYSTACK_PUBLIC_KEY = 'pk_live_3be2ebebc6edd6fa9f5f9a7303c80a55ee9e0be1'; 
+        const shopIdInput = document.getElementById('shopId');
+        const networkTabs = document.getElementById('network-tabs');
+        const networkInput = document.getElementById('network');
+        const dataplanSelect = document.getElementById('dataplan');
+        const purchaseForm = document.getElementById('purchaseForm');
+        const payButton = document.getElementById('pay-button');
+        const phoneInput = document.getElementById('phone'); 
+        const emailInput = document.getElementById('email');
+        const shopNameDisplay = document.getElementById('shop-name-display');
+        const phoneFeedback = document.getElementById('phone-feedback');
+
+        let agentShopId = null;
+        let currentPlanPricePesewas = 0;
+        let currentWholesalePricePesewas = 0;
+        let userEmailForPaystack = ''; // Email from client input
+
+        // --- UI UPDATE AND DATA FETCH ---
+        function updatePayButton(selectedOption) {
+            if (!selectedOption || currentPlanPricePesewas === 0) {
+                payButton.textContent = 'Select Plan';
+                payButton.disabled = true;
+                return;
+            }
+
+            const totalChargedPesewas = calculateBatchPaystackCharge(currentPlanPricePesewas);
+            const totalChargedGHS = (totalChargedPesewas / 100).toFixed(2);
+            
+            payButton.textContent = `Pay GHS ${totalChargedGHS} via MoMo/Card`; 
+            
+            // Final enablement check based on real-time validation
+            const isValidPhone = validatePhoneNumber(phoneInput.value);
+            payButton.disabled = !isValidPhone;
+        }
+
+        // Fetches plans based on the selected network and the agent's markup
+        const fetchPlansForNetwork = (network) => {
+            dataplanSelect.innerHTML = '<option value="" data-amount="0" selected disabled>Loading plans...</option>';
+            payButton.disabled = true;
+            
+            if (!agentShopId) {
+                 dataplanSelect.innerHTML = '<option value="" data-amount="0">Error: Shop ID missing.</option>';
+                 showToast('Error: Shop ID missing from URL. Contact agent.', 'error');
+                 return;
+            }
+
+            fetch(`/api/agent/plans?shopId=${agentShopId}&network=${network}`)
+                .then(response => {
+                    if (response.status === 404) throw new Error('Shop or plans not found.');
+                    if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+                    return response.json();
+                })
+                .then(({ plans, shopName }) => {
+                    shopNameDisplay.textContent = shopName || 'Agent Data Shop';
+                    dataplanSelect.innerHTML = '<option value="" data-amount="0" selected disabled>Select a Plan...</option>';
+                    if (!plans.length) { dataplanSelect.innerHTML = '<option value="" data-amount="0">No plans available</option>'; return; }
+                    
+                    plans.forEach(p => {
+                        const opt = document.createElement('option');
+                        opt.value = p.id; 
+                        opt.dataset.amount = p.price; // Retail price
+                        opt.dataset.wholesale = p.wholesalePrice; // Wholesale cost
+                        opt.textContent = `${p.name} - GHS ${(p.price / 100).toFixed(2)}`;
+                        dataplanSelect.appendChild(opt);
+                    });
+                    
+                    // Select the first plan and update button state
+                    dataplanSelect.selectedIndex = 1;
+                    dataplanSelect.dispatchEvent(new Event('change')); // Trigger change to update prices
+                })
+                .catch((error) => { 
+                    showToast(`Error loading plans: ${error.message}`, 'error');
+                    dataplanSelect.innerHTML = '<option value="" data-amount="0">Could not load plans</option>'; 
+                });
+        };
+
+        // --- PAYMENT LOGIC (MOMO/Paystack Only) ---
+
+        const handlePaystackTransaction = (e) => {
+            e.preventDefault();
+            
+            const selectedOption = dataplanSelect.options[dataplanSelect.selectedIndex];
+            const retailPriceInPesewas = parseInt(selectedOption.dataset.amount);
+            
+            // Final validation checks
+            if (phoneInput.classList.contains('input-error') || !validatePhoneNumber(phoneInput.value)) {
+                showToast("Please correct the phone number format.", 'error');
+                phoneInput.focus();
+                return;
+            }
+            if (!emailInput.value || !emailInput.checkValidity()) {
+                 showToast("Email is required for payment processing.", 'error');
+                 emailInput.focus();
+                 return;
+            }
+
+            const amountToCharge = calculateBatchPaystackCharge(retailPriceInPesewas);
+
+            payButton.disabled = true;
+            payButton.textContent = 'Initiating Payment Gateway...';
+
+            const paymentCallback = function(response) {
+                showToast("Verifying payment and submitting order...", 'warning');
+
+                // 🛑 CRITICAL: Send the order details to the checkout endpoint 🛑
+                fetch('/api/checkout-orders', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        reference: response.reference,
+                        paymentMethod: 'paystack',
+                        // Orders are sent as a single-item array
+                        orders: [{
+                            network: networkInput.value,
+                            dataPlanId: selectedOption.value,
+                            phoneNumber: phoneInput.value,
+                            amountPesewas: retailPriceInPesewas, 
+                            wholesalePesewas: parseInt(selectedOption.dataset.wholesale)
+                        }],
+                        totalAmountPesewas: retailPriceInPesewas // Base net amount for verification
+                    }),
+                })
+                .then(verifyResponse => verifyResponse.json())
+                .then(data => {
+                    const statusType = data.status === 'success' ? 'success' : 'error';
+                    showToast(data.message, statusType);
+                    
+                    if (data.status === 'success') {
+                        // Order placed, success message shown
+                        phoneInput.value = '';
+                        emailInput.value = '';
+                    }
+                })
+                .catch(err => {
+                    showToast("Verification failed. Check logs for details.", 'error');
+                })
+                .finally(() => {
+                    payButton.disabled = false;
+                    updatePayButton(selectedOption);
+                });
+            };
+
+            PaystackPop.setup({
+                key: PAYSTACK_PUBLIC_KEY,
+                email: emailInput.value,
+                amount: amountToCharge, // Amount must be in pesewas
+                currency: 'GHS',
+                ref: 'AGNT-' + Date.now() + Math.random().toString(36).substring(2, 9),
+                callback: paymentCallback,
+                onClose: function() {
+                    showToast("Payment cancelled.", 'error');
+                    payButton.disabled = false;
+                    updatePayButton(selectedOption);
+                }
+            }).openIframe();
+        };
+
+        // --- INITIALIZATION & LISTENERS ---
+        document.addEventListener('DOMContentLoaded', () => {
+            const urlParams = new URLSearchParams(window.location.search);
+            agentShopId = urlParams.get('shopId');
+            shopIdInput.value = agentShopId || ''; // Set shop ID in hidden input
+
+            if (agentShopId) {
+                fetchPlansForNetwork(networkInput.value);
+            } else {
+                 showToast('Error: Shop ID is missing from the link. Cannot load pricing.', 'error');
+            }
+            
+            // Event Listeners
+            networkTabs.addEventListener('click', (e) => {
+                let target = e.target.closest('.network-tab');
+                if (target) {
+                    document.querySelectorAll('.network-tab').forEach(tab => tab.classList.remove('active', 'border-primary', 'border-transparent'));
+                    target.classList.add('active', 'border-primary');
+                    target.classList.remove('border-transparent');
+                    networkInput.value = target.dataset.network; 
+                    fetchPlansForNetwork(networkInput.value); 
+                }
+            });
+
+            dataplanSelect.addEventListener('change', (e) => {
+                currentPlanPricePesewas = parseInt(e.target.options[e.target.selectedIndex].dataset.amount);
+                currentWholesalePricePesewas = parseInt(e.target.options[e.target.selectedIndex].dataset.wholesale);
+                updatePayButton(e.target.options[e.target.selectedIndex]);
+            });
+            
+            // Real-time validation for phone number
+            phoneInput.addEventListener('input', () => {
+                const number = phoneInput.value;
+                const isValid = validatePhoneNumber(number);
+
+                if (number.length > 0 && !isValid) {
+                    phoneInput.classList.add('input-error');
+                    phoneFeedback.textContent = "Number must be 10 digits and start with '0'.";
+                } else {
+                    phoneInput.classList.remove('input-error');
+                    phoneFeedback.textContent = "";
+                }
+                updatePayButton(dataplanSelect.options[dataplanSelect.selectedIndex]);
+            });
+
+
+            purchaseForm.addEventListener("submit", handlePaystackTransaction);
+        });
+    </script>
+</body>
+</html>
