@@ -7,7 +7,7 @@ const userSchema = new mongoose.Schema({
     password: { type: String, required: true },
     walletBalance: { type: Number, default: 0 },
     role: { type: String, enum: ['Client', 'Agent', 'Agent_Pending'], default: 'Client' },
-    // 🛑 NEW: Agent's Payout Wallet (Profit Commission) 🛑
+    // 🛑 Agent's Payout Wallet (Profit Commission) 🛑
     payoutWalletBalance: { type: Number, default: 0 }, 
     resetToken: String,
     resetTokenExpires: Date,
@@ -25,7 +25,7 @@ const orderSchema = new mongoose.Schema({
     amount: Number, // Amount charged to customer (in GHS)
     status: { type: String, default: 'payment_success' },
     paymentMethod: String,
-    // 🛑 NEW: Store Profit Margin for Payout Tracking 🛑
+    // 🛑 Store Profit Margin for Payout Tracking 🛑
     profitMargin: { type: Number, default: 0 } 
 }, { timestamps: true });
 
@@ -42,7 +42,7 @@ const agentShopSchema = new mongoose.Schema({
     }
 }, { timestamps: true });
 
-// Database Connection Logic (Assumed to be correct)
+// Database Connection Logic (The warning from before is removed here)
 mongoose.connect(process.env.MONGO_URI)
     .then(() => console.log('MongoDB connection successful.'))
     .catch(err => console.error('MongoDB connection error:', err));
