@@ -160,7 +160,7 @@
         let agentShopId = null;
         let currentPlanPricePesewas = 0;
         let currentWholesalePricePesewas = 0;
-        let userEmailForPaystack = ''; // Email from client input
+
 
         // --- UI UPDATE AND DATA FETCH ---
         function updatePayButton(selectedOption) {
@@ -205,8 +205,10 @@
                     plans.forEach(p => {
                         const opt = document.createElement('option');
                         opt.value = p.id; 
-                        opt.dataset.amount = p.price; // Retail price
-                        opt.dataset.wholesale = p.wholesalePrice; // Wholesale cost
+                        // Store the retail price
+                        opt.dataset.amount = p.price; 
+                        // Store the wholesale price for profit calculation
+                        opt.dataset.wholesale = p.wholesalePrice; 
                         opt.textContent = `${p.name} - GHS ${(p.price / 100).toFixed(2)}`;
                         dataplanSelect.appendChild(opt);
                     });
@@ -231,7 +233,7 @@
             
             // Final validation checks
             if (phoneInput.classList.contains('input-error') || !validatePhoneNumber(phoneInput.value)) {
-                showToast("Please correct the phone number format.", 'error');
+                showToast("Please correct the phone number format before payment.", 'error');
                 phoneInput.focus();
                 return;
             }
@@ -327,9 +329,10 @@
             });
 
             dataplanSelect.addEventListener('change', (e) => {
-                currentPlanPricePesewas = parseInt(e.target.options[e.target.selectedIndex].dataset.amount);
-                currentWholesalePricePesewas = parseInt(e.target.options[e.target.selectedIndex].dataset.wholesale);
-                updatePayButton(e.target.options[e.target.selectedIndex]);
+                const selectedOption = e.target.options[e.target.selectedIndex];
+                currentPlanPricePesewas = parseInt(selectedOption.dataset.amount) || 0;
+                currentWholesalePricePesewas = parseInt(selectedOption.dataset.wholesale) || 0;
+                updatePayButton(selectedOption);
             });
             
             // Real-time validation for phone number
