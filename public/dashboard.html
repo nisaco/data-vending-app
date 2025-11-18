@@ -3,7 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <link rel="icon" type="image/x-icon" href="apple-touch-icon.png">
+    
+    
     <title>My Dashboard - DataLink</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
@@ -88,7 +89,7 @@
         <div class="mb-6 pb-4 border-b border-gray-200 dark:border-gray-700">
             <p class="text-sm text-gray-600 dark:text-gray-400 font-medium">Current Balance:</p>
             <p id="sidebar-wallet-balance" class="text-2xl font-extrabold text-primary">GHS 0.00</p>
-            <!-- 🛑 New Payout Wallet Display 🛑 -->
+            <!-- 🛑 Payout Wallet Display 🛑 -->
             <div id="sidebar-payout-balance" class="text-xs text-gray-500 dark:text-gray-400 mt-1">Payout: GHS 0.00</div>
         </div>
 
@@ -97,7 +98,7 @@
             <a href="/dashboard.html" class="block text-primary font-bold">Dashboard</a>
             
             <!-- 🛑 AGENT SHOP MANAGER LINK 🛑 -->
-            <div id="agent-shop-manager" class="pt-4 border-t border-gray-200 dark:border-gray-700">
+            <div id="agent-shop-manager" class="pt-4 border-t border-gray-200 dark:border-gray-700 hidden">
                  <button id="create-shop-link" class="w-full text-left py-2 px-3 bg-green-500 text-white font-bold rounded-lg hover:bg-green-600 transition text-sm">
                     Create My Shop
                  </button>
@@ -108,7 +109,7 @@
             
             <a href="/api/logout" class="block text-red-500 hover:text-red-700 font-medium pt-4 border-t border-gray-200 dark:border-gray-700">Logout</a>
         </div>
-        <button id="close-sidebar" class="absolute top-4 right-4 text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-white">
+        <button id="close-sidebar" class="absolute top-4 right-4 text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-white" onclick="toggleSidebar()">
             <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
         </button>
     </div>
@@ -133,8 +134,8 @@
     <nav class="bg-white shadow-lg dark:bg-[#1f1f1f]">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex justify-between items-center h-16">
             <div class="flex items-center">
-                <!-- 🛑 Menu Button 🛑 -->
-                <button id="open-sidebar" class="p-2 rounded-full text-gray-600 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700 transition mr-4">
+                <!-- Menu Button -->
+                <button id="open-sidebar" class="p-2 rounded-full text-gray-600 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700 transition mr-4" onclick="toggleSidebar()">
                     <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                         <path stroke-linecap="round" stroke-linejoin="round" d="M4 6h16M4 12h16M4 18h16" />
                     </svg>
@@ -255,10 +256,7 @@
         }, 10);
 
         setTimeout(() => {
-            toast.style.transform = 'translateX(120%)';
-            setTimeout(() => {
-                container.removeChild(toast);
-            }, 400);
+            container.removeChild(toast);
         }, 6000);
     }
     // --- END TOAST SYSTEM ---
@@ -354,6 +352,7 @@
     const sidebarWalletBalance = document.getElementById('sidebar-wallet-balance');
     const sidebarPayoutBalance = document.getElementById('sidebar-payout-balance');
     const agentShopManagerDiv = document.getElementById('agent-shop-manager');
+    const createShopLinkButton = document.getElementById('create-shop-link');
 
 
     // --- NOTIFICATION HANDLER ---
@@ -405,6 +404,25 @@
                 
                 userEmail = data.email; 
                 
+                // 🛑 Agent Logic Update 🛑
+                const agentShopManagerDiv = document.getElementById('agent-shop-manager');
+                const createShopLinkButton = document.getElementById('create-shop-link');
+
+                if (userInfo.role === 'Agent') {
+                    agentShopManagerDiv.classList.remove('hidden');
+
+                    if (userInfo.shopId) {
+                        createShopLinkButton.textContent = 'Go to Shop Manager';
+                        createShopLinkButton.onclick = (e) => { e.preventDefault(); closeSidebar(); window.location.href = '/agent_dashboard.html'; };
+                    } else {
+                        createShopLinkButton.textContent = 'Create My Shop';
+                        // Re-attach listener correctly
+                        createShopLinkButton.onclick = (e) => { e.preventDefault(); handleCreateShop(); };
+                    }
+                } else {
+                     agentShopManagerDiv.classList.add('hidden');
+                }
+                
                 if (data.walletBalance < 1000) { 
                     showNotification('Warning: Your wallet balance is running low!', 'warning');
                 }
@@ -422,7 +440,6 @@
         }
     }
 
-    // 🛑 AUTO-REFRESH FUNCTIONALITY 🛑
     async function fetchOrderHistory() {
         try {
             const response = await fetch('/api/my-orders');
@@ -632,7 +649,7 @@
                 // Change button to link
                 const linkButton = document.getElementById('create-shop-link');
                 linkButton.textContent = 'Go to Shop Manager';
-                linkButton.onclick = () => { closeSidebar(); window.location.href = `/agent_dashboard.html`; };
+                linkButton.onclick = (e) => { e.preventDefault(); closeSidebar(); window.location.href = `/agent_dashboard.html`; };
             }
 
         } catch (error) {
@@ -673,11 +690,11 @@
                 if (userInfo.shopId) {
                     // Agent has a shop: Link to their manager page
                     createShopLinkButton.textContent = 'Go to Shop Manager';
-                    createShopLinkButton.onclick = () => { closeSidebar(); window.location.href = '/agent_dashboard.html'; };
+                    createShopLinkButton.onclick = (e) => { e.preventDefault(); closeSidebar(); window.location.href = '/agent_dashboard.html'; };
                 } else {
                     // Agent needs to create a shop
                     createShopLinkButton.textContent = 'Create My Shop';
-                    createShopLinkButton.addEventListener('click', handleCreateShop);
+                    createShopLinkButton.onclick = (e) => { e.preventDefault(); handleCreateShop(); };
                 }
             }
         }
@@ -708,4 +725,3 @@
         checkOnboardingStatus();
     });
 </script>
-
