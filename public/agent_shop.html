@@ -3,7 +3,6 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <link rel="icon" type="image/x-icon" href="apple-touch-icon.png">
     <title>Buy Data - Agent Shop</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
@@ -122,10 +121,7 @@
             }, 10);
 
             setTimeout(() => {
-                toast.style.transform = 'translateX(120%)';
-                setTimeout(() => {
-                    container.removeChild(toast);
-                }, 400);
+                container.removeChild(toast);
             }, 6000);
         }
         // --- END TOAST SYSTEM ---
@@ -356,3 +352,4 @@
     </script>
 </body>
 </html>
+
