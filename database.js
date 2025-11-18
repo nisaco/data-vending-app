@@ -7,7 +7,7 @@ const userSchema = new mongoose.Schema({
     password: { type: String, required: true },
     walletBalance: { type: Number, default: 0 },
     role: { type: String, enum: ['Client', 'Agent', 'Agent_Pending'], default: 'Client' },
-    // Include payoutWalletBalance for Agent system
+    // 🛑 NEW: Agent's Payout Wallet (Profit Commission) 🛑
     payoutWalletBalance: { type: Number, default: 0 }, 
     resetToken: String,
     resetTokenExpires: Date,
@@ -25,6 +25,7 @@ const orderSchema = new mongoose.Schema({
     amount: Number, // Amount charged to customer (in GHS)
     status: { type: String, default: 'payment_success' },
     paymentMethod: String,
+    // 🛑 NEW: Store Profit Margin for Payout Tracking 🛑
     profitMargin: { type: Number, default: 0 } 
 }, { timestamps: true });
 
@@ -41,14 +42,13 @@ const agentShopSchema = new mongoose.Schema({
     }
 }, { timestamps: true });
 
-// Database Connection Logic 
-// 🛑 FIX: Removed deprecated options { useNewUrlParser: true, useUnifiedTopology: true }
+// Database Connection Logic (Assumed to be correct)
 mongoose.connect(process.env.MONGO_URI)
     .then(() => console.log('MongoDB connection successful.'))
     .catch(err => console.error('MongoDB connection error:', err));
 
 const User = mongoose.model('User', userSchema);
 const Order = mongoose.model('Order', orderSchema);
-const AgentShop = mongoose.model('AgentShop', agentShopSchema); 
+const AgentShop = mongoose.model('AgentShop', agentShopSchema); // Export new model
 
 module.exports = { User, Order, AgentShop, mongoose };
