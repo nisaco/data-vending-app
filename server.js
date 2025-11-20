@@ -515,10 +515,12 @@ app.post('/api/agent/create-shop', isDbReady, isAuthenticated, async (req, res) 
     const userId = req.session.user.id;
     const { shopName } = req.body;
 
-    const user = await User.findById(userId);
-    if (!user || user.role !== 'Agent') {
-        return res.status(403).json({ message: 'Only registered agents can create a shop.' });
-    }
+   // NEW CODE (No Role Check for Shop Creation)
+const user = await User.findById(userId);
+if (!user) {
+    return res.status(404).json({ message: 'User not found.' });
+}
+// We proceed regardless of role, as the shopId check below still applies.
 
     // Check if shop already exists
     if (user.shopId) {
@@ -598,11 +600,12 @@ app.post('/api/agent/update-markup', isDbReady, isAuthenticated, async (req, res
     const userId = req.session.user.id;
     const { network, markupValue } = req.body;
     
-    // Authorization check
-    const user = await User.findById(userId);
-    if (!user || user.role !== 'Agent') {
-        return res.status(403).json({ message: 'Unauthorized.' });
-    }
+   // NEW CODE (No Role Check for Markup Update)
+const user = await User.findById(userId);
+if (!user) {
+    return res.status(404).json({ message: 'User not found.' });
+}
+// Proceed for all logged-in users.
     
     try {
         const agentShop = await AgentShop.findOne({ userId });
@@ -894,10 +897,9 @@ app.post('/api/checkout-orders', isDbReady, isAuthenticated, async (req, res) =>
                 
                 let itemProfit = Math.max(0, retailPricePaid - baseWholesaleCost);
                 
-                // If the user is an Agent, track the profit to credit their payout wallet
-                if (user.role === 'Agent') {
-                    profitToCredit += itemProfit;
-                }
+               // NEW CODE (Unconditional Profit Credit to all users' payout wallets)
+// All users now profit from their custom shop sales
+profitToCredit += itemProfit;
                 
                 const itemDetails = {
                     network: item.network,
