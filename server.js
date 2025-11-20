@@ -826,7 +826,65 @@ app.post('/paystack/verify', isDbReady, isAuthenticated, async (req, res) => {
         
         return res.status(500).json({ status: 'error', message: errorMessage });
     }
+    // --- NEW: Payout Withdrawal Endpoint ---
+app.post('/api/withdraw-profit', isDbReady, isAuthenticated, async (req, res) => {
+    const userId = req.session.user.id;
+    const { amountPesewas, accountDetails } = req.body; // accountDetails holds mobile money/bank info
+    
+    if (!amountPesewas || amountPesewas < 500) { // Minimum withdrawal of GHS 5.00
+        return res.status(400).json({ message: 'Minimum withdrawal is GHS 5.00.' });
+    }
+    if (!accountDetails || !accountDetails.accountNumber || !accountDetails.network) {
+        return res.status(400).json({ message: 'Missing account or network details.' });
+    }
+
+    try {
+        const user = await User.findById(userId);
+        if (!user) return res.status(404).json({ message: 'User not found.' });
+
+        // 1. Check Balance
+        if (user.payoutWalletBalance < amountPesewas) {
+            return res.status(400).json({ message: 'Insufficient payout balance.' });
+        }
+        
+        // --- 2. Debit Payout Wallet (Atomic Operation) ---
+        const debitResult = await User.findByIdAndUpdate(
+            userId,
+            { $inc: { payoutWalletBalance: -amountPesewas } },
+            { new: true, runValidators: true }
+        );
+
+        // Update session balance
+        req.session.user.payoutWalletBalance = debitResult.payoutWalletBalance;
+
+        // --- 3. Log Withdrawal Order ---
+        // Status is set to 'withdrawal_pending' for manual admin review
+        await Order.create({
+            userId: userId,
+            reference: `WITHDRAWAL-${crypto.randomBytes(12).toString('hex')}`,
+            phoneNumber: accountDetails.accountNumber,
+            network: accountDetails.network,
+            dataPlan: 'WITHDRAWAL REQUEST',
+            amount: amountPesewas / 100,
+            status: 'withdrawal_pending',
+            paymentMethod: 'payout'
+        });
+
+        // 4. Send Admin Alert (You would need a separate email function for this or use the existing sendAdminAlertEmail logic)
+        // Note: For simplicity, we skip the alert email here, relying on the 'withdrawal_pending' status.
+        
+        res.json({ 
+            status: 'success', 
+            message: `Withdrawal of GHS ${(amountPesewas / 100).toFixed(2)} requested successfully. Processing typically takes 1-2 hours.`,
+            newPayoutBalance: debitResult.payoutWalletBalance
+        });
+
+    } catch (error) {
+        console.error('Withdrawal Request Error:', error);
+        res.status(500).json({ message: 'Server error during withdrawal request.' });
+    }
 });
+
 
 
 // 🛑 NEW: Batch Checkout Endpoint 🛑
