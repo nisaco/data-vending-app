@@ -31,11 +31,15 @@
         }
 
         /* Status Pill Colors */
-        .status-data_sent, .status-topup_successful { background-color: #10b981; } 
-        .status-pending_review { background-color: #f59e0b; } 
-        .status-data_failed, .status-payment_failed { background-color: #ef4444; }
-        .status-payment_success { background-color: #3b82f6; }
+        .status-data_sent, .status-topup_successful { background-color: #10b981; } /* Green */
+        .status-pending_review { background-color: #f59e0b; } /* Orange */
+        .status-data_failed, .status-payment_failed { background-color: #ef4444; } /* Red */
+        .status-payment_success { background-color: #3b82f6; } /* Blue */
         
+        /* 🛑 NEW WITHDRAWAL STATUS COLORS 🛑 */
+        .status-withdrawal_pending { background-color: #f59e0b; } /* Orange for pending action */
+        .status-withdrawal_sent { background-color: #3b82f6; } /* Blue/Completed */
+
         /* Client Status Colors */
         .status-online { background-color: #10b981; }
         .status-offline { background-color: #6b7280; }
@@ -82,6 +86,9 @@
             <div id="modal-current-order" class="text-sm text-gray-600 dark:text-gray-400 mb-4">
                 Reference: <span id="modal-order-ref" class="font-medium"></span>
                 <br> Current Status: <span id="modal-current-status" class="font-bold"></span>
+                <div id="modal-payout-details" class="text-sm text-blue-500 font-semibold mt-2 hidden">
+                    Payout To: <span id="modal-payout-account"></span>
+                </div>
             </div>
 
             <label for="new-status" class="block text-gray-700 dark:text-gray-300 mb-2">New Status</label>
@@ -90,6 +97,8 @@
                 <option value="pending_review">Pending Review</option>
                 <option value="data_failed">Data Failed</option>
                 <option value="payment_failed">Payment Failed</option>
+                <option value="withdrawal_pending">Awaiting Payout (Manual Action)</option>
+                <option value="withdrawal_sent">Payout Sent (Completed)</option>
             </select>
             
             <div id="modal-status-message" class="mt-3 text-sm font-medium text-red-500"></div>
@@ -162,7 +171,8 @@
                     
                     <select id="status-filter" class="p-2 border border-gray-300 rounded-lg text-sm dark:bg-gray-700 dark:border-gray-600 dark:text-white">
                         <option value="All">Filter by Status (All)</option>
-                        <option value="pending_review">Pending Review</option>
+                        <option value="withdrawal_pending">Payout Pending (Action Required)</option>
+                        <option value="pending_review">Data Pending (Action Required)</option>
                         <option value="data_sent">Data Sent (Success)</option>
                         <option value="data_failed">Data Failed</option>
                         <option value="topup_successful">Top Up Success</option>
@@ -177,7 +187,7 @@
                             <tr>
                                 <th scope="col" class="py-3 px-6 rounded-tl-xl">Time</th>
                                 <th scope="col" class="py-3 px-6">User</th>
-                                <th scope="col" class="py-3 px-6">Phone</th>
+                                <th scope="col" class="py-3 px-6">Phone / Account</th>
                                 <th scope="col" class="py-3 px-6">Item / Network</th>
                                 <th scope="col" class="py-3 px-6">Amount (GHS)</th>
                                 <th scope="col" class="py-3 px-6">Status</th>
@@ -225,8 +235,6 @@
             const toast = document.createElement('div');
             toast.className = `p-4 mb-2 text-white text-sm font-semibold rounded-lg shadow-lg border-b-4 ${colors[type]} transform translate-x-full transition-all duration-300 ease-out`;
             toast.textContent = message;
-
-            container.prepend(toast);
 
             // Animate in
             setTimeout(() => {
@@ -284,8 +292,15 @@
         let allOrders = [];
         let allUsers = [];
         const statusMap = {
-            'data_sent': 'Data Sent', 'pending_review': 'Pending Review', 'data_failed': 'Data Failed', 
-            'topup_successful': 'Top Up Success', 'payment_success': 'Payment Success', 'payment_failed': 'Payment Failed'
+            'data_sent': 'Data Sent', 
+            'pending_review': 'Pending Review', 
+            'data_failed': 'Data Failed', 
+            'topup_successful': 'Top Up Success', 
+            'payment_success': 'Payment Success', 
+            'payment_failed': 'Payment Failed',
+            // 🛑 NEW STATUSES 🛑
+            'withdrawal_pending': 'Payout Pending',
+            'withdrawal_sent': 'Payout Sent'
         };
 
         // --- DOM Elements ---
@@ -314,6 +329,9 @@
         const modalUpdateBtn = document.getElementById('modal-update');
         const modalCancelBtn = document.getElementById('modal-cancel');
         const modalNewStatus = document.getElementById('new-status');
+        // 🛑 NEW PAYOUT MODAL ELEMENTS 🛑
+        const modalPayoutDetails = document.getElementById('modal-payout-details');
+        const modalPayoutAccount = document.getElementById('modal-payout-account');
 
 
         // --- UTILITY FUNCTIONS ---
@@ -431,9 +449,9 @@
                     <td class="py-4 px-6 text-xs dark:text-gray-400">${safeDateFormatter(user.signedUp)}</td>
                     <td class="py-4 px-6">
                         <button data-id="${user._id}" 
-                         class="delete-user-btn bg-red-600 hover:bg-red-700 text-white text-xs font-medium py-1 px-3 rounded transition">
-                         Delete
-                         </button>
+                           class="delete-user-btn bg-red-600 hover:bg-red-700 text-white text-xs font-medium py-1 px-3 rounded transition">
+                           Delete
+                           </button>
                     </td>
                 `;
             });
@@ -462,12 +480,29 @@
                 const row = ordersTableBody.insertRow();
                 const statusText = statusMap[order.status] || order.status.replace(/_/g, ' ');
                 const statusClass = `status-${order.status}`;
-                const amountSign = (order.dataPlan === 'WALLET TOP-UP') ? '+' : '-';
-                const amountColor = (order.dataPlan === 'WALLET TOP-UP') ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400';
-
-                const displayPhone = order.network === 'WALLET' ? 'N/A (Deposit)' : (order.phoneNumber || 'N/A');
+                const amountSign = (order.dataPlan === 'WALLET TOP-UP') ? '+' : (order.dataPlan === 'WITHDRAWAL REQUEST' ? 'PAYOUT: ' : 'COST: ');
+                const amountColor = (order.dataPlan === 'WALLET TOP-UP') ? 'text-green-600 dark:text-green-400' : 
+                                    (order.dataPlan === 'WITHDRAWAL REQUEST' ? 'text-blue-600 dark:text-blue-400' : 'text-red-600 dark:text-red-400');
+                
+                // Determine what to display in the Phone column
+                let displayPhone;
+                if (order.dataPlan === 'WITHDRAWAL REQUEST') {
+                    displayPhone = `${order.network || 'Account'}: ${order.phoneNumber || 'N/A'}`;
+                } else if (order.network === 'WALLET') {
+                    displayPhone = 'N/A (Wallet)';
+                } else {
+                    displayPhone = order.phoneNumber || 'N/A';
+                }
 
                 row.className = 'hover:bg-gray-50 transition duration-150 dark:hover:bg-gray-800';
+                
+                // Determine button text based on status
+                let actionButton = 'N/A';
+                if (order.status === 'pending_review') {
+                    actionButton = `<button data-id="${order.id}" class="open-modal-btn text-white bg-blue-600 hover:bg-blue-700 text-xs font-medium py-1 px-3 rounded transition">Fulfill Data</button>`;
+                } else if (order.status === 'withdrawal_pending') {
+                    actionButton = `<button data-id="${order.id}" class="open-modal-btn text-white bg-yellow-600 hover:bg-yellow-700 text-xs font-medium py-1 px-3 rounded transition">Fulfill Payout</button>`;
+                }
 
                 row.innerHTML = `
                     <td class="py-4 px-6 dark:text-gray-400 text-xs">${safeDateFormatter(order.created_at)}</td>
@@ -483,11 +518,7 @@
                         </span>
                     </td>
                     <td class="py-4 px-6">
-                        ${order.status === 'pending_review' ? 
-                            `<button data-id="${order.id}" 
-                             class="open-modal-btn text-white bg-blue-600 hover:bg-blue-700 text-xs font-medium py-1 px-3 rounded transition">
-                             Update
-                             </button>` : 'N/A'}
+                        ${actionButton}
                     </td>
                 `;
             });
@@ -503,13 +534,26 @@
             
             // Find the order data to populate the modal fields
             const order = allOrders.find(o => o.id === currentOrderId);
+            modalPayoutDetails.classList.add('hidden'); // Hide payout details by default
 
             if (order) {
                 modalOrderRef.textContent = order.reference ? order.reference.substring(0, 16) + '...' : currentOrderId.substring(0, 8) + '...';
                 modalCurrentStatus.textContent = statusMap[order.status] || order.status.replace(/_/g, ' ');
-                modalNewStatus.value = 'data_sent'; // Default selection
                 modalStatusMessage.textContent = ''; // Clear previous message
                 
+                // 1. Check if it's a Payout Request
+                if (order.status === 'withdrawal_pending') {
+                    // Display Payout Details
+                    modalPayoutAccount.textContent = `${order.network} (${order.phoneNumber}) - GHS ${order.amount.toFixed(2)}`;
+                    modalPayoutDetails.classList.remove('hidden');
+                    
+                    // Pre-select the Payout Sent option
+                    modalNewStatus.value = 'withdrawal_sent';
+                } else {
+                    // Default to Data Sent for regular review
+                    modalNewStatus.value = 'data_sent'; 
+                }
+
                 modalBackdrop.style.opacity = 1;
                 modalBackdrop.style.display = 'flex';
             }
@@ -548,11 +592,8 @@
 
                 if (response.ok) {
                     showToast(data.message, 'success');
-                    modalStatusMessage.textContent = data.message;
-                    modalStatusMessage.classList.remove('text-yellow-600');
-                    modalStatusMessage.classList.add('text-green-600');
                     
-                    // Update local data and re-render the table
+                    // Update local data for immediate display
                     const index = allOrders.findIndex(o => o.id === currentOrderId);
                     if (index !== -1) {
                         allOrders[index].status = newStatus;
@@ -633,6 +674,9 @@
                 return; 
             }
             
+            // Store secret globally for use in action buttons
+            adminSecret = secret;
+
             fetchDataBtn.disabled = true;
             fetchDataBtn.textContent = 'Loading...';
             
@@ -661,11 +705,12 @@
             
             // 1. Theme Toggle: Handled by event listener logic above.
 
-            // 2. Get Admin Secret from URL 
+            // 2. Get Admin Secret from URL 
             const urlParams = new URLSearchParams(window.location.search);
             const initialSecret = urlParams.get('secret');
             if (initialSecret) {
                 adminSecretInput.value = initialSecret;
+                adminSecret = initialSecret;
                 // Auto-fetch data if secret is in URL
                 fetchAllData();
             }
@@ -714,3 +759,5 @@
             });
         });
     </script>
+</body>
+</html>
