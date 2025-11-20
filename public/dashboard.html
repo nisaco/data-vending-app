@@ -22,7 +22,7 @@
         .dark .border-gray-100 { border-color: #374151; }
         .dark .bg-gray-700 { background-color: #374151; }
         .dark .divide-y { border-color: #4b5563; }
-        .dark input { background-color: #374151; border-color: #4b5563; color: #f3f4f6; }
+        .dark input, .dark select { background-color: #374151; border-color: #4b5563; color: #f3f4f6; }
         .dark .bg-primary { background-color: #007a63; } 
         .dark .hover\:bg-secondary:hover { background-color: #005f4c; } 
         
@@ -30,6 +30,7 @@
         .status-data_sent { background-color: #10b981; } 
         .status-pending_review { background-color: #f59e0b; } 
         .status-payment_success, .status-topup_successful { background-color: #3b82f6; } /* Blue */
+        .status-withdrawal_pending { background-color: #f59e0b; } /* Warning color for pending withdrawal */
         
         /* Tab Styling */
         .filter-tab {
@@ -47,8 +48,10 @@
         /* Activity Log Specific Colors */
         .type-deposit { color: #10b981; font-weight: 700; } 
         .type-purchase { color: #ef4444; font-weight: 700; } 
+        .type-payout { color: #2563eb; font-weight: 700; } /* Blue for withdrawals */
+
         /* Modal Backdrop */
-        #modal-backdrop {
+        #modal-backdrop, #withdrawal-modal-backdrop {
             background-color: rgba(0, 0, 0, 0.75);
             transition: opacity 0.3s ease;
             z-index: 50;
@@ -95,6 +98,7 @@
             <a id="agent-shop-link" href="/agent_shop_setup.html" class="block text-gray-700 dark:text-gray-300 hover:text-blue-500 font-medium">
                 <span id="agent-link-text">My Agent Shop</span>
             </a>
+            
             <div id="sidebar-payout-section" class="mb-6 pb-4 border-t border-gray-200 dark:border-gray-700 pt-4 hidden">
                 <p class="text-sm text-gray-600 dark:text-gray-400 font-medium">Payout Wallet:</p>
                 <p id="sidebar-payout-balance" class="text-2xl font-extrabold text-blue-500">GHS 0.00</p>
@@ -120,6 +124,36 @@
             <div class="mt-4 flex justify-end space-x-3">
                 <button id="modal-cancel" type="button" class="py-2 px-4 bg-gray-200 text-gray-800 rounded-lg hover:bg-gray-300 transition">Cancel</button>
                 <button id="modal-pay" type="button" class="py-2 px-4 bg-primary text-white rounded-lg hover:bg-secondary transition">Pay</button>
+            </div>
+        </div>
+    </div>
+    
+    <div id="withdrawal-modal-backdrop" class="fixed inset-0 bg-black bg-opacity-75 z-50 hidden items-center justify-center opacity-0 transition-opacity duration-300">
+        <div id="withdrawal-modal" class="bg-white p-6 rounded-xl shadow-2xl w-full max-w-sm transform scale-95 transition-all duration-300 dark:bg-gray-800">
+            <h3 class="text-xl font-bold text-gray-800 dark:text-white mb-4">Withdraw Profit</h3>
+            <div id="withdrawal-status" class="text-sm font-medium mb-3 text-red-500"></div>
+            
+            <label for="modal-withdrawal-amount" class="block text-gray-700 dark:text-gray-300 mb-2">Amount (GHS, Min 5.00)</label>
+            <input type="number" id="modal-withdrawal-amount" min="5.00" step="1.00" placeholder="e.g., 10.00"
+                    class="w-full p-2 border border-gray-300 rounded-lg text-gray-800 focus:ring-primary focus:border-primary dark:bg-gray-700 dark:border-gray-600 dark:text-white">
+
+            <label for="withdrawal-network" class="block text-gray-700 dark:text-gray-300 mt-4 mb-2">Mobile Network</label>
+            <select id="withdrawal-network" required
+                    class="w-full p-2 border border-gray-300 rounded-lg dark:bg-gray-700 dark:border-gray-600 dark:text-white">
+                <option value="">-- Select Network --</option>
+                <option value="MTN">MTN MoMo</option>
+                <option value="AirtelTigo">AirtelTigo Money</option>
+                <option value="Telecel">Telecel Cash</option>
+                <option value="Bank">Bank Transfer (GHS)</option>
+            </select>
+            
+            <label for="withdrawal-account" class="block text-gray-700 dark:text-gray-300 mt-4 mb-2">Account/MoMo Number</label>
+            <input type="text" id="withdrawal-account" required placeholder="02X XXX XXXX or Bank Account"
+                    class="w-full p-2 border border-gray-300 rounded-lg text-gray-800 focus:ring-primary focus:border-primary dark:bg-gray-700 dark:border-gray-600 dark:text-white">
+
+            <div class="mt-4 flex justify-end space-x-3">
+                <button id="withdrawal-cancel" type="button" class="py-2 px-4 bg-gray-200 text-gray-800 rounded-lg hover:bg-gray-300 transition">Cancel</button>
+                <button id="withdrawal-confirm" type="button" class="py-2 px-4 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition">Confirm Withdrawal</button>
             </div>
         </div>
     </div>
@@ -180,7 +214,7 @@
                             </p>
                         </div>
                         <button id="withdraw-button" class="py-2 px-4 bg-white text-blue-500 font-bold rounded-lg shadow-md transition hover:bg-gray-100" disabled>
-                            Withdraw (Soon)
+                            Withdraw
                         </button>
                     </div>
                 </div>
@@ -278,7 +312,6 @@
     const themeToggle = document.getElementById('theme-toggle');
 
     function updateThemeIcon(isDark) {
-        // Toggle sun/moon icons based on state
         const moonIcon = document.getElementById('theme-icon-moon');
         const sunIcon = document.getElementById('theme-icon-sun');
         if (moonIcon && sunIcon) {
@@ -292,7 +325,6 @@
         }
     }
 
-    // Initial Theme Setup
     const savedTheme = localStorage.getItem('theme');
     if (savedTheme === 'dark' || (!savedTheme && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
         htmlElement.classList.add('dark');
@@ -307,7 +339,6 @@
     });
     
     document.addEventListener('DOMContentLoaded', () => {
-        // Run initial icon update after DOM load
         const isDark = htmlElement.classList.contains('dark');
         updateThemeIcon(isDark);
     });
@@ -334,10 +365,11 @@
     // --- GLOBAL STATE & CONSTANTS ---
     let userOrders = []; 
     let userEmail = null; 
-    let userRole = 'Client'; // Added for logic compatibility
-    let userShopId = null; // Added for shop link generation
-    let payoutWalletBalance = 0; // Added for payout card visibility
+    let userRole = 'Client'; 
+    let userShopId = null;
+    let payoutWalletBalance = 0;
     const MIN_TOPUP_GHS = 1.00; 
+    const MIN_WITHDRAWAL_GHS = 5.00; // NEW CONSTANT
     const PAYSTACK_PUBLIC_KEY = 'pk_live_3be2ebebc6edd6fa9f5f9a7303c80a55ee9e0be1'; 
     
     // --- DOM ELEMENTS ---
@@ -360,8 +392,17 @@
     const sidebarPayoutBalance = document.getElementById('sidebar-payout-balance');
     const agentLinkText = document.getElementById('agent-link-text');
     const copyShopLinkBtn = document.getElementById('copy-shop-link');
-    const agentShopLink = document.getElementById('agent-shop-link'); // Sidebar link
+    const withdrawButton = document.getElementById('withdraw-button');
 
+    // New Withdrawal Elements
+    const withdrawalBackdrop = document.getElementById('withdrawal-modal-backdrop');
+    const withdrawalCancelBtn = document.getElementById('withdrawal-cancel');
+    const withdrawalConfirmBtn = document.getElementById('withdrawal-confirm');
+    const withdrawalAmountInput = document.getElementById('modal-withdrawal-amount');
+    const withdrawalStatusDiv = document.getElementById('withdrawal-status');
+    const withdrawalNetworkSelect = document.getElementById('withdrawal-network');
+    const withdrawalAccountInput = document.getElementById('withdrawal-account');
+    
     // Onboarding elements
     const welcomeBanner = document.getElementById('welcome-banner');
     const dismissBtn = document.getElementById('dismiss-onboarding');
@@ -405,7 +446,7 @@
         return Math.ceil(finalCharge); 
     }
 
-    // --- DATA FETCHING (Adjusted to support Agent data but keeps original layout) ---
+    // --- DATA FETCHING ---
     async function fetchBalance() {
         try {
             const response = await fetch('/api/user-info');
@@ -413,7 +454,6 @@
                 const data = await response.json();
                 const formattedBalance = `GHS ${(data.walletBalance / 100).toFixed(2)}`;
                 
-                // Get Agent Data (even if the role is 'Client', the shop ID might exist)
                 userEmail = data.email; 
                 userRole = data.role; 
                 userShopId = data.shopId;
@@ -427,16 +467,24 @@
                 payoutBalanceDisplay.textContent = formattedPayout;
                 sidebarPayoutBalance.textContent = formattedPayout;
                 
-                // 2. Conditional Agent UI (Payout Wallet only appears if they have profit or are an Agent)
+                // 2. Conditional Payout Wallet UI (appears if they have profit or are explicitly an Agent)
                 if (userRole === 'Agent' || payoutWalletBalance > 0) {
                     payoutWalletCard.classList.remove('hidden');
                     sidebarPayoutSection.classList.remove('hidden');
+                    
+                    // Enable withdraw button if balance is sufficient
+                    if (payoutWalletBalance >= MIN_WITHDRAWAL_GHS * 100) {
+                        withdrawButton.disabled = false;
+                    } else {
+                         withdrawButton.disabled = true;
+                    }
+
                 } else {
                     payoutWalletCard.classList.add('hidden');
                     sidebarPayoutSection.classList.add('hidden');
                 }
 
-                // 3. Update Link Text (Since the link itself is always visible)
+                // 3. Update Link Text (Agent Shop)
                 if (userShopId) {
                     agentLinkText.textContent = `Manage Shop (ID: ${userShopId})`;
                 } else {
@@ -485,7 +533,7 @@
         }
     }
 
-    // --- RENDERING AND FILTERING (No functional changes here) ---
+    // --- RENDERING AND FILTERING ---
 
     function renderOrders(orders) {
         tableBody.innerHTML = '';
@@ -499,16 +547,16 @@
         orders.forEach(order => {
             const row = tableBody.insertRow();
             const statusText = order.status.replace(/_/g, ' '); 
-            const statusClass = `status-${order.status}`;
+            let statusClass = `status-${order.status}`;
             
-            let source = order.paymentMethod === 'wallet' ? 'Wallet' : 'Paystack';
-            let item = order.dataPlan === 'WALLET TOP-UP' ? 'Wallet Top-up' : `${order.dataPlan} (${order.network || 'N/A'})`;
+            let source = order.paymentMethod === 'wallet' ? 'Wallet' : (order.paymentMethod === 'payout' ? 'Payout' : 'Paystack');
+            let item = order.dataPlan === 'WALLET TOP-UP' ? 'Wallet Top-up' : (order.dataPlan === 'WITHDRAWAL REQUEST' ? 'Withdrawal' : `${order.dataPlan} (${order.network || 'N/A'})`);
             
             // Display phone number if not a top-up
-            const recipientInfo = order.dataPlan === 'WALLET TOP-UP' ? 'N/A' : (order.phoneNumber || 'N/A');
+            const recipientInfo = (order.dataPlan === 'WALLET TOP-UP') ? 'N/A' : (order.phoneNumber || 'N/A');
 
-            let amountSign = (order.dataPlan === 'WALLET TOP-UP') ? '+' : '-';
-            let amountColor = (order.dataPlan === 'WALLET TOP-UP') ? 'type-deposit' : 'type-purchase';
+            let amountSign = (order.dataPlan === 'WALLET TOP-UP') ? '+' : (order.dataPlan === 'WITHDRAWAL REQUEST' ? '-' : '-');
+            let amountColor = (order.dataPlan === 'WALLET TOP-UP') ? 'type-deposit' : (order.dataPlan === 'WITHDRAWAL REQUEST' ? 'type-payout' : 'type-purchase');
 
             row.className = 'hover:bg-gray-50 transition duration-150 dark:hover:bg-gray-800';
 
@@ -534,14 +582,13 @@
         let filtered = userOrders;
         
         if (network !== 'All') {
-            // Filter: Show orders matching the network
-            filtered = userOrders.filter(order => order.network === network);
+            filtered = userOrders.filter(order => order.network === network || (network === 'WALLET' && (order.dataPlan === 'WALLET TOP-UP' || order.dataPlan === 'WITHDRAWAL REQUEST')));
         }
         
         renderOrders(filtered);
     }
 
-    // --- TOP-UP MODAL LOGIC (No functional changes here) ---
+    // --- TOP-UP MODAL LOGIC ---
     const modalCancelBtn = document.getElementById('modal-cancel'); 
     
     function openModal() {
@@ -563,7 +610,7 @@
         }, 300);
     }
 
-    // --- PAYSTACK INTEGRATION (No functional changes here) ---
+    // --- PAYSTACK INTEGRATION ---
     const initiatePaystackTopup = (amountInGHS, userEmail) => {
         if (amountInGHS < MIN_TOPUP_GHS) {
             modalStatus.textContent = `Minimum top-up is GHS ${MIN_TOPUP_GHS.toFixed(2)}.`;
@@ -583,7 +630,7 @@
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ 
                     reference: response.reference, 
-                    amount: amountInGHS // Send the NET DEPOSIT amount for server verification
+                    amount: amountInGHS
                 }),
             })
             .then(verifyResponse => verifyResponse.json())
@@ -609,7 +656,7 @@
         PaystackPop.setup({
             key: PAYSTACK_PUBLIC_KEY, 
             email: userEmail, 
-            amount: finalChargedAmount, // Send the fee-inclusive amount (in pesewas)
+            amount: finalChargedAmount,
             currency: 'GHS',
             ref: 'DL-TOPUP-' + Math.floor((Math.random() * 1000000000) + 1),
             callback: paymentCallback,
@@ -621,7 +668,86 @@
         }).openIframe();
     };
     
-    // --- ONBOARDING LOGIC (No functional changes here) ---
+    // --- WITHDRAWAL MODAL LOGIC ---
+    
+    function openWithdrawalModal() {
+        const maxAmountGHS = payoutWalletBalance / 100;
+        withdrawalAmountInput.setAttribute('max', maxAmountGHS.toFixed(2));
+        
+        withdrawalAmountInput.value = Math.max(MIN_WITHDRAWAL_GHS, Math.min(maxAmountGHS, 10.00)).toFixed(2);
+        
+        withdrawalBackdrop.style.display = 'flex';
+        setTimeout(() => {
+            withdrawalBackdrop.style.opacity = 1;
+            document.getElementById('withdrawal-modal').style.transform = 'scale(1)';
+        }, 10);
+    }
+
+    function closeWithdrawalModal() {
+        withdrawalBackdrop.style.opacity = 0;
+        document.getElementById('withdrawal-modal').style.transform = 'scale(0.95)';
+        setTimeout(() => {
+            withdrawalBackdrop.style.display = 'none';
+            withdrawalStatusDiv.textContent = '';
+        }, 300);
+    }
+
+    async function handleWithdrawal() {
+        const amountGHS = parseFloat(withdrawalAmountInput.value);
+        const network = withdrawalNetworkSelect.value;
+        const accountNumber = withdrawalAccountInput.value.trim();
+
+        if (isNaN(amountGHS) || amountGHS < MIN_WITHDRAWAL_GHS) {
+            return withdrawalStatusDiv.textContent = `Amount must be GHS ${MIN_WITHDRAWAL_GHS.toFixed(2)} or higher.`;
+        }
+        if (amountGHS * 100 > payoutWalletBalance) {
+            return withdrawalStatusDiv.textContent = 'Requested amount exceeds your available profit balance.';
+        }
+        if (!network || !accountNumber) {
+            return withdrawalStatusDiv.textContent = 'Please fill in all account details.';
+        }
+        
+        withdrawalConfirmBtn.disabled = true;
+        withdrawalConfirmBtn.textContent = 'Submitting...';
+        withdrawalStatusDiv.textContent = 'Request in progress...';
+
+        const amountPesewas = Math.round(amountGHS * 100);
+
+        try {
+            const response = await fetch('/api/withdraw-profit', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    amountPesewas,
+                    accountDetails: {
+                        accountNumber,
+                        network
+                    }
+                })
+            });
+            const data = await response.json();
+            
+            if (response.ok) {
+                showToast(data.message, 'success');
+                fetchBalance(); 
+                fetchOrderHistory(); 
+                closeWithdrawalModal();
+            } else {
+                showToast(data.message || 'Withdrawal failed.', 'error');
+                withdrawalStatusDiv.textContent = data.message || 'Failed to submit request.';
+            }
+
+        } catch (error) {
+            console.error('Withdrawal error:', error);
+            showToast('A network error occurred.', 'error');
+            withdrawalStatusDiv.textContent = 'Server connection failed.';
+        } finally {
+            withdrawalConfirmBtn.disabled = false;
+            withdrawalConfirmBtn.textContent = 'Confirm Withdrawal';
+        }
+    }
+
+    // --- ONBOARDING LOGIC ---
     function checkOnboardingStatus() {
         const viewCount = parseInt(localStorage.getItem('dashboard_onboarding_count') || '0');
         if (viewCount < MAX_VIEWS) {
@@ -636,7 +762,7 @@
         welcomeBanner.classList.add('hidden');
     }
     
-    // --- SIDEBAR LOGIC (No functional changes here) ---
+    // --- SIDEBAR LOGIC ---
     function toggleSidebar() {
         const sidebar = document.getElementById('sidebar');
         const sidebarBackdrop = document.getElementById('sidebar-backdrop');
@@ -645,7 +771,7 @@
         sidebarBackdrop.classList.toggle('hidden');
     }
     
-    // --- COPY SHOP LINK LOGIC (Modified to show warning for users without a shop ID) ---
+    // --- COPY SHOP LINK LOGIC ---
     function copyAgentShopLink() {
         if (!userShopId) {
             showToast("Please create your shop first!", 'error');
@@ -700,6 +826,11 @@
         
         // 🛑 Agent Shop Link Listener
         copyShopLinkBtn.addEventListener('click', copyAgentShopLink);
+
+        // 🛑 Withdrawal Listeners
+        withdrawButton.addEventListener('click', openWithdrawalModal);
+        withdrawalCancelBtn.addEventListener('click', closeWithdrawalModal);
+        withdrawalConfirmBtn.addEventListener('click', handleWithdrawal);
 
         // 🛑 Network Filter Listener
         filterContainer.addEventListener('click', (e) => {
