@@ -45,7 +45,7 @@
             
             <h1 class="text-3xl font-extrabold text-gray-800 dark:text-white mb-2" id="header-text">Agent Shop Setup</h1>
             <p class="text-gray-600 mb-6 dark:text-gray-400" id="sub-header-text">
-                Create your personalized shop link and set your data plan markups (in **Pesewas**).
+                Create your personalized shop link and set your data plan markups   (in **Pesewas**).
             </p>
             
             <div id="shop-management-area">
@@ -276,12 +276,22 @@
                 showToast('Session expired. Redirecting...', 'error');
                 return setTimeout(() => window.location.href = '/login.html', 1000);
             }
+           // Inside async function initialize() // ...
             const userInfo = await userInfoResponse.json();
-
-            if (userInfo.role !== 'Agent') {
-                managementArea.innerHTML = `<p class="text-xl text-red-500 text-center py-10">Access Denied: This page is for Agents only.</p>`;
+            
+            // 🛑 REMOVE ROLE CHECK 🛑
+            // We only need to check if the user is authenticated, which isAuthenticated already did.
+            // If the user exists, proceed.
+            if (!userInfo || !userInfo.username) {
+                managementArea.innerHTML = `<p class="text-xl text-red-500 text-center py-10">Error: Could not retrieve user data.</p>`;
                 return;
             }
+            
+            userRole = userInfo.role;
+            userShopId = userInfo.shopId;
+
+            if (userShopId) {
+// ... rest of the logic remains the same
 
             userRole = userInfo.role;
             userShopId = userInfo.shopId;
