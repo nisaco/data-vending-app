@@ -515,18 +515,17 @@ app.post('/api/agent/create-shop', isDbReady, isAuthenticated, async (req, res) 
     const userId = req.session.user.id;
     const { shopName } = req.body;
 
-   // NEW CODE (No Role Check for Shop Creation)
-const user = await User.findById(userId);
-if (!user) {
-    return res.status(404).json({ message: 'User not found.' });
-}
-// We proceed regardless of role, as the shopId check below still applies.
+    const user = await User.findById(userId);
+    // 🛑 REMOVED: if (!user || user.role !== 'Agent') { ... } 🛑
+    if (!user) {
+        return res.status(404).json({ message: 'User data not found in session.' });
+    }
 
     // Check if shop already exists
     if (user.shopId) {
         return res.status(400).json({ message: 'Shop already exists.' });
     }
-
+    
     try {
         // Generate a simple, unique shop ID (8 characters long)
         const shopId = crypto.randomBytes(4).toString('hex');
@@ -600,12 +599,12 @@ app.post('/api/agent/update-markup', isDbReady, isAuthenticated, async (req, res
     const userId = req.session.user.id;
     const { network, markupValue } = req.body;
     
-   // NEW CODE (No Role Check for Markup Update)
-const user = await User.findById(userId);
-if (!user) {
-    return res.status(404).json({ message: 'User not found.' });
-}
-// Proceed for all logged-in users.
+    // Authorization check
+    const user = await User.findById(userId);
+    // 🛑 REMOVED: if (!user || user.role !== 'Agent') { ... } 🛑
+    if (!user) {
+        return res.status(403).json({ message: 'Unauthorized. User data not found.' });
+    }
     
     try {
         const agentShop = await AgentShop.findOne({ userId });
