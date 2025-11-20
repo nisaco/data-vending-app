@@ -1,717 +1,720 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <link rel="icon" type="image/x-icon" href="apple-touch-icon.png">
-    <title>My Dashboard - AJENTERPRISE</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <style>
-        /* Define primary colors */
-        :root { --primary: #009879; --secondary: #007a63; }
-        .text-primary { color: var(--primary); }
-        .bg-primary { background-color: var(--primary); }
-        .hover\:bg-secondary:hover { background-color: var(--secondary); }
-        
-        /* DARK MODE STYLES */
-        .dark { background-color: #121212; color: #e0e0e0; }
-        .dark .bg-white { background-color: #1f1f1f; color: #e0e0e0; }
-        .dark .shadow-xl { box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.4), 0 10px 10px -5px rgba(0, 0, 0, 0.2); }
-        .dark .shadow-lg { box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.5), 0 2px 4px -2px rgba(0, 0, 0, 0.3); }
-        .dark .text-gray-600, .dark .text-gray-500 { color: #b0b0b0; }
-        .dark .border-gray-100 { border-color: #374151; }
-        .dark .bg-gray-700 { background-color: #374151; }
-        .dark .divide-y { border-color: #4b5563; }
-        .dark input { background-color: #374151; border-color: #4b5563; color: #f3f4f6; }
-        .dark .bg-primary { background-color: #007a63; } 
-        .dark .hover\:bg-secondary:hover { background-color: #005f4c; } 
-        
-        /* Table Status Colors */
-        .status-data_sent { background-color: #10b981; } 
-        .status-pending_review { background-color: #f59e0b; } 
-        .status-payment_success, .status-topup_successful { background-color: #3b82f6; } /* Blue */
-        
-        /* Tab Styling */
-        .filter-tab {
-            transition: all 0.2s ease-in-out;
-            padding: 8px 16px;
-            border-bottom: 2px solid transparent;
-            cursor: pointer;
-            font-weight: 500;
-        }
-        .filter-tab.active {
-            color: var(--primary);
-            border-bottom: 2px solid var(--primary);
-            font-weight: 700;
-        }
-        /* Activity Log Specific Colors */
-        .type-deposit { color: #10b981; font-weight: 700; } 
-        .type-purchase { color: #ef4444; font-weight: 700; } 
-        /* Modal Backdrop */
-        #modal-backdrop {
-            background-color: rgba(0, 0, 0, 0.75);
-            transition: opacity 0.3s ease;
-            z-index: 50;
-        }
-        /* Sidebar Styles */
-        #sidebar {
-            width: 250px;
-            transform: translateX(-100%);
-            transition: transform 0.3s ease-in-out;
-            z-index: 60; /* Higher than modal backdrop */
-            box-shadow: 10px 0 20px rgba(0, 0, 0, 0.4);
-        }
-        #sidebar.open {
-            transform: translateX(0);
-        }
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="icon" type="image/x-icon" href="apple-touch-icon.png">
+    <title>My Dashboard - AJENTERPRISE</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        /* Define primary colors */
+        :root { --primary: #009879; --secondary: #007a63; }
+        .text-primary { color: var(--primary); }
+        .bg-primary { background-color: var(--primary); }
+        .hover\:bg-secondary:hover { background-color: var(--secondary); }
+        
+        /* DARK MODE STYLES */
+        .dark { background-color: #121212; color: #e0e0e0; }
+        .dark .bg-white { background-color: #1f1f1f; color: #e0e0e0; }
+        .dark .shadow-xl { box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.4), 0 10px 10px -5px rgba(0, 0, 0, 0.2); }
+        .dark .shadow-lg { box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.5), 0 2px 4px -2px rgba(0, 0, 0, 0.3); }
+        .dark .text-gray-600, .dark .text-gray-500 { color: #b0b0b0; }
+        .dark .border-gray-100 { border-color: #374151; }
+        .dark .bg-gray-700 { background-color: #374151; }
+        .dark .divide-y { border-color: #4b5563; }
+        .dark input { background-color: #374151; border-color: #4b5563; color: #f3f4f6; }
+        .dark .bg-primary { background-color: #007a63; } 
+        .dark .hover\:bg-secondary:hover { background-color: #005f4c; } 
+        
+        /* Table Status Colors */
+        .status-data_sent { background-color: #10b981; } 
+        .status-pending_review { background-color: #f59e0b; } 
+        .status-payment_success, .status-topup_successful { background-color: #3b82f6; } /* Blue */
+        
+        /* Tab Styling */
+        .filter-tab {
+            transition: all 0.2s ease-in-out;
+            padding: 8px 16px;
+            border-bottom: 2px solid transparent;
+            cursor: pointer;
+            font-weight: 500;
+        }
+        .filter-tab.active {
+            color: var(--primary);
+            border-bottom: 2px solid var(--primary);
+            font-weight: 700;
+        }
+        /* Activity Log Specific Colors */
+        .type-deposit { color: #10b981; font-weight: 700; } 
+        .type-purchase { color: #ef4444; font-weight: 700; } 
+        /* Modal Backdrop */
+        #modal-backdrop {
+            background-color: rgba(0, 0, 0, 0.75);
+            transition: opacity 0.3s ease;
+            z-index: 50;
+        }
+        /* Sidebar Styles */
+        #sidebar {
+            width: 250px;
+            transform: translateX(-100%);
+            transition: transform 0.3s ease-in-out;
+            z-index: 60; /* Higher than modal backdrop */
+            box-shadow: 10px 0 20px rgba(0, 0, 0, 0.4);
+        }
+        #sidebar.open {
+            transform: translateX(0);
+        }
 
-        /* Toast Container for Notifications */
-        #toast-container {
-            position: fixed;
-            top: 1rem;
-            right: 1rem;
-            z-index: 1000;
-            max-width: 300px;
-        }
-    </style>
+        /* Toast Container for Notifications */
+        #toast-container {
+            position: fixed;
+            top: 1rem;
+            right: 1rem;
+            z-index: 1000;
+            max-width: 300px;
+        }
+    </style>
 </head>
 <body class="bg-gray-50 min-h-screen font-sans dark:bg-[#121212] dark:text-gray-200">
-    
-    <div id="toast-container"></div>
+    
+    <div id="toast-container"></div>
 
-    <div id="sidebar-backdrop" class="fixed inset-0 bg-black bg-opacity-50 z-50 hidden transition-opacity duration-300"></div>
-    <div id="sidebar" class="fixed top-0 left-0 h-full bg-white dark:bg-[#1f1f1f] p-5">
-        <h3 class="text-2xl font-bold text-gray-800 dark:text-white mb-6">Menu</h3>
-        
-        <div class="mb-4 pb-4 border-b border-gray-200 dark:border-gray-700">
-            <p class="text-sm text-gray-600 dark:text-gray-400 font-medium">Current Balance:</p>
-            <p id="sidebar-wallet-balance" class="text-2xl font-extrabold text-primary">GHS 0.00</p>
-        </div>
-        <div id="sidebar-payout-section" class="mb-6 pb-4 border-b border-gray-200 dark:border-gray-700 hidden">
-            <p class="text-sm text-gray-600 dark:text-gray-400 font-medium">Payout Wallet:</p>
-            <p id="sidebar-payout-balance" class="text-2xl font-extrabold text-blue-500">GHS 0.00</p>
-        </div>
+    <div id="sidebar-backdrop" class="fixed inset-0 bg-black bg-opacity-50 z-50 hidden transition-opacity duration-300"></div>
+    <div id="sidebar" class="fixed top-0 left-0 h-full bg-white dark:bg-[#1f1f1f] p-5">
+        <h3 class="text-2xl font-bold text-gray-800 dark:text-white mb-6">Menu</h3>
+        
+        <div class="mb-6 pb-4 border-b border-gray-200 dark:border-gray-700">
+            <p class="text-sm text-gray-600 dark:text-gray-400 font-medium">Current Balance:</p>
+            <p id="sidebar-wallet-balance" class="text-2xl font-extrabold text-primary">GHS 0.00</p>
+        </div>
 
-        <div class="space-y-4">
-            <a href="/purchase.html" class="block text-gray-700 dark:text-gray-300 hover:text-primary font-medium">Buy Data</a>
-            <a href="/dashboard.html" class="block text-primary font-bold">Dashboard</a>
-            
-                        <a id="agent-shop-link" href="/agent_shop_setup.html" class="block text-gray-700 dark:text-gray-300 hover:text-blue-500 font-medium">My Agent Shop</a>
-            
-            <a href="/support.html" class="block text-gray-700 dark:text-gray-300 hover:text-primary font-medium">Customer Support & FAQ</a>
-            <a href="/privacy.html" target="_blank" class="block text-gray-700 dark:text-gray-300 hover:text-primary font-medium">Privacy Policy</a>
-            
-            <a href="/api/logout" class="block text-red-500 hover:text-red-700 font-medium pt-4 border-t border-gray-200 dark:border-gray-700">Logout</a>
-        </div>
-        <button id="close-sidebar" class="absolute top-4 right-4 text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-white">
-            <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
-        </button>
-     </div>
+        <div class="space-y-4">
+            <a href="/purchase.html" class="block text-gray-700 dark:text-gray-300 hover:text-primary font-medium">Buy Data</a>
+            <a href="/dashboard.html" class="block text-primary font-bold">Dashboard</a>
+            
+            <a id="agent-shop-link" href="/agent_shop_setup.html" class="block text-gray-700 dark:text-gray-300 hover:text-blue-500 font-medium">
+                <span id="agent-link-text">My Agent Shop</span>
+            </a>
+            <div id="sidebar-payout-section" class="mb-6 pb-4 border-t border-gray-200 dark:border-gray-700 pt-4 hidden">
+                <p class="text-sm text-gray-600 dark:text-gray-400 font-medium">Payout Wallet:</p>
+                <p id="sidebar-payout-balance" class="text-2xl font-extrabold text-blue-500">GHS 0.00</p>
+            </div>
+            
+            <a href="/support.html" class="block text-gray-700 dark:text-gray-300 hover:text-primary font-medium">Customer Support & FAQ</a>
+            <a href="/privacy.html" target="_blank" class="block text-gray-700 dark:text-gray-300 hover:text-primary font-medium">Privacy Policy</a>
+            
+            <a href="/api/logout" class="block text-red-500 hover:text-red-700 font-medium pt-4 border-t border-gray-200 dark:border-gray-700">Logout</a>
+        </div>
+        <button id="close-sidebar" class="absolute top-4 right-4 text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-white">
+            <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
+        </button>
+    </div>
 
-    <div id="modal-backdrop" class="fixed inset-0 hidden items-center justify-center opacity-0 transition-opacity duration-300">
-        <div id="topup-modal" class="bg-white p-6 rounded-xl shadow-2xl w-full max-w-sm transform scale-95 transition-all duration-300 dark:bg-gray-800">
-            <h3 class="text-xl font-bold text-gray-800 dark:text-white mb-4">Deposit to Wallet</h3>
-            <div id="modal-content-status" class="text-sm font-medium mb-3 text-red-500"></div>
-            <label for="modal-topup-amount" class="block text-gray-700 dark:text-gray-300 mb-2">Amount (GHS, Min 1.00)</label>
-            <input type="number" id="modal-topup-amount" min="1.00" step="0.50" placeholder="e.g., 10.00" value="1.00"
-                    class="w-full p-2 border border-gray-300 rounded-lg text-gray-800 focus:ring-primary focus:border-primary dark:bg-gray-700 dark:border-gray-600 dark:text-white">
-            <div class="mt-4 flex justify-end space-x-3">
-                <button id="modal-cancel" type="button" class="py-2 px-4 bg-gray-200 text-gray-800 rounded-lg hover:bg-gray-300 transition">Cancel</button>
-                <button id="modal-pay" type="button" class="py-2 px-4 bg-primary text-white rounded-lg hover:bg-secondary transition">Pay</button>
-            </div>
-        </div>
-    </div>
-    
-    <nav class="bg-white shadow-lg dark:bg-[#1f1f1f]">
-        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex justify-between items-center h-16">
-            <div class="flex items-center">
-                <button id="open-sidebar" class="p-2 rounded-full text-gray-600 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700 transition mr-4">
-                    <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                        <path stroke-linecap="round" stroke-linejoin="round" d="M4 6h16M4 12h16M4 18h16" />
-                    </svg>
-                </button>
-                <a href="/purchase.html" class="text-xl font-bold text-primary">DataLink</a>
-            </div>
-            
-            <div class="flex space-x-4 items-center">
-                <button id="theme-toggle" class="p-2 rounded-full text-gray-600 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700 transition">
-                    <svg id="theme-icon-moon" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                        <path stroke-linecap="round" stroke-linejoin="round" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
-                    </svg>
-                    <svg id="theme-icon-sun" class="h-6 w-6 hidden" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                        <path stroke-linecap="round" stroke-linejoin="round" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
-                    </svg>
-                </button>
-                <a href="/purchase.html" class="text-gray-600 dark:text-gray-400 hover:text-primary transition font-medium">Buy Data</a>
-                <a href="/api/logout" class="text-red-500 hover:text-red-700 transition font-medium">Logout</a>
-            </div>
-        </div>
-    </nav>
+    <div id="modal-backdrop" class="fixed inset-0 hidden items-center justify-center opacity-0 transition-opacity duration-300">
+        <div id="topup-modal" class="bg-white p-6 rounded-xl shadow-2xl w-full max-w-sm transform scale-95 transition-all duration-300 dark:bg-gray-800">
+            <h3 class="text-xl font-bold text-gray-800 dark:text-white mb-4">Deposit to Wallet</h3>
+            <div id="modal-content-status" class="text-sm font-medium mb-3 text-red-500"></div>
+            <label for="modal-topup-amount" class="block text-gray-700 dark:text-gray-300 mb-2">Amount (GHS, Min 1.00)</label>
+            <input type="number" id="modal-topup-amount" min="1.00" step="0.50" placeholder="e.g., 10.00" value="1.00"
+                    class="w-full p-2 border border-gray-300 rounded-lg text-gray-800 focus:ring-primary focus:border-primary dark:bg-gray-700 dark:border-gray-600 dark:text-white">
+            <div class="mt-4 flex justify-end space-x-3">
+                <button id="modal-cancel" type="button" class="py-2 px-4 bg-gray-200 text-gray-800 rounded-lg hover:bg-gray-300 transition">Cancel</button>
+                <button id="modal-pay" type="button" class="py-2 px-4 bg-primary text-white rounded-lg hover:bg-secondary transition">Pay</button>
+            </div>
+        </div>
+    </div>
+    
+    <nav class="bg-white shadow-lg dark:bg-[#1f1f1f]">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex justify-between items-center h-16">
+            <div class="flex items-center">
+                <button id="open-sidebar" class="p-2 rounded-full text-gray-600 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700 transition mr-4">
+                    <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M4 6h16M4 12h16M4 18h16" />
+                    </svg>
+                </button>
+                <a href="/purchase.html" class="text-xl font-bold text-primary">DataLink</a>
+            </div>
+            
+            <div class="flex space-x-4 items-center">
+                <button id="theme-toggle" class="p-2 rounded-full text-gray-600 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700 transition">
+                    <svg id="theme-icon-moon" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
+                    </svg>
+                    <svg id="theme-icon-sun" class="h-6 w-6 hidden" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
+                    </svg>
+                </button>
+                <a href="/purchase.html" class="text-gray-600 dark:text-gray-400 hover:text-primary transition font-medium">Buy Data</a>
+                <a href="/api/logout" class="text-red-500 hover:text-red-700 transition font-medium">Logout</a>
+            </div>
+        </div>
+    </nav>
 
-    <div class="container mx-auto p-4 max-w-4xl">
-        <div class="bg-white p-6 md:p-8 rounded-2xl shadow-xl mt-8 border border-gray-100 dark:bg-[#1f1f1f] dark:border-gray-700">
-            
-            <h1 class="text-3xl font-extrabold text-gray-800 dark:text-white mb-2">My Dashboard</h1>
-            <p class="text-center text-gray-500 mb-6 dark:text-gray-400">Review your wallet balance and transaction history.</p>
-            
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-                <div class="bg-primary text-white p-6 rounded-xl shadow-lg">
-                    <div class="flex justify-between items-start">
-                        <div>
-                            <p class="text-lg font-medium">Your Current Wallet Balance</p>
-                            <p class="text-4xl font-extrabold mt-1" id="wallet-balance-dashboard">
-                                GHS 0.00
-                            </p>
-                        </div>
-                        <button id="open-topup-modal" class="py-2 px-4 bg-white text-primary font-bold rounded-lg shadow-md transition hover:bg-gray-100">
-                            TopUp
-                        </button>
-                    </div>
-                </div>
+    <div class="container mx-auto p-4 max-w-4xl">
+        <div class="bg-white p-6 md:p-8 rounded-2xl shadow-xl mt-8 border border-gray-100 dark:bg-[#1f1f1f] dark:border-gray-700">
+            
+            <h1 class="text-3xl font-extrabold text-gray-800 dark:text-white mb-2">My Dashboard</h1>
+            <p class="text-center text-gray-500 mb-6 dark:text-gray-400">Review your wallet balance and transaction history.</p>
+            
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                <div class="bg-primary text-white p-6 rounded-xl shadow-lg">
+                    <div class="flex justify-between items-start">
+                        <div>
+                            <p class="text-lg font-medium">Your Current Wallet Balance</p>
+                            <p class="text-4xl font-extrabold mt-1" id="wallet-balance-dashboard">
+                                GHS 0.00
+                            </p>
+                        </div>
+                        <button id="open-topup-modal" class="py-2 px-4 bg-white text-primary font-bold rounded-lg shadow-md transition hover:bg-gray-100">
+                            TopUp
+                        </button>
+                    </div>
+                </div>
 
-                                <div id="payout-wallet-card" class="bg-blue-500 text-white p-6 rounded-xl shadow-lg hidden">
-                    <div class="flex justify-between items-start">
-                        <div>
-                            <p class="text-lg font-medium">Payout Wallet (Agent Profit)</p>
-                            <p class="text-4xl font-extrabold mt-1" id="payout-wallet-dashboard">
-                                GHS 0.00
-                            </p>
-                        </div>
-                        <button id="withdraw-button" class="py-2 px-4 bg-white text-blue-500 font-bold rounded-lg shadow-md transition hover:bg-gray-100" disabled>
-                            Withdraw (Soon)
-                        </button>
-                    </div>
-                </div>
-            </div>
-            
-                        <div id="agent-shop-alert" class="bg-blue-100 border border-blue-300 text-blue-800 p-4 rounded-xl mb-6 dark:bg-blue-900 dark:border-blue-700 dark:text-blue-200">
-                <p class="text-sm font-medium mb-2">
-                    🚀 **Agent Feature Active!** Manage your shop's pricing and link here:
-                </p>
-                <div class="flex flex-col sm:flex-row sm:space-x-3">
-                    <a id="agent-link-manager" href="/agent_shop_setup.html" class="text-sm text-blue-600 hover:text-blue-900 font-bold underline dark:text-blue-300">
-                        <span id="agent-link-text">Setup/Manage Shop</span>
-                    </a>
-                    <button id="copy-shop-link" class="mt-2 sm:mt-0 text-xs py-1 px-3 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition">
-                        Copy Public Shop Link
-                    </button>
-                </div>
-            </div>
-            
-            <div id="welcome-banner" class="bg-yellow-50 border border-yellow-200 text-yellow-800 p-4 rounded-xl mb-6 flex justify-between items-center hidden dark:bg-yellow-900 dark:border-yellow-700 dark:text-yellow-200">
-                <p class="text-sm font-medium">
-                    👋 **Welcome to your dashboard!** Click **TopUp** above to add funds to your wallet and enjoy the best rates on mobile data.
-                </p>
-                <button id="dismiss-onboarding" class="text-yellow-700 hover:text-yellow-900 font-bold ml-4 dark:text-yellow-300 dark:hover:text-white">
-                    Got It!
-                </button>
-            </div>
-            <div id="notification-area" class="space-y-3 mb-6">
-            </div>
+                <div id="payout-wallet-card" class="bg-blue-500 text-white p-6 rounded-xl shadow-lg hidden">
+                    <div class="flex justify-between items-start">
+                        <div>
+                            <p class="text-lg font-medium">Payout Wallet (Shop Profit)</p>
+                            <p class="text-4xl font-extrabold mt-1" id="payout-wallet-dashboard">
+                                GHS 0.00
+                            </p>
+                        </div>
+                        <button id="withdraw-button" class="py-2 px-4 bg-white text-blue-500 font-bold rounded-lg shadow-md transition hover:bg-gray-100" disabled>
+                            Withdraw (Soon)
+                        </button>
+                    </div>
+                </div>
+            </div>
+            
+            <div id="agent-shop-alert" class="bg-blue-100 border border-blue-300 text-blue-800 p-4 rounded-xl mb-6 dark:bg-blue-900 dark:border-blue-700 dark:text-blue-200">
+                <p class="text-sm font-medium mb-2">
+                    🚀 **Agent Shop Access!** Create your shop, set prices, and earn profit on sales.
+                </p>
+                <div class="flex flex-col sm:flex-row sm:space-x-3">
+                    <a id="agent-link-manager" href="/agent_shop_setup.html" class="text-sm text-blue-600 hover:text-blue-900 font-bold underline dark:text-blue-300">
+                        <span id="agent-link-text">Setup/Manage Shop</span>
+                    </a>
+                    <button id="copy-shop-link" class="mt-2 sm:mt-0 text-xs py-1 px-3 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition">
+                        Copy Public Shop Link
+                    </button>
+                </div>
+            </div>
+            
+            <div id="welcome-banner" class="bg-yellow-50 border border-yellow-200 text-yellow-800 p-4 rounded-xl mb-6 flex justify-between items-center hidden dark:bg-yellow-900 dark:border-yellow-700 dark:text-yellow-200">
+                <p class="text-sm font-medium">
+                    👋 **Welcome to your dashboard!** Click **TopUp** above to add funds to your wallet and enjoy the best rates on mobile data.
+                </p>
+                <button id="dismiss-onboarding" class="text-yellow-700 hover:text-yellow-900 font-bold ml-4 dark:text-yellow-300 dark:hover:text-white">
+                    Got It!
+                </button>
+            </div>
+            <div id="notification-area" class="space-y-3 mb-6">
+                </div>
 
 
-            <h2 class="text-xl font-bold text-gray-800 dark:text-white mb-4 border-b pb-2">Recent Activity Log</h2>
+            <h2 class="text-xl font-bold text-gray-800 dark:text-white mb-4 border-b pb-2">Recent Activity Log</h2>
 
-            <div id="network-filters" class="flex justify-start space-x-4 mb-6 border-b border-gray-200 text-gray-600 dark:border-gray-700 dark:text-gray-400 overflow-x-auto pb-1">
-                <div class="filter-tab active" data-network="All">All Activity</div>
-                <div class="filter-tab" data-network="MTN">MTN</div>
-                <div class="filter-tab" data-network="AirtelTigo">AirtelTigo</div>
-                <div class="filter-tab" data-network="Telecel">Telecel</div>
-            </div>
-            
-            <div id="status" class="text-center font-medium mb-4 text-gray-700 dark:text-gray-400">Loading your orders...</div>
+            <div id="network-filters" class="flex justify-start space-x-4 mb-6 border-b border-gray-200 text-gray-600 dark:border-gray-700 dark:text-gray-400 overflow-x-auto pb-1">
+                <div class="filter-tab active" data-network="All">All Activity</div>
+                <div class="filter-tab" data-network="MTN">MTN</div>
+                <div class="filter-tab" data-network="AirtelTigo">AirtelTigo</div>
+                <div class="filter-tab" data-network="Telecel">Telecel</div>
+            </div>
+            
+            <div id="status" class="text-center font-medium mb-4 text-gray-700 dark:text-gray-400">Loading your orders...</div>
 
-            <div class="overflow-x-auto rounded-xl border border-gray-200 shadow-inner dark:border-gray-700">
-                <table class="w-full text-sm text-left text-gray-500 dark:text-gray-400">
-                    <thead class="text-xs text-white uppercase bg-primary">
-                        <tr>
-                            <th scope="col" class="py-3 px-6 rounded-tl-xl">Time & Date</th>
-                            <th scope="col" class="py-3 px-6">Source</th>
-                            <th scope="col" class="py-3 px-6">Recipient Phone</th> 
-                            <th scope="col" class="py-3 px-6">Package / Network</th>
-                            <th scope="col" class="py-3 px-6">Change (GHS)</th>
-                            <th scope="col" class="py-3 px-6 rounded-tr-xl">Status</th>
-                        </tr>
-                    </thead>
-                    <tbody id="ordersTableBody" class="bg-white divide-y divide-gray-100 dark:bg-[#1f1f1f] dark:divide-gray-700">
-                    </tbody>
-                </table>
-            </div>
+            <div class="overflow-x-auto rounded-xl border border-gray-200 shadow-inner dark:border-gray-700">
+                <table class="w-full text-sm text-left text-gray-500 dark:text-gray-400">
+                    <thead class="text-xs text-white uppercase bg-primary">
+                        <tr>
+                            <th scope="col" class="py-3 px-6 rounded-tl-xl">Time & Date</th>
+                            <th scope="col" class="py-3 px-6">Source</th>
+                            <th scope="col" class="py-3 px-6">Recipient Phone</th> 
+                            <th scope="col" class="py-3 px-6">Package / Network</th>
+                            <th scope="col" class="py-3 px-6">Change (GHS)</th>
+                            <th scope="col" class="py-3 px-6 rounded-tr-xl">Status</th>
+                        </tr>
+                    </thead>
+                    <tbody id="ordersTableBody" class="bg-white divide-y divide-gray-100 dark:bg-[#1f1f1f] dark:divide-gray-700">
+                        </tbody>
+                </table>
+            </div>
 
-        </div>
-    </div>
-    
-   <script src="https://js.paystack.co/v1/inline.js"></script>
+        </div>
+    </div>
+    
+   <script src="https://js.paystack.co/v1/inline.js"></script>
 
 <script>
-    // --- TOAST NOTIFICATION SYSTEM ---
-    function showToast(message, type = 'success') {
-        const container = document.getElementById('toast-container');
-        const colors = {
-            success: 'bg-green-500 border-green-700',
-            error: 'bg-red-500 border-red-700',
-            warning: 'bg-yellow-500 border-yellow-700',
-        };
-        const toast = document.createElement('div');
-        toast.className = `p-4 mb-2 text-white text-sm font-semibold rounded-lg shadow-lg border-b-4 ${colors[type]} transform translate-x-full transition-all duration-300 ease-out`;
-        toast.textContent = message;
+    // --- TOAST NOTIFICATION SYSTEM ---
+    function showToast(message, type = 'success') {
+        const container = document.getElementById('toast-container');
+        const colors = {
+            success: 'bg-green-500 border-green-700',
+            error: 'bg-red-500 border-red-700',
+            warning: 'bg-yellow-500 border-yellow-700',
+        };
+        const toast = document.createElement('div');
+        toast.className = `p-4 mb-2 text-white text-sm font-semibold rounded-lg shadow-lg border-b-4 ${colors[type]} transform translate-x-full transition-all duration-300 ease-out`;
+        toast.textContent = message;
 
-        container.prepend(toast);
+        container.prepend(toast);
 
-        setTimeout(() => {
-            toast.style.transform = 'translateX(0)';
-        }, 10);
+        setTimeout(() => {
+            toast.style.transform = 'translateX(0)';
+        }, 10);
 
-        setTimeout(() => {
-            toast.style.transform = 'translateX(120%)';
-            setTimeout(() => {
-                container.removeChild(toast);
-            }, 400);
-        }, 6000);
-    }
-    // --- END TOAST SYSTEM ---
-    
-    // --- THEME LOGIC START ---
-    const htmlElement = document.documentElement;
-    const themeToggle = document.getElementById('theme-toggle');
+        setTimeout(() => {
+            toast.style.transform = 'translateX(120%)';
+            setTimeout(() => {
+                container.removeChild(toast);
+            }, 400);
+        }, 6000);
+    }
+    // --- END TOAST SYSTEM ---
+    
+    // --- THEME LOGIC START ---
+    const htmlElement = document.documentElement;
+    const themeToggle = document.getElementById('theme-toggle');
 
-    function updateThemeIcon(isDark) {
-        // Toggle sun/moon icons based on state
-        const moonIcon = document.getElementById('theme-icon-moon');
-        const sunIcon = document.getElementById('theme-icon-sun');
-        if (moonIcon && sunIcon) {
-            if (isDark) {
-                moonIcon.classList.add('hidden');
-                sunIcon.classList.remove('hidden');
-            } else {
-                moonIcon.classList.remove('hidden');
-                sunIcon.classList.add('hidden');
-            }
-        }
-    }
+    function updateThemeIcon(isDark) {
+        // Toggle sun/moon icons based on state
+        const moonIcon = document.getElementById('theme-icon-moon');
+        const sunIcon = document.getElementById('theme-icon-sun');
+        if (moonIcon && sunIcon) {
+            if (isDark) {
+                moonIcon.classList.add('hidden');
+                sunIcon.classList.remove('hidden');
+            } else {
+                moonIcon.classList.remove('hidden');
+                sunIcon.classList.add('hidden');
+            }
+        }
+    }
 
-    // Initial Theme Setup
-    const savedTheme = localStorage.getItem('theme');
-    if (savedTheme === 'dark' || (!savedTheme && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
-        htmlElement.classList.add('dark');
-    } else {
-        htmlElement.classList.remove('dark');
-    }
+    // Initial Theme Setup
+    const savedTheme = localStorage.getItem('theme');
+    if (savedTheme === 'dark' || (!savedTheme && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+        htmlElement.classList.add('dark');
+    } else {
+        htmlElement.classList.remove('dark');
+    }
 
-    themeToggle.addEventListener('click', () => {
-        const newTheme = htmlElement.classList.contains('dark') ? 'light' : 'dark';
-        localStorage.setItem('theme', newTheme);
-        updateThemeIcon(newTheme === 'dark');
-    });
-    
-    document.addEventListener('DOMContentLoaded', () => {
-        // Run initial icon update after DOM load
-        const isDark = htmlElement.classList.contains('dark');
-        updateThemeIcon(isDark);
-    });
+    themeToggle.addEventListener('click', () => {
+        const newTheme = htmlElement.classList.contains('dark') ? 'light' : 'dark';
+        localStorage.setItem('theme', newTheme);
+        updateThemeIcon(newTheme === 'dark');
+    });
+    
+    document.addEventListener('DOMContentLoaded', () => {
+        // Run initial icon update after DOM load
+        const isDark = htmlElement.classList.contains('dark');
+        updateThemeIcon(isDark);
+    });
 
-    // --- THEME LOGIC END ---
-
-
-    // CRITICAL FIX: Date formatter 
-    function safeDateFormatter(isoString) {
-        if (!isoString) return 'N/A';
-        try {
-            const date = new Date(isoString); 
-            if (isNaN(date.getTime())) return 'Invalid Date';
-            
-            return date.toLocaleString('en-GB', { 
-                year: 'numeric', month: 'short', day: 'numeric', 
-                hour: '2-digit', minute: '2-digit' 
-            });
-        } catch (e) {
-            return 'Invalid Date';
-        }
-    }
-    
-    // --- GLOBAL STATE & CONSTANTS ---
-    let userOrders = []; 
-    let userEmail = null; 
-    let userRole = 'Client'; // Default role
-    let userShopId = null;
-    const MIN_TOPUP_GHS = 1.00; 
-    const PAYSTACK_PUBLIC_KEY = 'pk_live_3be2ebebc6edd6fa9f5f9a7303c80a55ee9e0be1'; 
-    
-    // --- DOM ELEMENTS ---
-    const statusDiv = document.getElementById('status');
-    const tableBody = document.getElementById('ordersTableBody');
-    const filterContainer = document.getElementById('network-filters');
-    const balanceDisplay = document.getElementById('wallet-balance-dashboard');
-    const payoutBalanceDisplay = document.getElementById('payout-wallet-dashboard');
-    const payoutWalletCard = document.getElementById('payout-wallet-card');
-    const sidebarPayoutSection = document.getElementById('sidebar-payout-section');
-    const sidebarPayoutBalance = document.getElementById('sidebar-payout-balance');
-    const agentShopAlert = document.getElementById('agent-shop-alert');
-    const agentShopLink = document.getElementById('agent-shop-link');
-    const copyShopLinkBtn = document.getElementById('copy-shop-link');
-    const agentLinkText = document.getElementById('agent-link-text');
-
-    const openTopupModalBtn = document.getElementById('open-topup-modal');
-    const modalBackdrop = document.getElementById('modal-backdrop');
-    const modalPayBtn = document.getElementById('modal-pay');
-    const modalAmountInput = document.getElementById('modal-topup-amount');
-    const modalStatus = document.getElementById('modal-content-status');
-    const notificationArea = document.getElementById('notification-area');
-    const topupModal = document.getElementById('topup-modal');
-    
-    // Onboarding elements
-    const welcomeBanner = document.getElementById('welcome-banner');
-    const dismissBtn = document.getElementById('dismiss-onboarding');
-    const MAX_VIEWS = 5;
-
-    // Sidebar elements
-    const sidebar = document.getElementById('sidebar');
-    const openSidebarBtn = document.getElementById('open-sidebar');
-    const closeSidebarBtn = document.getElementById('close-sidebar');
-    const sidebarBackdrop = document.getElementById('sidebar-backdrop');
-    const sidebarWalletBalance = document.getElementById('sidebar-wallet-balance');
+    // --- THEME LOGIC END ---
 
 
-    // --- NOTIFICATION HANDLER ---
-    function showNotification(message, type = 'success') {
-        const colors = {
-            success: 'bg-green-100 border-green-500 text-green-700 dark:bg-green-900 dark:text-green-300',
-            error: 'bg-red-100 border-red-500 text-red-700 dark:bg-red-900 dark:text-red-300',
-            warning: 'bg-yellow-100 border-yellow-500 text-yellow-700 dark:bg-yellow-900 dark:text-yellow-300'
-        };
-        
-        const alert = document.createElement('div');
-        alert.className = `p-3 border-l-4 rounded-md shadow-sm ${colors[type]}`;
-        alert.innerHTML = `<p class="font-medium">${message}</p>`;
-        
-        notificationArea.prepend(alert); 
-        
-        setTimeout(() => {
-            alert.remove();
-        }, 8000);
-    }
+    // CRITICAL FIX: Date formatter 
+    function safeDateFormatter(isoString) {
+        if (!isoString) return 'N/A';
+        try {
+            const date = new Date(isoString); 
+            if (isNaN(date.getTime())) return 'Invalid Date';
+            
+            return date.toLocaleString('en-GB', { 
+                year: 'numeric', month: 'short', day: 'numeric', 
+                hour: '2-digit', minute: '2-digit' 
+            });
+        } catch (e) {
+            return 'Invalid Date';
+        }
+    }
+    
+    // --- GLOBAL STATE & CONSTANTS ---
+    let userOrders = []; 
+    let userEmail = null; 
+    let userRole = 'Client'; // Added for logic compatibility
+    let userShopId = null; // Added for shop link generation
+    let payoutWalletBalance = 0; // Added for payout card visibility
+    const MIN_TOPUP_GHS = 1.00; 
+    const PAYSTACK_PUBLIC_KEY = 'pk_live_3be2ebebc6edd6fa9f5f9a7303c80a55ee9e0be1'; 
+    
+    // --- DOM ELEMENTS ---
+    const statusDiv = document.getElementById('status');
+    const tableBody = document.getElementById('ordersTableBody');
+    const filterContainer = document.getElementById('network-filters');
+    const balanceDisplay = document.getElementById('wallet-balance-dashboard');
+    const openTopupModalBtn = document.getElementById('open-topup-modal');
+    const modalBackdrop = document.getElementById('modal-backdrop');
+    const modalPayBtn = document.getElementById('modal-pay');
+    const modalAmountInput = document.getElementById('modal-topup-amount');
+    const modalStatus = document.getElementById('modal-content-status');
+    const notificationArea = document.getElementById('notification-area');
+    const topupModal = document.getElementById('topup-modal');
+    
+    // New/Modified Elements
+    const payoutWalletCard = document.getElementById('payout-wallet-card');
+    const payoutBalanceDisplay = document.getElementById('payout-wallet-dashboard');
+    const sidebarPayoutSection = document.getElementById('sidebar-payout-section');
+    const sidebarPayoutBalance = document.getElementById('sidebar-payout-balance');
+    const agentLinkText = document.getElementById('agent-link-text');
+    const copyShopLinkBtn = document.getElementById('copy-shop-link');
+    const agentShopLink = document.getElementById('agent-shop-link'); // Sidebar link
 
-    // 🛑 FEE CALCULATION (Syncs with Server's 2% logic)
-    function calculateFinalPaystackCharge(netDepositGHS) {
-        const netDepositPesewas = Math.round(netDepositGHS * 100);
-        const TOPUP_FEE_RATE = 0.02; 
-        
-        const feeAmount = netDepositPesewas * TOPUP_FEE_RATE;
-        const finalCharge = netDepositPesewas + feeAmount;
-        
-        return Math.ceil(finalCharge); 
-    }
+    // Onboarding elements
+    const welcomeBanner = document.getElementById('welcome-banner');
+    const dismissBtn = document.getElementById('dismiss-onboarding');
+    const MAX_VIEWS = 5;
 
-    // --- DATA FETCHING ---
-    async function fetchBalance() {
-        try {
-            const response = await fetch('/api/user-info');
-            if (response.ok) {
-                const data = await response.json();
-                const formattedBalance = `GHS ${(data.walletBalance / 100).toFixed(2)}`;
-                const formattedPayout = `GHS ${(data.payoutWalletBalance / 100).toFixed(2)}`;
-
-                // Update Balances
-                balanceDisplay.textContent = formattedBalance;
-                sidebarWalletBalance.textContent = formattedBalance;
-                payoutBalanceDisplay.textContent = formattedPayout;
-                sidebarPayoutBalance.textContent = formattedPayout;
-                
-                userEmail = data.email; 
-                userRole = data.role; // Save the user role
-                userShopId = data.shopId; // Save the shop ID
-                
-                // Conditional visibility is only for the Payout Wallet now
-                if (userRole === 'Agent') {
-                    payoutWalletCard.classList.remove('hidden');
-                    sidebarPayoutSection.classList.remove('hidden');
-                    
-                    // Update link text based on shop existence
-                    if (userShopId) {
-                        agentLinkText.textContent = `Manage Shop (ID: ${userShopId})`;
-                    } else {
-                        agentLinkText.textContent = `Create Your Agent Shop`;
-                    }
-                } else {
-                    payoutWalletCard.classList.add('hidden');
-                    sidebarPayoutSection.classList.add('hidden');
-                    // For Clients, we still show the link/alert now (since we removed 'hidden' from HTML)
-                    agentLinkText.textContent = `Become an Agent / Setup Shop`;
-                }
-
-                if (data.walletBalance < 1000) { 
-                    showNotification('Warning: Your wallet balance is running low!', 'warning');
-                }
-                return data.email; 
-            } else if (response.status === 401) {
-                showToast('Session expired. Redirecting to login...', 'error');
-                setTimeout(() => window.location.href = '/login.html', 1000);
-                return null;
-            }
-        } catch (error) {
-            balanceDisplay.textContent = 'GHS Err';
-            sidebarWalletBalance.textContent = 'GHS Err';
-            payoutBalanceDisplay.textContent = 'GHS Err';
-            return null;
-        }
-    }
-
-    async function fetchOrderHistory() {
-        try {
-            const response = await fetch('/api/my-orders');
-            
-            if (response.status === 401) return;
-            if (!response.ok) {
-                 showToast('Could not connect to fetch order history.', 'error');
-                 throw new Error('Could not fetch orders.');
-            }
-            
-            const data = await response.json();
-            userOrders = data.orders || [];
-
-            if (userOrders.length === 0) { 
-                statusDiv.textContent = "You haven't made any transactions yet."; 
-                return; 
-            }
-            
-            // Render all orders by default on load
-            filterAndRenderOrders(filterContainer.querySelector('.filter-tab.active').dataset.network);
-
-        } catch (error) {
-            statusDiv.textContent = `Error fetching order history.`;
-        }
-    }
-
-    // --- RENDERING AND FILTERING ---
-
-    function renderOrders(orders) {
-        tableBody.innerHTML = '';
-        if (orders.length === 0) {
-            statusDiv.textContent = "No orders found for this network.";
-            return;
-        }
-
-        statusDiv.textContent = ''; 
-        
-        orders.forEach(order => {
-            const row = tableBody.insertRow();
-            const statusText = order.status.replace(/_/g, ' '); 
-            const statusClass = `status-${order.status}`;
-            
-            let source = order.paymentMethod === 'wallet' ? 'Wallet' : 'Paystack';
-            let item = order.dataPlan === 'WALLET TOP-UP' ? 'Wallet Top-up' : `${order.dataPlan} (${order.network || 'N/A'})`;
-            
-            // Display phone number if not a top-up
-            const recipientInfo = order.dataPlan === 'WALLET TOP-UP' ? 'N/A' : (order.phoneNumber || 'N/A');
-
-            let amountSign = (order.dataPlan === 'WALLET TOP-UP') ? '+' : '-';
-            let amountColor = (order.dataPlan === 'WALLET TOP-UP') ? 'type-deposit' : 'type-purchase';
-
-            row.className = 'hover:bg-gray-50 transition duration-150 dark:hover:bg-gray-800';
-
-            row.innerHTML = `
-                <td class="py-4 px-6 dark:text-gray-400">${safeDateFormatter(order.created_at)}</td>
-                <td class="py-4 px-6 font-medium text-gray-800 dark:text-gray-300">${source}</td>
-                <td class="py-4 px-6 dark:text-gray-400">${recipientInfo}</td>
-                <td class="py-4 px-6 dark:text-gray-400">${item}</td>
-                <td class="py-4 px-6 font-semibold ${amountColor}">
-                    ${amountSign} GHS ${order.amount.toFixed(2)}
-                </td>
-                <td class="py-4 px-6">
-                    <span class="px-3 py-1 text-white text-xs font-bold uppercase rounded-full ${statusClass}">
-                        ${statusText}
-                    </span>
-                </td>
-            `;
-        });
-    }
-    
-    // 🛑 FILTERING FUNCTIONALITY (Filters orders based on network tab selected)
-    function filterAndRenderOrders(network) {
-        let filtered = userOrders;
-        
-        if (network !== 'All') {
-            // Filter: Show orders matching the network
-            filtered = userOrders.filter(order => order.network === network);
-        }
-        
-        renderOrders(filtered);
-    }
-
-    // --- TOP-UP MODAL LOGIC ---
-    const modalCancelBtn = document.getElementById('modal-cancel'); 
-    
-    function openModal() {
-        modalBackdrop.style.display = 'flex';
-        setTimeout(() => {
-            modalBackdrop.style.opacity = 1;
-            topupModal.style.transform = 'scale(1)';
-        }, 10);
-        modalAmountInput.focus();
-    }
-
-    function closeModal() {
-        modalBackdrop.style.opacity = 0;
-        topupModal.style.transform = 'scale(0.95)';
-        setTimeout(() => {
-            modalBackdrop.style.display = 'none';
-            modalStatus.textContent = '';
-            modalAmountInput.value = MIN_TOPUP_GHS.toFixed(2);
-        }, 300);
-    }
-
-    // --- PAYSTACK INTEGRATION ---
-    const initiatePaystackTopup = (amountInGHS, userEmail) => {
-        if (amountInGHS < MIN_TOPUP_GHS) {
-            modalStatus.textContent = `Minimum top-up is GHS ${MIN_TOPUP_GHS.toFixed(2)}.`;
-            return;
-        }
-
-        const finalChargedAmount = calculateFinalPaystackCharge(amountInGHS);
-        
-        modalPayBtn.disabled = true;
-        modalPayBtn.textContent = 'Processing...';
-
-        const paymentCallback = function(response) {
-            showToast("Verifying top-up...", 'warning');
-            
-            fetch('/api/topup', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ 
-                    reference: response.reference, 
-                    amount: amountInGHS // Send the NET DEPOSIT amount for server verification
-                }),
-            })
-            .then(verifyResponse => verifyResponse.json())
-            .then(data => {
-                const statusType = data.status === 'success' ? 'success' : (data.status === 'pending' ? 'warning' : 'error');
-                showToast(data.message, statusType);
-                
-                if (data.status === 'success') {
-                    fetchBalance(); 
-                    fetchOrderHistory();
-                    closeModal(); 
-                }
-            })
-            .catch(err => {
-                showToast("Top-up verification failed. Check logs for details.", 'error');
-            })
-            .finally(() => {
-                modalPayBtn.disabled = false;
-                modalPayBtn.textContent = 'Pay';
-            });
-        };
-        
-        PaystackPop.setup({
-            key: PAYSTACK_PUBLIC_KEY, 
-            email: userEmail, 
-            amount: finalChargedAmount, // Send the fee-inclusive amount (in pesewas)
-            currency: 'GHS',
-            ref: 'DL-TOPUP-' + Math.floor((Math.random() * 1000000000) + 1),
-            callback: paymentCallback,
-            onClose: function() { 
-                showToast("Top-up cancelled.", 'error');
-                modalPayBtn.disabled = false;
-                modalPayBtn.textContent = 'Pay';
-            }
-        }).openIframe();
-    };
-    
-    // --- ONBOARDING LOGIC ---
-    function checkOnboardingStatus() {
-        const viewCount = parseInt(localStorage.getItem('dashboard_onboarding_count') || '0');
-        if (viewCount < MAX_VIEWS) {
-            welcomeBanner.classList.remove('hidden');
-        }
-    }
-
-    function dismissOnboarding() {
-        let viewCount = parseInt(localStorage.getItem('dashboard_onboarding_count') || '0');
-        viewCount++;
-        localStorage.setItem('dashboard_onboarding_count', viewCount.toString());
-        welcomeBanner.classList.add('hidden');
-    }
-    
-    // --- SIDEBAR LOGIC ---
-    function toggleSidebar() {
-        const sidebar = document.getElementById('sidebar');
-        const sidebarBackdrop = document.getElementById('sidebar-backdrop');
-
-        sidebar.classList.toggle('open');
-        sidebarBackdrop.classList.toggle('hidden');
-    }
-    
-    // --- COPY SHOP LINK LOGIC ---
-    function copyAgentShopLink() {
-        if (!userShopId) {
-            showToast("Please create your shop first! You must be a registered Agent.", 'error');
-            return;
-        }
-
-        const shopLink = `${window.location.origin}/agent_shop.html?shopId=${userShopId}`;
-        
-        navigator.clipboard.writeText(shopLink).then(() => {
-            showToast("Shop link copied to clipboard!", 'success');
-        }).catch(err => {
-            showToast("Failed to copy link. Try manually.", 'error');
-            console.error('Could not copy text: ', err);
-        });
-    }
+    // Sidebar elements
+    const sidebar = document.getElementById('sidebar');
+    const openSidebarBtn = document.getElementById('open-sidebar');
+    const closeSidebarBtn = document.getElementById('close-sidebar');
+    const sidebarBackdrop = document.getElementById('sidebar-backdrop');
+    const sidebarWalletBalance = document.getElementById('sidebar-wallet-balance');
 
 
-    // --- INITIALIZATION & LISTENERS ---
-    document.addEventListener('DOMContentLoaded', async () => {
-        const userDataEmail = await fetchBalance(); 
-        
-        // 🛑 START AUTO-REFRESH TIMER 🛑
-        fetchOrderHistory(); 
-        setInterval(fetchOrderHistory, 30000); // Refreshes orders every 30 seconds
-        
-        if (userDataEmail) {
-            // 1. Bind TopUp Modal Pay Button
-            modalPayBtn.addEventListener('click', () => {
-                const amount = parseFloat(modalAmountInput.value);
-                
-                // 🛑 CRITICAL MINIMUM CHECK 🛑
-                if (isNaN(amount) || amount < MIN_TOPUP_GHS) {
-                    modalStatus.textContent = `Please enter a valid amount (Min GHS ${MIN_TOPUP_GHS.toFixed(2)}).`;
-                    return;
-                }
-                
-                modalStatus.textContent = ''; 
-                initiatePaystackTopup(amount, userDataEmail);
-            });
-        }
-        
+    // --- NOTIFICATION HANDLER ---
+    function showNotification(message, type = 'success') {
+        const colors = {
+            success: 'bg-green-100 border-green-500 text-green-700 dark:bg-green-900 dark:text-green-300',
+            error: 'bg-red-100 border-red-500 text-red-700 dark:bg-red-900 dark:text-red-300',
+            warning: 'bg-yellow-100 border-yellow-500 text-yellow-700 dark:bg-yellow-900 dark:text-yellow-300'
+        };
+        
+        const alert = document.createElement('div');
+        alert.className = `p-3 border-l-4 rounded-md shadow-sm ${colors[type]}`;
+        alert.innerHTML = `<p class="font-medium">${message}</p>`;
+        
+        notificationArea.prepend(alert); 
+        
+        setTimeout(() => {
+            alert.remove();
+        }, 8000);
+    }
 
-        // 2. Attach UI listeners
-        openTopupModalBtn.addEventListener('click', openModal);
-        modalCancelBtn.addEventListener('click', closeModal);
-        dismissBtn.addEventListener('click', dismissOnboarding); // Onboarding dismiss
-        
-        // 🛑 Sidebar Listeners
-        document.getElementById('open-sidebar').addEventListener('click', toggleSidebar);
-        document.getElementById('close-sidebar').addEventListener('click', toggleSidebar);
-        document.getElementById('sidebar-backdrop').addEventListener('click', toggleSidebar); 
-        
-        // 🛑 Agent Shop Link Listener
-        copyShopLinkBtn.addEventListener('click', copyAgentShopLink);
+    // 🛑 FEE CALCULATION (Syncs with Server's 2% logic)
+    function calculateFinalPaystackCharge(netDepositGHS) {
+        const netDepositPesewas = Math.round(netDepositGHS * 100);
+        const TOPUP_FEE_RATE = 0.02; 
+        
+        const feeAmount = netDepositPesewas * TOPUP_FEE_RATE;
+        const finalCharge = netDepositPesewas + feeAmount;
+        
+        return Math.ceil(finalCharge); 
+    }
 
-        // 🛑 Network Filter Listener
-        filterContainer.addEventListener('click', (e) => {
-            const target = e.target.closest('.filter-tab');
-            if (target) {
-                document.querySelectorAll('.filter-tab').forEach(tab => tab.classList.remove('active'));
-                target.classList.add('active');
-                
-                filterAndRenderOrders(target.dataset.network);
-            }
-        });
-        
-        // 3. Run Onboarding Check after loading
-        checkOnboardingStatus();
-    });
+    // --- DATA FETCHING (Adjusted to support Agent data but keeps original layout) ---
+    async function fetchBalance() {
+        try {
+            const response = await fetch('/api/user-info');
+            if (response.ok) {
+                const data = await response.json();
+                const formattedBalance = `GHS ${(data.walletBalance / 100).toFixed(2)}`;
+                
+                // Get Agent Data (even if the role is 'Client', the shop ID might exist)
+                userEmail = data.email; 
+                userRole = data.role; 
+                userShopId = data.shopId;
+                payoutWalletBalance = data.payoutWalletBalance || 0;
+                
+                const formattedPayout = `GHS ${(payoutWalletBalance / 100).toFixed(2)}`;
+
+                // 1. Update Wallets
+                balanceDisplay.textContent = formattedBalance;
+                sidebarWalletBalance.textContent = formattedBalance;
+                payoutBalanceDisplay.textContent = formattedPayout;
+                sidebarPayoutBalance.textContent = formattedPayout;
+                
+                // 2. Conditional Agent UI (Payout Wallet only appears if they have profit or are an Agent)
+                if (userRole === 'Agent' || payoutWalletBalance > 0) {
+                    payoutWalletCard.classList.remove('hidden');
+                    sidebarPayoutSection.classList.remove('hidden');
+                } else {
+                    payoutWalletCard.classList.add('hidden');
+                    sidebarPayoutSection.classList.add('hidden');
+                }
+
+                // 3. Update Link Text (Since the link itself is always visible)
+                if (userShopId) {
+                    agentLinkText.textContent = `Manage Shop (ID: ${userShopId})`;
+                } else {
+                    agentLinkText.textContent = `Create Your Shop (Start Earning)`;
+                }
+
+                if (data.walletBalance < 1000) { 
+                    showNotification('Warning: Your wallet balance is running low!', 'warning');
+                }
+                return data.email; 
+            } else if (response.status === 401) {
+                showToast('Session expired. Redirecting to login...', 'error');
+                setTimeout(() => window.location.href = '/login.html', 1000);
+                return null;
+            }
+        } catch (error) {
+            balanceDisplay.textContent = 'GHS Err';
+            sidebarWalletBalance.textContent = 'GHS Err';
+            return null;
+        }
+    }
+
+    async function fetchOrderHistory() {
+        try {
+            const response = await fetch('/api/my-orders');
+            
+            if (response.status === 401) return;
+            if (!response.ok) {
+                 showToast('Could not connect to fetch order history.', 'error');
+                 throw new Error('Could not fetch orders.');
+            }
+            
+            const data = await response.json();
+            userOrders = data.orders || [];
+
+            if (userOrders.length === 0) { 
+                statusDiv.textContent = "You haven't made any transactions yet."; 
+                return; 
+            }
+            
+            // Render all orders by default on load
+            filterAndRenderOrders(filterContainer.querySelector('.filter-tab.active').dataset.network);
+
+        } catch (error) {
+            statusDiv.textContent = `Error fetching order history.`;
+        }
+    }
+
+    // --- RENDERING AND FILTERING (No functional changes here) ---
+
+    function renderOrders(orders) {
+        tableBody.innerHTML = '';
+        if (orders.length === 0) {
+            statusDiv.textContent = "No orders found for this network.";
+            return;
+        }
+
+        statusDiv.textContent = ''; 
+        
+        orders.forEach(order => {
+            const row = tableBody.insertRow();
+            const statusText = order.status.replace(/_/g, ' '); 
+            const statusClass = `status-${order.status}`;
+            
+            let source = order.paymentMethod === 'wallet' ? 'Wallet' : 'Paystack';
+            let item = order.dataPlan === 'WALLET TOP-UP' ? 'Wallet Top-up' : `${order.dataPlan} (${order.network || 'N/A'})`;
+            
+            // Display phone number if not a top-up
+            const recipientInfo = order.dataPlan === 'WALLET TOP-UP' ? 'N/A' : (order.phoneNumber || 'N/A');
+
+            let amountSign = (order.dataPlan === 'WALLET TOP-UP') ? '+' : '-';
+            let amountColor = (order.dataPlan === 'WALLET TOP-UP') ? 'type-deposit' : 'type-purchase';
+
+            row.className = 'hover:bg-gray-50 transition duration-150 dark:hover:bg-gray-800';
+
+            row.innerHTML = `
+                <td class="py-4 px-6 dark:text-gray-400">${safeDateFormatter(order.created_at)}</td>
+                <td class="py-4 px-6 font-medium text-gray-800 dark:text-gray-300">${source}</td>
+                <td class="py-4 px-6 dark:text-gray-400">${recipientInfo}</td>
+                <td class="py-4 px-6 dark:text-gray-400">${item}</td>
+                <td class="py-4 px-6 font-semibold ${amountColor}">
+                    ${amountSign} GHS ${order.amount.toFixed(2)}
+                </td>
+                <td class="py-4 px-6">
+                    <span class="px-3 py-1 text-white text-xs font-bold uppercase rounded-full ${statusClass}">
+                        ${statusText}
+                    </span>
+                </td>
+            `;
+        });
+    }
+    
+    // 🛑 FILTERING FUNCTIONALITY (Filters orders based on network tab selected)
+    function filterAndRenderOrders(network) {
+        let filtered = userOrders;
+        
+        if (network !== 'All') {
+            // Filter: Show orders matching the network
+            filtered = userOrders.filter(order => order.network === network);
+        }
+        
+        renderOrders(filtered);
+    }
+
+    // --- TOP-UP MODAL LOGIC (No functional changes here) ---
+    const modalCancelBtn = document.getElementById('modal-cancel'); 
+    
+    function openModal() {
+        modalBackdrop.style.display = 'flex';
+        setTimeout(() => {
+            modalBackdrop.style.opacity = 1;
+            topupModal.style.transform = 'scale(1)';
+        }, 10);
+        modalAmountInput.focus();
+    }
+
+    function closeModal() {
+        modalBackdrop.style.opacity = 0;
+        topupModal.style.transform = 'scale(0.95)';
+        setTimeout(() => {
+            modalBackdrop.style.display = 'none';
+            modalStatus.textContent = '';
+            modalAmountInput.value = MIN_TOPUP_GHS.toFixed(2);
+        }, 300);
+    }
+
+    // --- PAYSTACK INTEGRATION (No functional changes here) ---
+    const initiatePaystackTopup = (amountInGHS, userEmail) => {
+        if (amountInGHS < MIN_TOPUP_GHS) {
+            modalStatus.textContent = `Minimum top-up is GHS ${MIN_TOPUP_GHS.toFixed(2)}.`;
+            return;
+        }
+
+        const finalChargedAmount = calculateFinalPaystackCharge(amountInGHS);
+        
+        modalPayBtn.disabled = true;
+        modalPayBtn.textContent = 'Processing...';
+
+        const paymentCallback = function(response) {
+            showToast("Verifying top-up...", 'warning');
+            
+            fetch('/api/topup', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ 
+                    reference: response.reference, 
+                    amount: amountInGHS // Send the NET DEPOSIT amount for server verification
+                }),
+            })
+            .then(verifyResponse => verifyResponse.json())
+            .then(data => {
+                const statusType = data.status === 'success' ? 'success' : (data.status === 'pending' ? 'warning' : 'error');
+                showToast(data.message, statusType);
+                
+                if (data.status === 'success') {
+                    fetchBalance(); 
+                    fetchOrderHistory();
+                    closeModal(); 
+                }
+            })
+            .catch(err => {
+                showToast("Top-up verification failed. Check logs for details.", 'error');
+            })
+            .finally(() => {
+                modalPayBtn.disabled = false;
+                modalPayBtn.textContent = 'Pay';
+            });
+        };
+        
+        PaystackPop.setup({
+            key: PAYSTACK_PUBLIC_KEY, 
+            email: userEmail, 
+            amount: finalChargedAmount, // Send the fee-inclusive amount (in pesewas)
+            currency: 'GHS',
+            ref: 'DL-TOPUP-' + Math.floor((Math.random() * 1000000000) + 1),
+            callback: paymentCallback,
+            onClose: function() { 
+                showToast("Top-up cancelled.", 'error');
+                modalPayBtn.disabled = false;
+                modalPayBtn.textContent = 'Pay';
+            }
+        }).openIframe();
+    };
+    
+    // --- ONBOARDING LOGIC (No functional changes here) ---
+    function checkOnboardingStatus() {
+        const viewCount = parseInt(localStorage.getItem('dashboard_onboarding_count') || '0');
+        if (viewCount < MAX_VIEWS) {
+            welcomeBanner.classList.remove('hidden');
+        }
+    }
+
+    function dismissOnboarding() {
+        let viewCount = parseInt(localStorage.getItem('dashboard_onboarding_count') || '0');
+        viewCount++;
+        localStorage.setItem('dashboard_onboarding_count', viewCount.toString());
+        welcomeBanner.classList.add('hidden');
+    }
+    
+    // --- SIDEBAR LOGIC (No functional changes here) ---
+    function toggleSidebar() {
+        const sidebar = document.getElementById('sidebar');
+        const sidebarBackdrop = document.getElementById('sidebar-backdrop');
+
+        sidebar.classList.toggle('open');
+        sidebarBackdrop.classList.toggle('hidden');
+    }
+    
+    // --- COPY SHOP LINK LOGIC (Modified to show warning for users without a shop ID) ---
+    function copyAgentShopLink() {
+        if (!userShopId) {
+            showToast("Please create your shop first!", 'error');
+            return;
+        }
+
+        const shopLink = `${window.location.origin}/agent_shop.html?shopId=${userShopId}`;
+        
+        navigator.clipboard.writeText(shopLink).then(() => {
+            showToast("Shop link copied to clipboard!", 'success');
+        }).catch(err => {
+            showToast("Failed to copy link. Try manually.", 'error');
+            console.error('Could not copy text: ', err);
+        });
+    }
+
+
+    // --- INITIALIZATION & LISTENERS ---
+    document.addEventListener('DOMContentLoaded', async () => {
+        const userDataEmail = await fetchBalance(); 
+        
+        // 🛑 START AUTO-REFRESH TIMER 🛑
+        fetchOrderHistory(); 
+        setInterval(fetchOrderHistory, 30000); // Refreshes orders every 30 seconds
+        
+        if (userDataEmail) {
+            // 1. Bind TopUp Modal Pay Button
+            modalPayBtn.addEventListener('click', () => {
+                const amount = parseFloat(modalAmountInput.value);
+                
+                // 🛑 CRITICAL MINIMUM CHECK 🛑
+                if (isNaN(amount) || amount < MIN_TOPUP_GHS) {
+                    modalStatus.textContent = `Please enter a valid amount (Min GHS ${MIN_TOPUP_GHS.toFixed(2)}).`;
+                    return;
+                }
+                
+                modalStatus.textContent = ''; 
+                initiatePaystackTopup(amount, userDataEmail);
+            });
+        }
+        
+
+        // 2. Attach UI listeners
+        openTopupModalBtn.addEventListener('click', openModal);
+        modalCancelBtn.addEventListener('click', closeModal);
+        dismissBtn.addEventListener('click', dismissOnboarding); // Onboarding dismiss
+        
+        // 🛑 Sidebar Listeners
+        document.getElementById('open-sidebar').addEventListener('click', toggleSidebar);
+        document.getElementById('close-sidebar').addEventListener('click', toggleSidebar);
+        document.getElementById('sidebar-backdrop').addEventListener('click', toggleSidebar); 
+        
+        // 🛑 Agent Shop Link Listener
+        copyShopLinkBtn.addEventListener('click', copyAgentShopLink);
+
+        // 🛑 Network Filter Listener
+        filterContainer.addEventListener('click', (e) => {
+            const target = e.target.closest('.filter-tab');
+            if (target) {
+                document.querySelectorAll('.filter-tab').forEach(tab => tab.classList.remove('active'));
+                target.classList.add('active');
+                
+                filterAndRenderOrders(target.dataset.network);
+            }
+        });
+        
+        // 3. Run Onboarding Check after loading
+        checkOnboardingStatus();
+    });
 </script>
 </body>
 </html>
