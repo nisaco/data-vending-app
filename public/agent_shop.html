@@ -1,0 +1,333 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="icon" type="image/x-icon" href="apple-touch-icon.png">
+    <title>Data Purchase</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        :root { --primary: #009879; --secondary: #007a63; }
+        .text-primary { color: var(--primary); }
+        .bg-primary { background-color: var(--primary); }
+        .hover\:bg-secondary:hover { background-color: var(--secondary); }
+        .dark { background-color: #121212; color: #e0e0e0; }
+        .dark .bg-white { background-color: #1f1f1f; color: #e0e0e0; }
+        .dark input, .dark select { background-color: #374151; border-color: #4b5563; color: #f3f4f6; }
+        .dark .border-gray-100 { border-color: #374151; }
+        .dark .bg-gray-100 { background-color: #1f1f1f; }
+        .dark .text-gray-600 { color: #b0b0b0; }
+        .dark .border-gray-300 { border-color: #4b5563; }
+        
+        /* Add focus ring color */
+        input:focus, select:focus {
+            --tw-ring-color: var(--primary) !important;
+            border-color: var(--primary) !important;
+        }
+
+        #toast-container {
+            position: fixed;
+            top: 1rem;
+            right: 1rem;
+            z-index: 1000;
+            max-width: 300px;
+        }
+    </style>
+</head>
+<body class="bg-gray-50 min-h-screen font-sans dark:bg-[#121212] dark:text-gray-200">
+    <div id="toast-container"></div>
+    
+    <nav class="bg-white shadow-lg dark:bg-[#1f1f1f]">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex justify-between items-center h-16">
+            <a href="/login.html" class="text-xl font-bold text-primary">DataLink <span class="text-gray-500 text-sm" id="shop-name-display">| Shop</span></a>
+            <a href="/login.html" class="text-gray-600 dark:text-gray-400 hover:text-primary transition font-medium">Login/Signup</a>
+        </div>
+    </nav>
+
+    <div class="container mx-auto p-4 max-w-xl">
+        <div class="bg-white p-6 md:p-8 rounded-2xl shadow-xl mt-8 border border-gray-100 dark:bg-[#1f1f1f] dark:border-gray-700">
+            
+            <h1 class="text-2xl font-extrabold text-gray-800 dark:text-white mb-2" id="welcome-message">Welcome to the Agent Shop!</h1>
+            <p class="text-center text-gray-500 mb-6 dark:text-gray-400">
+                Buy data instantly via Paystack. Your purchase supports this local Agent!
+            </p>
+            
+            <div id="shop-form-area" class="space-y-6">
+                <div id="status-message" class="text-center text-red-500 font-medium">Loading shop details...</div>
+                
+                <form id="purchase-form" class="space-y-4 hidden">
+                    <div>
+                        <label for="network" class="block text-gray-700 dark:text-gray-300 mb-2">Select Network</label>
+                        <select id="network" required
+                                class="w-full p-3 border border-gray-300 rounded-lg dark:bg-gray-700 dark:border-gray-600">
+                            <option value="">-- Choose a Network --</option>
+                            <option value="MTN">MTN</option>
+                            <option value="AirtelTigo">AirtelTigo</option>
+                            <option value="Telecel">Telecel</option>
+                        </select>
+                    </div>
+
+                    <div>
+                        <label for="phone_number" class="block text-gray-700 dark:text-gray-300 mb-2">Recipient Phone Number (e.g., 05X-XXX-XXXX)</label>
+                        <input type="tel" id="phone_number" required pattern="[0-9]{10}" maxlength="10"
+                               placeholder="05X-XXX-XXXX"
+                               class="w-full p-3 border border-gray-300 rounded-lg dark:bg-gray-700 dark:border-gray-600">
+                    </div>
+
+                    <div id="plan-selection-container" class="hidden">
+                        <label for="data-plan" class="block text-gray-700 dark:text-gray-300 mb-2">Select Data Plan</label>
+                        <select id="data-plan" required
+                                class="w-full p-3 border border-gray-300 rounded-lg dark:bg-gray-700 dark:border-gray-600">
+                            <option value="">-- Select a Plan --</option>
+                        </select>
+                    </div>
+
+                    <div id="price-display" class="text-center text-xl font-bold text-primary dark:text-green-400 p-3 bg-gray-100 rounded-lg dark:bg-gray-700 hidden">
+                        Price: GHS 0.00
+                    </div>
+
+                    <button type="submit" id="purchase-button" disabled
+                            class="w-full py-3 px-4 bg-primary text-white font-bold rounded-lg hover:bg-secondary transition disabled:bg-gray-400 disabled:cursor-not-allowed">
+                        Buy Now via Paystack
+                    </button>
+                </form>
+            </div>
+            
+        </div>
+    </div>
+    
+<script src="https://js.paystack.co/v1/inline.js"></script>
+
+<script>
+    // --- TOAST NOTIFICATION SYSTEM ---
+    function showToast(message, type = 'success') {
+        const container = document.getElementById('toast-container');
+        const colors = {
+            success: 'bg-green-500 border-green-700',
+            error: 'bg-red-500 border-red-700',
+            warning: 'bg-yellow-500 border-yellow-700',
+        };
+        const toast = document.createElement('div');
+        toast.className = `p-4 mb-2 text-white text-sm font-semibold rounded-lg shadow-lg border-b-4 ${colors[type]} transform translate-x-full transition-all duration-300 ease-out`;
+        toast.textContent = message;
+
+        container.prepend(toast);
+
+        setTimeout(() => {
+            toast.style.transform = 'translateX(0)';
+        }, 10);
+
+        setTimeout(() => {
+            toast.style.transform = 'translateX(120%)';
+            setTimeout(() => {
+                container.removeChild(toast);
+            }, 400);
+        }, 6000);
+    }
+    // --- END TOAST SYSTEM ---
+
+    // --- GLOBAL STATE & CONSTANTS ---
+    const PAYSTACK_PUBLIC_KEY = 'pk_live_3be2ebebc6edd6fa9f5f9a7303c80a55ee9e0be1'; 
+    let currentShopId = null;
+    let allPlans = [];
+    let currentPricePesewas = 0;
+    
+    // --- DOM ELEMENTS ---
+    const shopNameDisplay = document.getElementById('shop-name-display');
+    const welcomeMessage = document.getElementById('welcome-message');
+    const statusMessage = document.getElementById('status-message');
+    const purchaseForm = document.getElementById('purchase-form');
+    const networkSelect = document.getElementById('network');
+    const dataPlanSelect = document.getElementById('data-plan');
+    const phoneNumberInput = document.getElementById('phone_number');
+    const planSelectionContainer = document.getElementById('plan-selection-container');
+    const priceDisplay = document.getElementById('price-display');
+    const purchaseButton = document.getElementById('purchase-button');
+
+    // --- URL PARAMETER & INITIAL CHECK ---
+    function getShopIdFromUrl() {
+        const urlParams = new URLSearchParams(window.location.search);
+        return urlParams.get('shopId');
+    }
+
+    // --- DATA FETCHING ---
+    async function fetchPlansForNetwork(network) {
+        dataPlanSelect.innerHTML = '<option value="">Loading...</option>';
+        purchaseButton.disabled = true;
+        priceDisplay.classList.add('hidden');
+        priceDisplay.textContent = 'Price: GHS 0.00';
+        currentPricePesewas = 0;
+        
+        if (!network || !currentShopId) return;
+
+        try {
+            const response = await fetch(`/api/agent/plans?shopId=${currentShopId}&network=${network}`);
+            const data = await response.json();
+
+            if (response.status === 404) {
+                statusMessage.textContent = data.message || 'Shop not found for this ID.';
+                purchaseForm.classList.add('hidden');
+                return;
+            }
+
+            if (!response.ok || !data.plans || data.plans.length === 0) {
+                dataPlanSelect.innerHTML = '<option value="">No plans available for this network.</option>';
+                planSelectionContainer.classList.remove('hidden');
+                throw new Error('No plans found');
+            }
+
+            // Update shop name display
+            shopNameDisplay.textContent = `| ${data.shopName || 'Agent Shop'}`;
+            welcomeMessage.textContent = `Welcome to ${data.shopName || 'the Agent Shop'}!`;
+
+            allPlans = data.plans;
+            
+            // Populate dropdown
+            let options = '<option value="">-- Select a Plan --</option>';
+            data.plans.forEach(plan => {
+                const priceGHS = (plan.price / 100).toFixed(2);
+                options += `<option value="${plan.id}" data-price="${plan.price}">${plan.name} (GHS ${priceGHS})</option>`;
+            });
+
+            dataPlanSelect.innerHTML = options;
+            planSelectionContainer.classList.remove('hidden');
+            purchaseButton.disabled = false;
+            statusMessage.textContent = '';
+            purchaseForm.classList.remove('hidden');
+
+        } catch (error) {
+            console.error('Error fetching plans:', error);
+            dataPlanSelect.innerHTML = '<option value="">Error loading plans.</option>';
+            purchaseButton.disabled = true;
+        }
+    }
+
+    // --- EVENT HANDLERS ---
+    function handleNetworkChange() {
+        const selectedNetwork = networkSelect.value;
+        fetchPlansForNetwork(selectedNetwork);
+    }
+
+    function handlePlanChange() {
+        const selectedOption = dataPlanSelect.options[dataPlanSelect.selectedIndex];
+        
+        if (selectedOption.value) {
+            currentPricePesewas = parseInt(selectedOption.dataset.price, 10);
+            const priceGHS = (currentPricePesewas / 100).toFixed(2);
+            priceDisplay.textContent = `Price: GHS ${priceGHS}`;
+            priceDisplay.classList.remove('hidden');
+            purchaseButton.disabled = false;
+        } else {
+            currentPricePesewas = 0;
+            priceDisplay.classList.add('hidden');
+            purchaseButton.disabled = true;
+        }
+    }
+
+    async function handlePurchase(e) {
+        e.preventDefault();
+
+        const network = networkSelect.value;
+        const dataPlanId = dataPlanSelect.value;
+        const phoneNumber = phoneNumberInput.value.replace(/[^0-9]/g, ''); // Clean the number
+        const amountPesewas = currentPricePesewas;
+
+        if (!network || !dataPlanId || phoneNumber.length < 10 || amountPesewas <= 0) {
+            return showToast('Please select a plan and enter a valid 10-digit phone number.', 'error');
+        }
+        
+        // Find the full plan object for price check
+        const selectedPlan = allPlans.find(p => p.id === dataPlanId);
+        if (!selectedPlan || selectedPlan.price !== amountPesewas) {
+            return showToast('Price mismatch error. Please re-select the plan.', 'error');
+        }
+        
+        purchaseButton.disabled = true;
+        purchaseButton.textContent = 'Initiating Payment...';
+
+        const chargedAmount = Math.ceil(amountPesewas * 1.05); // Estimate a high-side charge for Paystack. Server verifies flexible range.
+        const metadata = {
+            custom_fields: [{ display_name: "Shop ID", variable_name: "shop_id", value: currentShopId }],
+            phone_number: phoneNumber,
+            network: network,
+            data_plan: dataPlanId,
+            is_agent_sale: true // Critical tag for the server's batch checkout
+        };
+        
+        // The server-side /api/checkout-orders is designed for batch orders and handles profit/order saving.
+        // For a single customer purchase, we'll mimic a batch order of one item, ensuring the agent gets profit.
+
+        const singleOrderItem = {
+            id: '1', // Dummy ID for the single item
+            network: network,
+            dataPlanId: dataPlanId,
+            phoneNumber: phoneNumber,
+            amountPesewas: amountPesewas // The price the customer pays
+        };
+
+        const paymentCallback = function(response) {
+            showToast("Verifying payment and processing order...", 'warning');
+            
+            // Use the batch checkout endpoint for the single order
+            fetch('/api/checkout-orders', { 
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    orders: [singleOrderItem],
+                    paymentMethod: 'paystack',
+                    totalAmountPesewas: amountPesewas, // Total Net Cost (what the customer paid, before Paystack fee)
+                    reference: response.reference
+                }),
+            })
+            .then(checkoutResponse => checkoutResponse.json())
+            .then(data => {
+                const statusType = data.status === 'success' ? 'success' : (data.status === 'pending' ? 'warning' : 'error');
+                showToast(data.message, statusType);
+            })
+            .catch(err => {
+                showToast("Order verification failed. Contact support with your payment reference.", 'error');
+            })
+            .finally(() => {
+                purchaseButton.disabled = false;
+                purchaseButton.textContent = 'Buy Now via Paystack';
+            });
+        };
+        
+        PaystackPop.setup({
+            key: PAYSTACK_PUBLIC_KEY, 
+            email: 'customer@agentshop.com', // Use a placeholder, Paystack only needs a valid email format
+            amount: chargedAmount, // Send the estimated fee-inclusive amount (in pesewas)
+            currency: 'GHS',
+            ref: 'AGENT-' + Math.floor((Math.random() * 1000000000) + 1),
+            metadata: metadata,
+            callback: paymentCallback,
+            onClose: function() { 
+                showToast("Payment cancelled.", 'error');
+                purchaseButton.disabled = false;
+                purchaseButton.textContent = 'Buy Now via Paystack';
+            }
+        }).openIframe();
+    }
+
+
+    // --- INITIALIZATION ---
+    document.addEventListener('DOMContentLoaded', () => {
+        currentShopId = getShopIdFromUrl();
+        
+        if (!currentShopId) {
+            statusMessage.textContent = 'Error: Shop ID is missing from the URL.';
+            return;
+        }
+
+        // 1. Initial Load
+        networkSelect.addEventListener('change', handleNetworkChange);
+        dataPlanSelect.addEventListener('change', handlePlanChange);
+        purchaseForm.addEventListener('submit', handlePurchase);
+        
+        // 2. Load Plans for default network (MTN)
+        networkSelect.value = 'MTN';
+        fetchPlansForNetwork('MTN');
+    });
+</script>
+</body>
+</html>
