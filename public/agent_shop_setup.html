@@ -269,63 +269,62 @@
 
 
     // --- INITIALIZATION ---
-    async function initialize() {
-        try {
-            const userInfoResponse = await fetch('/api/user-info');
-            if (userInfoResponse.status === 401) {
-                showToast('Session expired. Redirecting...', 'error');
-                return setTimeout(() => window.location.href = '/login.html', 1000);
-            }
-           // Inside async function initialize() // ...
-            const userInfo = await userInfoResponse.json();
+    // --- Inside the <script> tags of agent_shop_setup.html ---
+// The async keyword is critical. The opening { must immediately follow the parentheses.
+async function initialize() { 
+    try {
+        const userInfoResponse = await fetch('/api/user-info');
+        if (userInfoResponse.status === 401) {
+            showToast('Session expired. Redirecting...', 'error');
+            return setTimeout(() => window.location.href = '/login.html', 1000);
+        }
+        
+        const userInfo = await userInfoResponse.json();
+        
+        if (!userInfo || !userInfo.username) {
+            managementArea.innerHTML = `<p class="text-xl text-red-500 text-center py-10">Error: Could not retrieve user data.</p>`;
+            return;
+        }
+
+        userRole = userInfo.role;
+        userShopId = userInfo.shopId;
+
+        if (userShopId) {
+            // ... Logic for rendering Markup Manager ...
+            const agentShopResponse = await fetch(`/api/agent/plans?shopId=${userShopId}&network=MTN`);
             
-            // 🛑 REMOVE ROLE CHECK 🛑
-            // We only need to check if the user is authenticated, which isAuthenticated already did.
-            // If the user exists, proceed.
-            if (!userInfo || !userInfo.username) {
-                managementArea.innerHTML = `<p class="text-xl text-red-500 text-center py-10">Error: Could not retrieve user data.</p>`;
+            if (agentShopResponse.status === 404) {
+                showToast('Agent shop data missing. Please proceed to create one.', 'warning');
+                managementArea.innerHTML = createShopFormHTML;
+                document.getElementById('create-shop-form').addEventListener('submit', handleCreateShop);
                 return;
             }
             
-            userRole = userInfo.role;
-            userShopId = userInfo.shopId;
-
-            if (userShopId) {
-// ... rest of the logic remains the same
-
-            userRole = userInfo.role;
-            userShopId = userInfo.shopId;
-
-            if (userShopId) {
-                // Shop exists, render management
-                const agentShopResponse = await fetch(`/api/agent/plans?shopId=${userShopId}&network=MTN`);
-                if (agentShopResponse.status === 404) {
-                    showToast('Agent shop data missing. Please try creating a shop.', 'error');
-                    managementArea.innerHTML = createShopFormHTML;
-                    document.getElementById('create-shop-form').addEventListener('submit', handleCreateShop);
-                    return;
-                }
-                const agentShopData = await agentShopResponse.json();
-                
-                // Fetch the actual shop name from user-info/another endpoint if needed, for now use a placeholder
-                const shopName = userInfo.username ? `${userInfo.username}'s Store` : 'Your Shop'; 
-
-                // We use the markup from the DB in the management view, we can't infer it simply from one network's plan.
-                // For simplicity, we'll rely on the server to retrieve the markups on load or re-fetch after a successful update.
-                // The current implementation is simpler: we update the form with the markup and rely on `fetchPlans` to populate the calculated prices.
-                renderMarkupManager(userShopId, shopName);
-
-            } else {
-                // Shop does not exist, render creation form
-                managementArea.innerHTML = createShopFormHTML;
-                document.getElementById('create-shop-form').addEventListener('submit', handleCreateShop);
+            const agentShopData = await agentShopResponse.json();
+            
+            if (!agentShopResponse.ok || !agentShopData.plans) {
+                showToast('Failed to load shop configurations. Check server logs.', 'error');
+                managementArea.innerHTML = `<p class="text-xl text-red-500 text-center py-10">Error loading shop data. Check console for details.</p>`;
+                console.error('API Response Data on Failure:', agentShopData);
+                return;
             }
+            
+            const shopName = agentShopData.shopName || `${userInfo.username}'s Store`; 
+            
+            renderMarkupManager(userShopId, shopName);
 
-        } catch (error) {
-            console.error('Initialization error:', error);
-            managementArea.innerHTML = `<p class="text-xl text-red-500 text-center py-10">Error loading page data.</p>`;
+        } else {
+            // Shop does not exist, render creation form
+            managementArea.innerHTML = createShopFormHTML;
+            document.getElementById('create-shop-form').addEventListener('submit', handleCreateShop);
         }
+
+    } catch (error) { // 🛑 CATCH keyword should be here
+        console.error('Initialization Fatal Error:', error);
+        showToast('A critical error occurred during initialization.', 'error');
+        managementArea.innerHTML = `<p class="text-xl text-red-500 text-center py-10">A network or server error occurred during page load.</p>`;
     }
+} // 🛑 Closing brace for async function initialize()
 
     document.addEventListener('DOMContentLoaded', initialize);
 </script>
