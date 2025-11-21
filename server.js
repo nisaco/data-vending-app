@@ -10,7 +10,8 @@ const cron = require('node-cron');
 const crypto = require('crypto');
 const rateLimit = require('express-rate-limit'); 
 const MongoStore = require('connect-mongo');
-// 🛑 Note: AgentShop model must be imported from database.js 🛑
+
+// 🛑 Import AgentShop model 🛑
 const { User, Order, AgentShop, mongoose } = require('./database.js'); 
 
 const app = express();
@@ -20,8 +21,8 @@ const PORT = process.env.PORT || 10000;
 const RESELLER_API_BASE_URL = 'https://datapacks.shop/api.php'; 
 
 // --- 2. DATA (PLANS) AND MAPS ---
+// PRICES ARE THE WHOLESALE COST (in PESEWAS)
 const allPlans = {
-    // PRICES ARE THE WHOLESALE COST (in PESEWAS)
     "MTN": [
         { id: '1', name: '1GB', price: 480 }, { id: '2', name: '2GB', price: 960 }, { id: '3', name: '3GB', price: 1420 }, 
         { id: '4', name: '4GB', price: 2000 }, { id: '5', name: '5GB', price: 2400 }, { id: '6', name: '6GB', price: 2800 }, 
@@ -135,7 +136,7 @@ async function executeDataPurchase(userId, orderDetails, paymentMethod) {
     
     const resellerPayload = {
         network: networkKey,        
-        capacity: dataPlan,           
+        capacity: dataPlan,          
         recipient: orderDetails.phoneNumber,      
         client_ref: purchaseReference      
     };
@@ -366,7 +367,7 @@ app.post('/api/login', loginLimiter, isDbReady, async (req, res) => {
 });
 
 app.get('/api/logout', (req, res) => {
-    req.session.destroy(() => res.redirect('/login.html'));
+    req.session.destroy(() => res.redirect('/index.html'));
 });
 
 app.get('/api/user-info', isDbReady, isAuthenticated, async (req, res) => {
@@ -533,10 +534,11 @@ app.post('/api/agent/create-shop', isDbReady, isAuthenticated, async (req, res) 
         const shopId = crypto.randomBytes(4).toString('hex');
 
         // Create Shop with zero markup by default
-        const newShop = await AgentShop.create({
+        await AgentShop.create({
             userId: userId,
             shopId: shopId,
             shopName: shopName || `${user.username}'s Store`,
+            customMarkups: {} // Initialize with empty map
         });
 
         // Link the shop ID back to the user
@@ -569,21 +571,22 @@ app.get('/api/agent/plans', isDbReady, async (req, res) => {
         if (!networkPlans) return res.status(404).json({ message: 'Invalid network.' });
         if (!agentShop) return res.status(404).json({ message: 'Shop not found.' });
 
-        const customMarkup = agentShop.customMarkups[network] || 0; // Default to 0 markup
+        // Safely access the map for the specific network, defaulting to empty Map if not set
+        const networkMarkups = agentShop.customMarkups.get(network) || {}; 
 
         const sellingPlans = networkPlans.map(p => {
             const wholesalePrice = p.price;
+            // Lookup markup using the plan ID (e.g., '1', '5')
+            const individualMarkup = networkMarkups[p.id] || 0; 
             
-            // Apply Markup (Ensuring price is never lower than wholesale)
-            let rawSellingPrice = wholesalePrice + customMarkup; 
-            
+            let rawSellingPrice = wholesalePrice + individualMarkup; 
             // Final price calculation (Rounded to nearest 5 pesewas, ensuring it meets wholesale price)
             const finalPrice = Math.ceil(Math.max(rawSellingPrice, wholesalePrice) / 5) * 5; 
             
             return { 
                 id: p.id, 
                 name: p.name, 
-                price: finalPrice, // The retail price the client pays
+                price: finalPrice, 
                 wholesalePrice: wholesalePrice 
             };
         });
@@ -596,70 +599,52 @@ app.get('/api/agent/plans', isDbReady, async (req, res) => {
     }
 });
 
+// Updates markup for a single package
 app.post('/api/agent/update-markup', isDbReady, isAuthenticated, async (req, res) => {
     const userId = req.session.user.id;
-    const { network, markupValue } = req.body;
+    const { network, capacityId, markupValue } = req.body;
     
-    // Authorization check
     const user = await User.findById(userId);
-    // 🛑 REMOVED ROLE CHECK: Any logged-in user can update their shop markup.
     if (!user) {
         return res.status(403).json({ message: 'Unauthorized. User data not found.' });
+    }
+    if (!network || !capacityId || markupValue === undefined) {
+         return res.status(400).json({ message: 'Missing network, capacity ID, or markup value.' });
     }
     
     try {
         const agentShop = await AgentShop.findOne({ userId });
         if (!agentShop) return res.status(404).json({ message: 'Shop not found. Please create one first.' });
 
-        // Update the specific network's markup
-        agentShop.customMarkups[network] = markupValue;
+        // 1. Get current markups for the network (Mongoose Map converts this to an object internally)
+        let currentMarkupsObject = agentShop.customMarkups.get(network) || {}; 
+        
+        // 2. Update ONLY the specific capacity ID's markup in the object
+        currentMarkupsObject[capacityId] = parseInt(markupValue, 10);
+        
+        // 3. CRITICAL FIX: Set the entire updated object back onto the Mongoose Map field
+        // This is necessary for Mongoose to correctly save the nested Map structure
+        agentShop.customMarkups.set(network, currentMarkupsObject);
+
+        // 4. Force Mongoose to acknowledge the change in the sub-document path
+        agentShop.markModified('customMarkups'); 
+
         await agentShop.save();
 
-        res.json({ status: 'success', message: `${network} markup updated to ${markupValue} pesewas.` });
+        res.json({ status: 'success', message: `${network} ${capacityId}GB markup updated to ${markupValue} pesewas.` });
         
     } catch (error) {
-        res.status(500).json({ message: 'Failed to update markup.' });
+        console.error("Mongoose Map Save Error:", error);
+        res.status(500).json({ message: 'Failed to update markup. Server error.' });
     }
 });
 
 
-// --- DATA & PROTECTED PAGES ---
-
-app.get('/api/data-plans', isDbReady, async (req, res) => { 
-    const costPlans = allPlans[req.query.network] || [];
-    
-    const markupPesewas = 0; 
-
-    const sellingPlans = costPlans.map(p => {
-        const FIXED_MARKUP = markupPesewas; 
-        const rawSellingPrice = p.price + FIXED_MARKUP;
-        const sellingPrice = Math.ceil(rawSellingPrice / 5) * 5; 
-        
-        return { id: p.id, name: p.name, price: sellingPrice };
-    });
-
-    res.json(sellingPlans);
-});
-
-app.get('/api/my-orders', isDbReady, isAuthenticated, async (req, res) => {
-    try {
-        const orders = await Order.find({ userId: req.session.user.id })
-                                 .sort({ createdAt: -1 }); 
-        res.json({ orders });
-    } catch (error) {
-        res.status(500).json({ error: "Failed to fetch orders" });
-    }
-});
-
-
-// --- WALLET & PAYMENT ROUTES ---
-
-// NEW: Payout Withdrawal Endpoint 🛑
+// 🛑 Withdrawal Request 🛑
 app.post('/api/withdraw-profit', isDbReady, isAuthenticated, async (req, res) => {
     const userId = req.session.user.id;
     const { amountPesewas, accountDetails } = req.body;
     
-    // Minimum withdrawal of GHS 5.00 (500 Pesewas)
     if (!amountPesewas || amountPesewas < 500) { 
         return res.status(400).json({ message: 'Minimum withdrawal is GHS 5.00.' });
     }
@@ -671,219 +656,37 @@ app.post('/api/withdraw-profit', isDbReady, isAuthenticated, async (req, res) =>
         const user = await User.findById(userId);
         if (!user) return res.status(404).json({ message: 'User not found.' });
 
-        // 1. Check Balance
         if (user.payoutWalletBalance < amountPesewas) {
             return res.status(400).json({ message: 'Insufficient payout balance.' });
         }
         
-        // --- 2. Debit Payout Wallet (Atomic Operation) ---
         const debitResult = await User.findByIdAndUpdate(
             userId,
             { $inc: { payoutWalletBalance: -amountPesewas } },
             { new: true, runValidators: true }
         );
 
-        // Update session balance
         req.session.user.payoutWalletBalance = debitResult.payoutWalletBalance;
 
-        // --- 3. Log Withdrawal Order ---
         await Order.create({
             userId: userId,
             reference: `WITHDRAWAL-${crypto.randomBytes(12).toString('hex')}`,
             phoneNumber: accountDetails.accountNumber,
             network: accountDetails.network,
             dataPlan: 'WITHDRAWAL REQUEST',
-            amount: amountPesewas / 100, // Amount is in GHS for logging
+            amount: amountPesewas / 100, 
             status: 'withdrawal_pending',
             paymentMethod: 'payout'
         });
 
         res.json({ 
             status: 'success', 
-            message: `Withdrawal of GHS ${(amountPesewas / 100).toFixed(2)} requested successfully. Processing typically takes 1-2 hours.`,
+            message: `Withdrawal of GHS ${(amountPesewas / 100).toFixed(2)} requested successfully.`,
             newPayoutBalance: debitResult.payoutWalletBalance
         });
 
     } catch (error) {
-        console.error('Withdrawal Request Error:', error);
         res.status(500).json({ message: 'Server error during withdrawal request.' });
-    }
-});
-
-
-app.post('/api/topup', isDbReady, isAuthenticated, async (req, res) => {
-    const { reference, amount } = req.body; 
-    if (!reference || !amount) {
-        return res.status(400).json({ status: 'error', message: 'Reference and amount are required.' });
-    }
-    
-    let netDepositAmountGHS = amount; 
-    let topupAmountPesewas = Math.round(netDepositAmountGHS * 100);
-    const userId = req.session.user.id;
-
-    const finalChargedAmountPesewas = calculateClientTopupFee(topupAmountPesewas);
-
-    try {
-        // --- STEP 1: VERIFY PAYMENT WITH PAYSTACK ---
-        const paystackUrl = `https://api.paystack.co/transaction/verify/${reference}`;
-        const paystackResponse = await axios.get(paystackUrl, { 
-            headers: { Authorization: `Bearer ${process.env.PAYSTACK_SECRET_KEY}` } 
-        });
-        const { status, data } = paystackResponse.data;
-
-        if (!status || data.status !== 'success') {
-            let userMessage = `Payment status is currently ${data.status || 'unknown'}. If your money was deducted, please wait 30 seconds and try again, or contact support with reference: ${reference}.`;
-            console.error(`Topup Verification Failed: Paystack status is not 'success'. Status: ${data.status}. Reference: ${reference}`);
-            return res.status(400).json({ status: 'error', message: userMessage });
-        }
-        
-        if (data.amount <= 0) {
-            console.error(`Topup Verification Failed: Paystack reported charged amount as ${data.amount}. Reference: ${reference}`);
-            return res.status(400).json({ status: 'error', message: 'The transaction reference provided is invalid or associated with a failed payment.' });
-        }
-
-        // --- STEP 2: FLEXIBLE AMOUNT CHECK ---
-        const acceptableMinimum = Math.floor(finalChargedAmountPesewas * 0.95); 
-        const acceptableMaximum = Math.ceil(finalChargedAmountPesewas * 1.05);
-
-        if (data.amount < acceptableMinimum || data.amount > acceptableMaximum) {
-            console.error(`Fraud Alert: Paystack charged ${data.amount} but expected range was ${acceptableMinimum}-${acceptableMaximum}. Reference: ${reference}`);
-            return res.status(400).json({ status: 'error', message: 'Amount charged mismatch detected. Please contact support immediately.' });
-        }
-        
-        // --- STEP 3: UPDATE USER WALLET BALANCE (NET DEPOSIT) ---
-        const updatedUser = await User.findByIdAndUpdate(
-            userId,
-            { $inc: { walletBalance: topupAmountPesewas } }, 
-            { new: true, runValidators: true }
-        );
-        
-        req.session.user.walletBalance = updatedUser.walletBalance; 
-
-        // Log the top-up as a successful order for tracking
-        await Order.create({
-            userId: userId,
-            reference: reference,
-            amount: finalChargedAmountPesewas / 100, 
-            status: 'topup_successful',
-            paymentMethod: 'paystack',
-            dataPlan: 'WALLET TOP-UP',
-            network: 'WALLET'
-        });
-
-        res.json({ status: 'success', message: `Wallet topped up successfully! GHS ${netDepositAmountGHS.toFixed(2)} deposited.`, newBalance: updatedUser.walletBalance });
-
-    } catch (error) {
-        console.error('Topup Verification Error:', error);
-        res.status(500).json({ status: 'error', message: 'An internal server error occurred during top-up.' });
-    }
-});
-
-app.post('/api/wallet-purchase', isDbReady, isAuthenticated, async (req, res) => {
-    const { network, dataPlan, phone_number, amountInPesewas } = req.body;
-    const userId = req.session.user.id;
-    
-    if (!network || !dataPlan || !phone_number || !amountInPesewas) {
-        return res.status(400).json({ message: 'Missing required order details.' });
-    }
-
-    try {
-        const user = await User.findById(userId);
-        if (!user) return res.status(404).json({ message: 'User not found.' });
-
-        // 1. Check Balance
-        if (user.walletBalance < amountInPesewas) {
-            return res.status(400).json({ message: 'Insufficient wallet balance.' });
-        }
-
-        // 2. Debit Wallet (Atomically)
-        const debitResult = await User.findByIdAndUpdate(
-            userId,
-            { $inc: { walletBalance: -amountInPesewas } },
-            { new: true, runValidators: true }
-        );
-        
-        req.session.user.walletBalance = debitResult.walletBalance;
-
-        // 3. Execute Data Purchase
-        const result = await executeDataPurchase(userId, {
-            network,
-            dataPlan,
-            phoneNumber: phone_number,
-            amount: amountInPesewas / 100 
-        }, 'wallet');
-        
-        if (result.status === 'data_sent') {
-            return res.json({ status: 'success', message: `Data successfully sent from wallet!` });
-        } else {
-            return res.status(202).json({ 
-                status: 'pending', 
-                message: `Data purchase initiated. Status: ${result.status}. Check dashboard.` 
-            });
-        }
-
-    } catch (error) {
-        console.error('Wallet Purchase Error:', error);
-        res.status(500).json({ message: 'Server error during wallet purchase.' });
-    }
-});
-
-app.post('/paystack/verify', isDbReady, isAuthenticated, async (req, res) => {
-    const { reference } = req.body;
-    if (!reference) return res.status(400).json({ status: 'error', message: 'Reference is required.' });
-
-    let orderDetails = null; 
-    
-    try {
-        // --- STEP 1: VERIFY PAYMENT WITH PAYSTACK ---
-        const paystackUrl = `https://api.paystack.co/transaction/verify/${reference}`;
-        const paystackResponse = await axios.get(paystackUrl, { 
-            headers: { Authorization: `Bearer ${process.env.PAYSTACK_SECRET_KEY}` } 
-        });
-        const { status, data } = paystackResponse.data;
-
-        if (!status || data.status !== 'success') {
-            return res.status(400).json({ status: 'error', message: 'Payment verification failed.' });
-        }
-
-        const { phone_number, network, data_plan } = data.metadata; 
-        const amountInGHS = data.amount / 100;
-        const userId = req.session.user.id;
-        
-        orderDetails = {
-            userId: userId,
-            reference: reference,
-            phoneNumber: phone_number,
-            network: network,
-            dataPlan: data_plan,
-            amount: amountInGHS,
-            status: 'payment_success'
-        };
-        
-        // Execute the data transfer and save order 
-        const result = await executeDataPurchase(userId, orderDetails, 'paystack');
-
-        if (result.status === 'data_sent') {
-            return res.json({ status: 'success', message: `Payment verified. Data transfer successful!` });
-        } else {
-            return res.status(202).json({ 
-                status: 'pending', 
-                message: `Payment successful! Data transfer is pending manual review. Contact support with reference: ${reference}.` 
-            });
-        }
-
-    } catch (error) {
-        let errorMessage = 'An internal server error occurred during verification.';
-        
-        if (error.response && error.response.data && error.response.data.error) {
-            errorMessage = `External API Error: ${error.response.data.error}`;
-        } else if (error.message) {
-            errorMessage = `Network Error: ${error.message}`;
-            
-            console.error('Fatal Verification Failure:', error); 
-        }
-        
-        return res.status(500).json({ status: 'error', message: errorMessage });
     }
 });
 
@@ -913,9 +716,7 @@ app.post('/api/checkout-orders', isDbReady, isAuthenticated, async (req, res) =>
             if (user.walletBalance < chargedAmountPesewas) {
                 return res.status(400).json({ status: 'error', message: 'Insufficient wallet balance for batch order.' });
             }
-            // Debit wallet atomically (deduct net cost of all items)
             await User.findByIdAndUpdate(userId, { $inc: { walletBalance: -chargedAmountPesewas } });
-
         } else if (paymentMethod === 'paystack' && paymentRef) {
             chargedAmountPesewas = calculateBatchPaystackCharge(totalAmountPesewas);
 
@@ -944,8 +745,8 @@ app.post('/api/checkout-orders', isDbReady, isAuthenticated, async (req, res) =>
         const updatedUser = await User.findById(userId).select('walletBalance');
         req.session.user.walletBalance = updatedUser.walletBalance;
 
-        // --- PHASE 2: EXECUTE BATCH ORDERS AND CALCULATE PROFIT (AGENT CHECK) ---
-        
+        const agentShop = await AgentShop.findOne({ shopId: user.shopId });
+
         let profitToCredit = 0; 
         
         for (const item of orders) {
@@ -953,23 +754,32 @@ app.post('/api/checkout-orders', isDbReady, isAuthenticated, async (req, res) =>
                 const baseWholesaleCost = findBaseCost(item.network, item.dataPlanId);
                 const retailPricePaid = item.amountPesewas;
                 
-                let itemProfit = Math.max(0, retailPricePaid - baseWholesaleCost);
+                let itemProfit = 0;
+                if (agentShop) {
+                    // Use the specific AgentShop markup stored in the nested map
+                    const networkMarkups = agentShop.customMarkups.get(item.network) || {};
+                    const markup = networkMarkups[item.dataPlanId] || 0;
+                    itemProfit = markup; // Profit is simply the explicit markup set by the agent
+                } else {
+                    // Safety net if shop doesn't exist
+                    itemProfit = Math.max(0, retailPricePaid - baseWholesaleCost); 
+                }
                 
-                // 🛑 Profit is credited unconditionally to the payout wallet (as requested)
+                // 🛑 Profit is credited unconditionally 🛑
                 profitToCredit += itemProfit;
                 
                 const itemDetails = {
                     network: item.network,
                     dataPlan: item.dataPlanId,
                     phoneNumber: item.phoneNumber,
-                    // Store the WHOLESALE COST in the order record (true cost of transaction)
+                    // Use WHOLESALE COST for API execution amount
                     amount: baseWholesaleCost / 100, 
                     reference: paymentMethod === 'paystack' ? `${paymentRef}-ITEM-${item.id}` : undefined 
                 };
                 
-                // Execute purchase for single item
+                // Execute purchase for single item (using WHOLESALE COST)
                 const result = await executeDataPurchase(userId, itemDetails, paymentMethod);
-                if (result.status === 'data_sent' || result.status === 'pending_review') {
+                if (result.status !== 'data_failed') {
                     fulfilledCount++;
                 }
 
@@ -978,31 +788,44 @@ app.post('/api/checkout-orders', isDbReady, isAuthenticated, async (req, res) =>
             }
         }
         
-        // --- PHASE 3: CREDIT PROFIT ---
+        // 3. CREDIT PROFIT (If applicable)
         if (profitToCredit > 0) {
             const finalUser = await User.findByIdAndUpdate(userId, { $inc: { payoutWalletBalance: profitToCredit } }, { new: true });
             req.session.user.payoutWalletBalance = finalUser.payoutWalletBalance;
         }
 
-
         if (fulfilledCount > 0) {
-            return res.json({ 
-                status: 'success', 
-                message: `${fulfilledCount} out of ${orders.length} orders successfully placed. Check dashboard for status.`,
-                fulfilledCount: fulfilledCount
-            });
+            return res.json({ status: 'success', message: `${fulfilledCount} orders placed. Check dashboard.`, fulfilledCount });
         } else {
-             return res.status(500).json({ 
-                status: 'error', 
-                message: 'Payment verified, but zero orders could be fulfilled. Contact support.',
-                fulfilledCount: 0
-            });
+             return res.status(500).json({ status: 'error', message: 'Zero orders could be fulfilled. Contact support.', fulfilledCount: 0 });
         }
-
 
     } catch (error) {
         console.error('Batch Checkout Error:', error);
         res.status(500).json({ status: 'error', message: 'Server error during batch checkout.' });
+    }
+});
+
+
+// --- DATA & PROTECTED PAGES ---
+
+app.get('/api/data-plans', isDbReady, async (req, res) => { 
+    const sellingPlans = allPlans[req.query.network] || [];
+    // Standard app usage defaults to wholesale price
+    res.json(sellingPlans.map(p => ({
+        id: p.id,
+        name: p.name,
+        price: p.price
+    })));
+});
+
+app.get('/api/my-orders', isDbReady, isAuthenticated, async (req, res) => {
+    try {
+        const orders = await Order.find({ userId: req.session.user.id })
+                                 .sort({ createdAt: -1 }); 
+        res.json({ orders });
+    } catch (error) {
+        res.status(500).json({ error: "Failed to fetch orders" });
     }
 });
 
@@ -1027,29 +850,22 @@ app.get('/api/admin/all-users-status', async (req, res) => {
                     let sessionId = sessionData.user.id.toString().replace(/['"]+/g, '');
                     activeUserIds.add(sessionId);
                 }
-            } catch (e) { 
-                console.warn("Failed to parse session data:", e.message);
-            }
+            } catch (e) { console.warn("Failed to parse session data:", e.message); }
         });
 
         const userListWithStatus = registeredUsers.map(user => ({
-            username: user.username,
-            email: user.email,
-            signedUp: user.createdAt,
-            isOnline: activeUserIds.has(user._id.toString()),
-            role: user.role
+            username: user.username, email: user.email, signedUp: user.createdAt,
+            isOnline: activeUserIds.has(user._id.toString()), role: user.role
         }));
 
         res.json({ users: userListWithStatus });
     } catch (error) {
-        console.error('All users status error:', error);
         res.status(500).json({ error: 'Failed to fetch user list and status' });
     }
 });
 
 app.get('/api/get-all-orders', async (req, res) => {
     if (req.query.secret !== process.env.ADMIN_SECRET) {
-        console.error(`ADMIN ERROR: Failed attempt to fetch orders. Client secret (last 4 chars): [${req.query.secret.slice(-4)}]`);
         return res.status(403).json({ error: "Unauthorized: Invalid Admin Secret" });
     }
     try {
@@ -1062,16 +878,11 @@ app.get('/api/get-all-orders', async (req, res) => {
                                  .populate('userId', 'username'); 
         
         const formattedOrders = orders.map(order => ({
-            id: order._id,
-            username: order.userId ? order.userId.username : 'Deleted User',
-            phoneNumber: order.phoneNumber, 
-            network: order.network || 'N/A', 
-            dataPlan: order.dataPlan,
-            amount: order.amount,
-            status: order.status,
+            id: order._id, username: order.userId ? order.userId.username : 'Deleted User',
+            phoneNumber: order.phoneNumber, network: order.network || 'N/A', 
+            dataPlan: order.dataPlan, amount: order.amount, status: order.status,
             created_at: order.createdAt,
         }));
-
         res.json({ orders: formattedOrders });
     } catch (error) {
         res.status(500).json({ error: "Failed to fetch orders" });
