@@ -616,19 +616,22 @@ app.post('/api/agent/update-markup', isDbReady, isAuthenticated, async (req, res
         const agentShop = await AgentShop.findOne({ userId });
         if (!agentShop) return res.status(404).json({ message: 'Shop not found. Please create one first.' });
 
-        // 1. Get current markups object for the network
-        const networkMarkupsMap = agentShop.customMarkups.get(network) || {}; 
-        let updatedNetworkMarkups = { ...networkMarkupsMap };
-        
-        // 2. Update ONLY the specific capacity ID's markup in the object
-        updatedNetworkMarkups[capacityId] = parseInt(markupValue, 10);
-        
-        // 3. CRITICAL FIX: Set the entire updated object back onto the Mongoose Map field
-        // This is necessary for Mongoose to correctly save the nested Map structure
-        agentShop.customMarkups.set(network, updatedNetworkMarkups);
+        // 1. Get the Mongoose Map instance for the customMarkups field
+        let customMarkups = agentShop.customMarkups;
 
-        // 4. Force Mongoose to acknowledge the change in the sub-document path
-        agentShop.markModified(`customMarkups.${network}`); 
+        // 2. Get the specific nested Map/Object for the current network
+        let networkMarkups = customMarkups.get(network) || {}; 
+        
+        // 3. Update ONLY the specific capacity ID's markup
+        networkMarkups[capacityId] = parseInt(markupValue, 10);
+        
+        // 4. Set the updated network markup object back onto the parent Map field.
+        // This is a necessary step to alert Mongoose that the contents of the Map item changed.
+        customMarkups.set(network, networkMarkups);
+
+        // 5. CRITICAL FIX: Explicitly mark the modified path. 
+        // This forces Mongoose to recognize the change in the nested field, preventing data loss.
+        agentShop.markModified(`customMarkups`); // Mark the top-level map field as changed
 
         await agentShop.save();
 
