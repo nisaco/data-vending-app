@@ -181,7 +181,7 @@
                     <td class="py-3 px-4">${formatPesewasToGHS(p.wholesalePrice)}</td>
                     <td class="py-3 px-4">
                         <input type="number" min="0" value="${Math.max(0, markup)}" data-id="${p.id}"
-                               class="markup-input markup-input-${p.id} w-20 p-2 text-center border border-gray-600 rounded-lg text-sm"
+                               id="markup-input-${p.id}" class="markup-input-${p.id} w-20 p-2 text-center border border-gray-600 rounded-lg text-sm"
                                placeholder="Pesewas">
                     </td>
                     <td class="py-3 px-4 text-primary font-bold selling-price-${p.id}">
@@ -196,8 +196,8 @@
                 `;
             });
             
-            // 🛑 FIX 1: Attach input change listener using the unique ID selector 🛑
-            document.querySelectorAll('.markup-input').forEach(input => {
+            // 🛑 Attach input change listener using the unique ID 🛑
+            document.querySelectorAll('input[type="number"][data-id]').forEach(input => {
                 const id = input.dataset.id;
                 const sellingPriceDisplay = document.querySelector(`.selling-price-${id}`);
                 
@@ -224,8 +224,8 @@
         const button = e.target;
         const capacityId = button.dataset.id;
         
-        // 🛑 FIX 2: Correctly retrieve the value from the specific input using its unique class 🛑
-        const input = document.querySelector(`.markup-input-${capacityId}`);
+        // 🛑 FIX: Use getElementById to target ONLY the specific input using its unique ID 🛑
+        const input = document.getElementById(`markup-input-${capacityId}`);
         const markupValue = parseInt(input.value) || 0;
 
         if (isNaN(markupValue) || markupValue < 0) {
