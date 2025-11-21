@@ -36,7 +36,7 @@
         .status-data_failed, .status-payment_failed { background-color: #ef4444; } /* Red */
         .status-payment_success { background-color: #3b82f6; } /* Blue */
         
-        /* 🛑 NEW WITHDRAWAL STATUS COLORS 🛑 */
+        /* 🛑 WITHDRAWAL STATUS COLORS 🛑 */
         .status-withdrawal_pending { background-color: #f59e0b; } /* Orange for pending action */
         .status-withdrawal_sent { background-color: #3b82f6; } /* Blue/Completed */
 
@@ -65,7 +65,14 @@
         .dark .text-gray-500 { color: #9ca3af; }
         .dark .bg-gray-100 { background-color: #374151; }
         .dark input, .dark select { background-color: #374151; border-color: #4b5563; color: #e0e0e0; }
+        .dark .bg-gray-200 { background-color: #374151; }
 
+        /* Modal Backdrop */
+        #modal-backdrop, #delete-confirm-modal-backdrop {
+            background-color: rgba(0, 0, 0, 0.75);
+            transition: opacity 0.3s ease;
+            z-index: 50;
+        }
         /* Toast Container for Notifications */
         #toast-container {
             position: fixed;
@@ -80,6 +87,7 @@
 
     <div id="toast-container"></div>
     
+    <!-- Status Update Modal -->
     <div id="modal-backdrop" class="fixed inset-0 hidden items-center justify-center bg-black bg-opacity-75 z-50 opacity-0 transition-opacity duration-300">
         <div id="status-modal" class="bg-white p-6 rounded-xl shadow-2xl w-full max-w-md transform scale-95 transition-all duration-300 dark:bg-gray-800">
             <h3 class="text-xl font-bold text-gray-800 dark:text-white mb-4">Update Order Status</h3>
@@ -106,6 +114,23 @@
             <div class="mt-6 flex justify-end space-x-3">
                 <button id="modal-cancel" type="button" class="py-2 px-4 bg-gray-200 text-gray-800 rounded-lg hover:bg-gray-300 transition dark:bg-gray-700 dark:text-white dark:hover:bg-gray-600">Cancel</button>
                 <button id="modal-update" type="button" class="py-2 px-4 bg-primary text-white rounded-lg hover:bg-secondary transition">Update</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 🛑 NEW: Custom Delete Confirmation Modal 🛑 -->
+    <div id="delete-confirm-modal-backdrop" class="fixed inset-0 hidden items-center justify-center bg-black bg-opacity-75 z-50 opacity-0 transition-opacity duration-300">
+        <div id="delete-confirm-modal" class="bg-white p-6 rounded-xl shadow-2xl w-full max-w-sm transform scale-95 transition-all duration-300 dark:bg-gray-800">
+            <h3 class="text-xl font-bold text-red-500 mb-4">Confirm Deletion</h3>
+            <p class="text-gray-700 dark:text-gray-300 mb-6">
+                Are you sure you want to permanently delete user 
+                <span id="delete-username-display" class="font-bold text-red-500"></span>? 
+                This action is irreversible and will delete ALL associated orders.
+            </p>
+
+            <div class="mt-4 flex justify-end space-x-3">
+                <button id="delete-modal-cancel" type="button" class="py-2 px-4 bg-gray-200 text-gray-800 rounded-lg hover:bg-gray-300 transition dark:bg-gray-700 dark:text-white dark:hover:bg-gray-600">Cancel</button>
+                <button id="delete-modal-confirm" type="button" class="py-2 px-4 bg-red-600 text-white rounded-lg hover:bg-red-700 transition">Delete Permanently</button>
             </div>
         </div>
     </div>
@@ -288,7 +313,7 @@
         // --- THEME LOGIC END ---
 
         // --- GLOBAL STATE & CONSTANTS ---
-        let adminSecret = 'n11kpakpo';
+        let adminSecret = ''; // This will be set from the input field
         let allOrders = [];
         let allUsers = [];
         const statusMap = {
@@ -298,7 +323,6 @@
             'topup_successful': 'Top Up Success', 
             'payment_success': 'Payment Success', 
             'payment_failed': 'Payment Failed',
-            // 🛑 NEW STATUSES 🛑
             'withdrawal_pending': 'Payout Pending',
             'withdrawal_sent': 'Payout Sent'
         };
@@ -315,7 +339,6 @@
         const tabContentClients = document.getElementById('tab-content-clients');
         const statusFilter = document.getElementById('status-filter');
 
-
         const metrics = {
             revenue: document.getElementById('metric-revenue'), profit: document.getElementById('metric-profit'),
             orders: document.getElementById('metric-orders'), users: document.getElementById('metric-users'),
@@ -329,9 +352,13 @@
         const modalUpdateBtn = document.getElementById('modal-update');
         const modalCancelBtn = document.getElementById('modal-cancel');
         const modalNewStatus = document.getElementById('new-status');
-        // 🛑 NEW PAYOUT MODAL ELEMENTS 🛑
         const modalPayoutDetails = document.getElementById('modal-payout-details');
         const modalPayoutAccount = document.getElementById('modal-payout-account');
+
+        // Delete Modal Elements
+        const deleteBackdrop = document.getElementById('delete-confirm-modal-backdrop');
+        const deleteUsernameDisplay = document.getElementById('delete-username-display');
+        let currentDeleteUserId = null;
 
 
         // --- UTILITY FUNCTIONS ---
@@ -340,10 +367,7 @@
             try {
                 const date = new Date(isoString); 
                 if (isNaN(date.getTime())) return 'Invalid Date';
-                return date.toLocaleString('en-GB', { 
-                    year: 'numeric', month: 'short', day: 'numeric', 
-                    hour: '2-digit', minute: '2-digit' 
-                });
+                return date.toLocaleString('en-GB', { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
             } catch (e) {
                 return 'Invalid Date';
             }
@@ -448,7 +472,7 @@
                     </td>
                     <td class="py-4 px-6 text-xs dark:text-gray-400">${safeDateFormatter(user.signedUp)}</td>
                     <td class="py-4 px-6">
-                        <button data-id="${user._id}" 
+                        <button data-id="${user._id}" data-username="${user.username}"
                            class="delete-user-btn bg-red-600 hover:bg-red-700 text-white text-xs font-medium py-1 px-3 rounded transition">
                            Delete
                            </button>
@@ -482,7 +506,7 @@
                 const statusClass = `status-${order.status}`;
                 const amountSign = (order.dataPlan === 'WALLET TOP-UP') ? '+' : (order.dataPlan === 'WITHDRAWAL REQUEST' ? 'PAYOUT: ' : 'COST: ');
                 const amountColor = (order.dataPlan === 'WALLET TOP-UP') ? 'text-green-600 dark:text-green-400' : 
-                                    (order.dataPlan === 'WITHDRAWAL REQUEST' ? 'text-blue-600 dark:text-blue-400' : 'text-red-600 dark:text-red-400');
+                                     (order.dataPlan === 'WITHDRAWAL REQUEST' ? 'text-blue-600 dark:text-blue-400' : 'text-red-600 dark:text-red-400');
                 
                 // Determine what to display in the Phone column
                 let displayPhone;
@@ -534,12 +558,12 @@
             
             // Find the order data to populate the modal fields
             const order = allOrders.find(o => o.id === currentOrderId);
-            modalPayoutDetails.classList.add('hidden'); // Hide payout details by default
+            modalPayoutDetails.classList.add('hidden'); 
 
             if (order) {
                 modalOrderRef.textContent = order.reference ? order.reference.substring(0, 16) + '...' : currentOrderId.substring(0, 8) + '...';
                 modalCurrentStatus.textContent = statusMap[order.status] || order.status.replace(/_/g, ' ');
-                modalStatusMessage.textContent = ''; // Clear previous message
+                modalStatusMessage.textContent = ''; 
                 
                 // 1. Check if it's a Payout Request
                 if (order.status === 'withdrawal_pending') {
@@ -593,15 +617,11 @@
                 if (response.ok) {
                     showToast(data.message, 'success');
                     
-                    // Update local data for immediate display
                     const index = allOrders.findIndex(o => o.id === currentOrderId);
-                    if (index !== -1) {
-                        allOrders[index].status = newStatus;
-                    }
+                    if (index !== -1) { allOrders[index].status = newStatus; }
                     
                     setTimeout(() => {
                         closeModal();
-                        // Re-render based on the current filter applied
                         renderOrders(allOrders); 
                     }, 1000);
                 } else {
@@ -623,12 +643,36 @@
         }
 
         // --- DELETE CLIENT LOGIC ---
-        async function deleteClient(userId) {
+        
+        // Function to open the delete modal
+        function openDeleteModal(userId, username) {
+            currentDeleteUserId = userId;
+            deleteUsernameDisplay.textContent = username;
+            
+            deleteBackdrop.style.opacity = 1;
+            deleteBackdrop.style.display = 'flex';
+        }
+
+        // Function to close the delete modal
+        function closeDeleteModal() {
+            deleteBackdrop.style.opacity = 0;
+            currentDeleteUserId = null;
+            setTimeout(() => { deleteBackdrop.style.display = 'none'; }, 300);
+        }
+
+        // Executes the API call to delete the user
+        async function deleteClient() {
+            const userId = currentDeleteUserId;
             const secret = adminSecretInput.value.trim();
+            
             if (!secret) {
+                closeDeleteModal();
                 showToast('Admin secret required to delete user.', 'error');
                 return;
             }
+
+            document.getElementById('delete-modal-confirm').disabled = true;
+            document.getElementById('delete-modal-confirm').textContent = 'Deleting...';
 
             try {
                 const response = await fetch('/api/admin/delete-user', {
@@ -641,31 +685,30 @@
                 
                 if (response.ok) {
                     showToast(data.message, 'success');
-                    // Refresh both client list and order list immediately
-                    await Promise.all([fetchAllUsers(), fetchAllOrders()]);
-                    
-                    // Update global metrics after deletion
-                    fetchMetrics(); 
-
+                    await Promise.all([fetchAllUsers(), fetchAllOrders(), fetchMetrics()]);
                 } else {
                     showToast(data.error || data.message || 'Deletion failed.', 'error');
                 }
             } catch (error) {
                 showToast('Network error during client deletion.', 'error');
-            }
-        }
-
-        function confirmDeleteUser(e) {
-            const button = e.target.closest('.delete-user-btn');
-            if (button) {
-                const userId = button.dataset.id;
-                if (confirm(`WARNING: Are you sure you want to permanently delete user ${userId.substring(0, 8)}...? This cannot be undone and will delete ALL their orders.`)) {
-                    deleteClient(userId);
-                }
+            } finally {
+                closeDeleteModal();
+                document.getElementById('delete-modal-confirm').disabled = false;
+                document.getElementById('delete-modal-confirm').textContent = 'Delete Permanently';
             }
         }
         
-        // --- MAIN FETCH TRIGGER (UNCHANGED) ---
+        // Listener for the Delete Button on the table row (Delegation)
+        function handleUserDeleteClick(e) {
+            const button = e.target.closest('.delete-user-btn');
+            if (button) {
+                const userId = button.dataset.id;
+                const username = button.dataset.username;
+                openDeleteModal(userId, username);
+            }
+        }
+        
+        // --- MAIN FETCH TRIGGER ---
         
         async function fetchAllData() {
             const secret = adminSecretInput.value.trim();
@@ -674,7 +717,6 @@
                 return; 
             }
             
-            // Store secret globally for use in action buttons
             adminSecret = secret;
 
             fetchDataBtn.disabled = true;
@@ -682,13 +724,12 @@
             
             try {
                 const metricsReady = await fetchMetrics();
-                if (!metricsReady) {
-                    throw new Error("Failed to load core metrics. Check secret.");
+                if (!metricsReady) { 
+                    throw new Error("Failed to load core metrics. Check secret."); 
                 }
 
                 showToast("Metrics and User count loaded successfully.", 'success');
                 
-                // Fetch transactions and users concurrently
                 await Promise.all([fetchAllOrders(), fetchAllUsers()]);
 
             } catch (error) {
@@ -703,15 +744,12 @@
         // --- INITIALIZATION ---
         document.addEventListener('DOMContentLoaded', async () => {
             
-            // 1. Theme Toggle: Handled by event listener logic above.
-
             // 2. Get Admin Secret from URL 
             const urlParams = new URLSearchParams(window.location.search);
             const initialSecret = urlParams.get('secret');
             if (initialSecret) {
                 adminSecretInput.value = initialSecret;
                 adminSecret = initialSecret;
-                // Auto-fetch data if secret is in URL
                 fetchAllData();
             }
 
@@ -719,6 +757,10 @@
             fetchDataBtn.addEventListener('click', fetchAllData);
             modalUpdateBtn.addEventListener('click', updateOrderStatus);
             modalCancelBtn.addEventListener('click', closeModal);
+            
+            // Delete Modal Listeners
+            document.getElementById('delete-modal-cancel').addEventListener('click', closeDeleteModal);
+            document.getElementById('delete-modal-confirm').addEventListener('click', deleteClient);
             
             // 🛑 CRITICAL FIX: EVENT DELEGATION FOR ORDER ACTION BUTTONS 🛑
             ordersTableBody.addEventListener('click', (e) => {
@@ -730,7 +772,7 @@
             });
             
             // 🛑 CRITICAL FIX: EVENT DELEGATION FOR CLIENT DELETE BUTTONS 🛑
-            clientsTableBody.addEventListener('click', confirmDeleteUser);
+            clientsTableBody.addEventListener('click', handleUserDeleteClick);
 
 
             // 4. Status Filter Listener (Applies filter immediately when value changes)
