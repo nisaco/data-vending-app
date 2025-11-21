@@ -11,41 +11,34 @@
         .text-primary { color: var(--primary); }
         .bg-primary { background-color: var(--primary); }
         .hover\:bg-secondary:hover { background-color: var(--secondary); }
-        .dark { background-color: #121212; color: #e0e0e0; }
-        .dark .bg-white { background-color: #1f1f1f; color: #e0e0e0; }
-        .dark input, .dark select { background-color: #374151; border-color: #4b5563; color: #f3f4f6; }
-        .dark .border-gray-100 { border-color: #374151; }
-        .dark .bg-gray-100 { background-color: #1f1f1f; }
-        .dark .text-gray-600 { color: #b0b0b0; }
+        
+        body { background-color: #121212; color: #e0e0e0; }
+        .card { background-color: #1f1f1f; box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.4); }
+        input, select { background-color: #374151; border-color: #4b5563; color: #e0e0e0; }
+        input:focus, select:focus { border-color: var(--primary); box-shadow: 0 0 0 2px rgba(0, 152, 121, 0.5); }
 
         #toast-container {
-            position: fixed;
-            top: 1rem;
-            right: 1rem;
-            z-index: 1000;
-            max-width: 300px;
+            position: fixed; top: 1rem; right: 1rem; z-index: 1000; max-width: 300px;
         }
-        .text-blue-600 { color: #2563eb; }
-        .bg-blue-100 { background-color: #eff6ff; }
     </style>
 </head>
-<body class="bg-gray-50 min-h-screen font-sans dark:bg-[#121212] dark:text-gray-200">
+<body class="min-h-screen font-sans">
 
     <div id="toast-container"></div>
     
-    <nav class="bg-white shadow-lg dark:bg-[#1f1f1f]">
+    <nav class="bg-[#1f1f1f] shadow-lg border-b border-gray-700">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex justify-between items-center h-16">
             <a href="/dashboard.html" class="text-xl font-bold text-primary">DataLink Agent</a>
-            <a href="/dashboard.html" class="text-gray-600 dark:text-gray-400 hover:text-primary transition font-medium">Dashboard</a>
+            <a href="/dashboard.html" class="text-gray-400 hover:text-primary transition font-medium">Dashboard</a>
         </div>
     </nav>
 
-    <div class="container mx-auto p-4 max-w-2xl">
-        <div class="bg-white p-6 md:p-8 rounded-2xl shadow-xl mt-8 border border-gray-100 dark:bg-[#1f1f1f] dark:border-gray-700">
+    <div class="container mx-auto p-4 max-w-4xl">
+        <div class="card p-6 md:p-8 rounded-2xl mt-8 border border-gray-700">
             
-            <h1 class="text-3xl font-extrabold text-gray-800 dark:text-white mb-2" id="header-text">Agent Shop Setup</h1>
-            <p class="text-gray-600 mb-6 dark:text-gray-400" id="sub-header-text">
-                Create your personalized shop link and set your data plan markups   (in **Pesewas**).
+            <h1 class="text-3xl font-extrabold text-white mb-2" id="header-text">Agent Shop Setup</h1>
+            <p class="text-gray-400 mb-6" id="sub-header-text">
+                Set individual markups (in **Pesewas**) for each data package.
             </p>
             
             <div id="shop-management-area">
@@ -56,111 +49,220 @@
     </div>
     
 <script>
-    // --- TOAST NOTIFICATION SYSTEM ---
     function showToast(message, type = 'success') {
         const container = document.getElementById('toast-container');
-        const colors = {
-            success: 'bg-green-500 border-green-700',
-            error: 'bg-red-500 border-red-700',
-            warning: 'bg-yellow-500 border-yellow-700',
-        };
+        const colors = { success: 'bg-green-600 border-green-800', error: 'bg-red-600 border-red-800', warning: 'bg-yellow-600 border-yellow-800' };
         const toast = document.createElement('div');
         toast.className = `p-4 mb-2 text-white text-sm font-semibold rounded-lg shadow-lg border-b-4 ${colors[type]} transform translate-x-full transition-all duration-300 ease-out`;
         toast.textContent = message;
 
         container.prepend(toast);
-
-        setTimeout(() => {
-            toast.style.transform = 'translateX(0)';
-        }, 10);
-
-        setTimeout(() => {
+        setTimeout(() => { toast.style.transform = 'translateX(0)'; }, 10);
+        setTimeout(() => { 
             toast.style.transform = 'translateX(120%)';
-            setTimeout(() => {
-                container.removeChild(toast);
-            }, 400);
+            setTimeout(() => { container.removeChild(toast); }, 400);
         }, 6000);
     }
-    // --- END TOAST SYSTEM ---
 
     const managementArea = document.getElementById('shop-management-area');
     const headerText = document.getElementById('header-text');
     const subHeaderText = document.getElementById('sub-header-text');
     let userShopId = null;
-    let userRole = null;
-    let currentMarkups = {};
+    let currentPlans = {}; // Stores { id: { wholesalePrice, markup, name } }
+    let currentNetwork = 'MTN';
 
-    // --- TEMPLATES ---
     const createShopFormHTML = `
-        <h2 class="text-xl font-bold mb-4">Create Your Shop</h2>
+        <h2 class="text-xl font-bold mb-4 text-white">Create Your Public Shop</h2>
         <form id="create-shop-form" class="space-y-4">
             <div>
-                <label for="shop-name" class="block text-gray-700 dark:text-gray-300">Shop Name</label>
-                <input type="text" id="shop-name" required placeholder="e.g., 'Data King Store'"
-                       class="w-full p-2 border border-gray-300 rounded-lg dark:bg-gray-700 dark:border-gray-600">
+                <label for="shop-name" class="block text-gray-400">Shop Name</label>
+                <input type="text" id="shop-name" required placeholder="e.g., 'Fast Data Outlet'"
+                       class="w-full p-3 border border-gray-600 rounded-xl">
             </div>
-            <button type="submit" class="w-full py-2 px-4 bg-primary text-white font-bold rounded-lg hover:bg-secondary transition">
+            <button type="submit" class="w-full py-3 px-4 bg-primary text-white font-bold rounded-xl hover:bg-secondary transition">
                 Create Shop Now
             </button>
         </form>
     `;
 
+    function formatPesewasToGHS(pesewas) {
+        return `GHS ${(pesewas / 100).toFixed(2)}`;
+    }
+
+    function calculateSellingPrice(wholesale, markup) {
+        const raw = wholesale + markup;
+        // Ensure price is rounded to nearest 5 pesewas and never below wholesale
+        return Math.ceil(Math.max(raw, wholesale) / 5) * 5; 
+    }
+
     function renderMarkupManager(shopId, shopName) {
         headerText.textContent = `Manage ${shopName}`;
-        subHeaderText.textContent = `Shop ID: ${shopId}. Set your custom markup in Pesewas (100 Pesewas = 1 GHS).`;
+        subHeaderText.textContent = `Shop ID: ${shopId}. Set individual markups (in Pesewas) to calculate your selling prices.`;
 
         managementArea.innerHTML = `
-            <div id="shop-link-card" class="bg-blue-100 border border-blue-300 p-4 rounded-xl mb-6 text-blue-800 dark:bg-blue-900 dark:border-blue-700 dark:text-blue-200">
-                <p class="font-medium">Your Public Shop Link:</p>
-                <a id="public-shop-link" href="/agent_shop.html?shopId=${shopId}" target="_blank" class="text-blue-600 hover:text-blue-900 font-bold break-all underline dark:text-blue-400">
+            <div id="shop-link-card" class="bg-[#1e3a8a] border border-blue-700 p-4 rounded-xl mb-6 text-blue-200">
+                <p class="font-medium text-white">Your Public Shop Link:</p>
+                <a id="public-shop-link" href="${window.location.origin}/agent_shop.html?shopId=${shopId}" target="_blank" class="text-cyan-400 hover:text-cyan-200 font-bold break-all underline text-sm">
                     ${window.location.origin}/agent_shop.html?shopId=${shopId}
                 </a>
-                <button id="copy-shop-link" class="mt-2 text-xs py-1 px-3 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition">Copy Link</button>
+                <button id="copy-shop-link" class="mt-3 text-xs py-1 px-3 bg-primary text-white rounded-xl hover:bg-secondary transition">Copy Link</button>
             </div>
-
-            <h2 class="text-xl font-bold mb-4 mt-6">Set Network Markups (Pesewas)</h2>
-            <div id="markup-forms-container" class="space-y-6">
-                </div>
+            
+            <div class="flex space-x-3 mb-6">
+                <select id="network-selector" class="p-3 border border-gray-600 rounded-xl flex-grow">
+                    <option value="MTN">MTN</option>
+                    <option value="AirtelTigo">AirtelTigo</option>
+                    <option value="Telecel">Telecel</option>
+                </select>
+            </div>
+            
+            <h2 class="text-xl font-bold text-white mb-4">Pricing for <span id="current-network-name">MTN</span></h2>
+            
+            <div class="overflow-x-auto">
+                <table class="w-full text-sm text-left text-gray-400">
+                    <thead class="text-xs text-white uppercase bg-gray-700 rounded-t-xl">
+                        <tr>
+                            <th class="py-3 px-4">Package</th>
+                            <th class="py-3 px-4">Wholesale Cost (GHS)</th>
+                            <th class="py-3 px-4">Markup (Pesewas)</th>
+                            <th class="py-3 px-4">Selling Price (GHS)</th>
+                            <th class="py-3 px-4 text-center">Action</th>
+                        </tr>
+                    </thead>
+                    <tbody id="plans-table-body" class="divide-y divide-gray-700">
+                        <!-- Plans loaded here -->
+                    </tbody>
+                </table>
+            </div>
         `;
 
         document.getElementById('copy-shop-link').addEventListener('click', () => {
             const link = document.getElementById('public-shop-link').href;
             navigator.clipboard.writeText(link).then(() => {
                 showToast("Shop link copied!", 'success');
-            }).catch(() => {
-                showToast("Failed to copy link.", 'error');
             });
         });
 
-        const networks = ["MTN", "AirtelTigo", "Telecel"];
-        const formsContainer = document.getElementById('markup-forms-container');
-        
-        networks.forEach(network => {
-            const formDiv = document.createElement('div');
-            formDiv.className = 'p-4 border rounded-lg dark:border-gray-700';
-            formDiv.innerHTML = `
-                <h3 class="text-lg font-semibold mb-2">${network} Markup</h3>
-                <form class="update-markup-form flex space-x-3" data-network="${network}">
-                    <input type="number" name="markup" min="0" value="${currentMarkups[network] || 0}" required
-                           class="flex-grow p-2 border border-gray-300 rounded-lg dark:bg-gray-700 dark:border-gray-600"
-                           placeholder="Markup in Pesewas">
-                    <button type="submit" class="py-2 px-4 bg-primary text-white font-bold rounded-lg hover:bg-secondary transition">
-                        Update
-                    </button>
-                </form>
-                <div id="plans-for-${network}" class="mt-4 text-sm dark:text-gray-400">Loading plans...</div>
-            `;
-            formsContainer.appendChild(formDiv);
-            fetchPlans(shopId, network);
+        const selector = document.getElementById('network-selector');
+        selector.addEventListener('change', (e) => {
+            currentNetwork = e.target.value;
+            document.getElementById('current-network-name').textContent = currentNetwork;
+            fetchPlans(userShopId, currentNetwork);
         });
 
-        // Attach listeners to new forms
-        document.querySelectorAll('.update-markup-form').forEach(form => {
-            form.addEventListener('submit', handleMarkupUpdate);
-        });
+        // Initial load
+        fetchPlans(shopId, currentNetwork);
     }
 
-    // --- HANDLERS ---
+    async function fetchPlans(shopId, network) {
+        const tableBody = document.getElementById('plans-table-body');
+        tableBody.innerHTML = `<tr><td colspan="5" class="py-4 text-center text-gray-500">Loading plans for ${network}...</td></tr>`;
+        
+        try {
+            const response = await fetch(`/api/agent/plans?shopId=${shopId}&network=${network}`);
+            if (!response.ok) throw new Error('Failed to fetch plans');
+            const data = await response.json();
+            
+            currentPlans = {};
+            tableBody.innerHTML = '';
+
+            data.plans.forEach(p => {
+                // Store plan data including markup (markup is inferred/read from DB by server)
+                const markup = p.price - p.wholesalePrice;
+                currentPlans[p.id] = { ...p, markup: markup };
+                
+                const sellingPrice = calculateSellingPrice(p.wholesalePrice, markup);
+
+                const row = tableBody.insertRow();
+                row.className = 'hover:bg-gray-800 transition duration-150';
+                
+                row.innerHTML = `
+                    <td class="py-3 px-4 font-semibold text-white">${p.name} (${p.id}GB)</td>
+                    <td class="py-3 px-4">${formatPesewasToGHS(p.wholesalePrice)}</td>
+                    <td class="py-3 px-4">
+                        <input type="number" min="0" value="${Math.max(0, markup)}" data-id="${p.id}"
+                               class="markup-input w-20 p-2 text-center border border-gray-600 rounded-lg text-sm"
+                               placeholder="Pesewas">
+                    </td>
+                    <td class="py-3 px-4 text-primary font-bold selling-price-${p.id}">
+                        ${formatPesewasToGHS(sellingPrice)}
+                    </td>
+                    <td class="py-3 px-4 text-center">
+                        <button type="button" data-id="${p.id}"
+                               class="update-plan-btn py-1 px-3 bg-primary text-white text-xs font-medium rounded-xl hover:bg-secondary transition">
+                            Save
+                        </button>
+                    </td>
+                `;
+            });
+            
+            // Attach input change listener for dynamic price update preview
+            document.querySelectorAll('.markup-input').forEach(input => {
+                input.addEventListener('input', (e) => {
+                    const id = e.target.dataset.id;
+                    const markup = parseInt(e.target.value) || 0;
+                    const wholesale = currentPlans[id].wholesalePrice;
+                    const newSellingPrice = calculateSellingPrice(wholesale, markup);
+                    document.querySelector(`.selling-price-${id}`).textContent = formatPesewasToGHS(newSellingPrice);
+                });
+            });
+
+            // Attach save button listener
+            document.querySelectorAll('.update-plan-btn').forEach(button => {
+                button.addEventListener('click', handleIndividualMarkupUpdate);
+            });
+
+
+        } catch (error) {
+            tableBody.innerHTML = `<tr><td colspan="5" class="py-4 text-center text-red-500">Error loading prices: ${error.message}</td></tr>`;
+        }
+    }
+
+    async function handleIndividualMarkupUpdate(e) {
+        const button = e.target;
+        const capacityId = button.dataset.id;
+        const input = document.querySelector(`.markup-input[data-id="${capacityId}"]`);
+        const markupValue = parseInt(input.value) || 0;
+
+        if (isNaN(markupValue) || markupValue < 0) {
+            return showToast('Markup must be a non-negative number.', 'error');
+        }
+
+        button.disabled = true;
+        button.textContent = 'Saving...';
+        
+        const wholesale = currentPlans[capacityId].wholesalePrice;
+        if (wholesale + markupValue < wholesale) {
+             return showToast('Markup cannot result in a price below wholesale.', 'error');
+        }
+
+
+        try {
+            const response = await fetch('/api/agent/update-markup', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ 
+                    network: currentNetwork, 
+                    capacityId: capacityId, 
+                    markupValue: markupValue 
+                })
+            });
+            const data = await response.json();
+
+            if (response.ok) {
+                showToast(data.message, 'success');
+                fetchPlans(userShopId, currentNetwork); 
+            } else {
+                showToast(data.message || 'Failed to update markup.', 'error');
+            }
+        } catch (error) {
+            showToast('Server error during markup update.', 'error');
+        } finally {
+            button.disabled = false;
+            button.textContent = 'Save';
+        }
+    }
+
 
     async function handleCreateShop(e) {
         e.preventDefault();
@@ -184,7 +286,6 @@
             if (response.ok) {
                 showToast(data.message, 'success');
                 userShopId = data.shopId;
-                // Re-initialize to show the management view
                 await initialize();
             } else {
                 showToast(data.message || 'Failed to create shop.', 'error');
@@ -197,134 +298,58 @@
         }
     }
 
-    async function handleMarkupUpdate(e) {
-        e.preventDefault();
-        const form = e.target;
-        const network = form.dataset.network;
-        const markupValue = parseInt(form.querySelector('input[name="markup"]').value, 10);
-        const button = form.querySelector('button[type="submit"]');
-
-        if (isNaN(markupValue) || markupValue < 0) {
-            return showToast('Markup must be a non-negative number.', 'error');
-        }
-
-        button.disabled = true;
-        button.textContent = 'Saving...';
-
+    async function initialize() {
         try {
-            const response = await fetch('/api/agent/update-markup', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ network, markupValue })
-            });
-            const data = await response.json();
+            const userInfoResponse = await fetch('/api/user-info');
+            if (userInfoResponse.status === 401) {
+                showToast('Session expired. Redirecting...', 'error');
+                return setTimeout(() => window.location.href = '/login.html', 1000);
+            }
+            
+            const userInfo = await userInfoResponse.json();
+            
+            if (!userInfo || !userInfo.username) {
+                managementArea.innerHTML = `<p class="text-xl text-red-500 text-center py-10">Error: Could not retrieve user data.</p>`;
+                return;
+            }
 
-            if (response.ok) {
-                showToast(data.message, 'success');
-                currentMarkups[network] = markupValue;
-                fetchPlans(userShopId, network); // Refresh plans to show new prices
+            userShopId = userInfo.shopId;
+
+            if (userShopId) {
+                // Shop exists, render management
+                const agentShopResponse = await fetch(`/api/agent/plans?shopId=${userShopId}&network=MTN`);
+                
+                if (agentShopResponse.status === 404) {
+                    showToast('Agent shop data missing. Please proceed to create one.', 'warning');
+                    managementArea.innerHTML = createShopFormHTML;
+                    document.getElementById('create-shop-form').addEventListener('submit', handleCreateShop);
+                    return;
+                }
+                
+                const agentShopData = await agentShopResponse.json();
+                
+                if (!agentShopResponse.ok) {
+                    const errorData = agentShopData;
+                    showToast(errorData.message || 'Failed to load shop configurations.', 'error');
+                    managementArea.innerHTML = `<p class="text-xl text-red-500 text-center py-10">Error loading shop data: ${errorData.message}</p>`;
+                    return;
+                }
+                
+                const shopName = agentShopData.shopName || `${userInfo.username}'s Store`; 
+                renderMarkupManager(userShopId, shopName);
+
             } else {
-                showToast(data.message || 'Failed to update markup.', 'error');
-            }
-        } catch (error) {
-            showToast('Server error during markup update.', 'error');
-        } finally {
-            button.disabled = false;
-            button.textContent = 'Update';
-        }
-    }
-
-    async function fetchPlans(shopId, network) {
-        const plansDiv = document.getElementById(`plans-for-${network}`);
-        plansDiv.innerHTML = 'Fetching prices...';
-        try {
-            const response = await fetch(`/api/agent/plans?shopId=${shopId}&network=${network}`);
-            if (!response.ok) throw new Error('Failed to fetch plans');
-            const data = await response.json();
-            
-            if (!currentMarkups[network]) {
-                // Infer the currently saved markup from the first plan if not explicitly saved
-                const plan = data.plans[0];
-                const inferredMarkup = Math.max(0, plan.price - plan.wholesalePrice);
-                document.querySelector(`form[data-network="${network}"] input[name="markup"]`).value = inferredMarkup;
-                currentMarkups[network] = inferredMarkup;
-            }
-
-            const listItems = data.plans.map(p => `
-                <li class="flex justify-between">
-                    <span>${p.name} (Wholesale: GHS ${(p.wholesalePrice / 100).toFixed(2)})</span>
-                    <span class="font-bold text-primary">Selling: GHS ${(p.price / 100).toFixed(2)}</span>
-                </li>
-            `).join('');
-
-            plansDiv.innerHTML = `
-                <ul class="list-disc list-inside space-y-1">
-                    ${listItems}
-                </ul>
-            `;
-        } catch (error) {
-            plansDiv.innerHTML = 'Could not load plan prices.';
-        }
-    }
-
-
-    // --- INITIALIZATION ---
-    // --- Inside the <script> tags of agent_shop_setup.html ---
-// The async keyword is critical. The opening { must immediately follow the parentheses.
-async function initialize() { 
-    try {
-        const userInfoResponse = await fetch('/api/user-info');
-        if (userInfoResponse.status === 401) {
-            showToast('Session expired. Redirecting...', 'error');
-            return setTimeout(() => window.location.href = '/login.html', 1000);
-        }
-        
-        const userInfo = await userInfoResponse.json();
-        
-        if (!userInfo || !userInfo.username) {
-            managementArea.innerHTML = `<p class="text-xl text-red-500 text-center py-10">Error: Could not retrieve user data.</p>`;
-            return;
-        }
-
-        userRole = userInfo.role;
-        userShopId = userInfo.shopId;
-
-        if (userShopId) {
-            // ... Logic for rendering Markup Manager ...
-            const agentShopResponse = await fetch(`/api/agent/plans?shopId=${userShopId}&network=MTN`);
-            
-            if (agentShopResponse.status === 404) {
-                showToast('Agent shop data missing. Please proceed to create one.', 'warning');
+                // Shop does not exist, render creation form
                 managementArea.innerHTML = createShopFormHTML;
                 document.getElementById('create-shop-form').addEventListener('submit', handleCreateShop);
-                return;
             }
-            
-            const agentShopData = await agentShopResponse.json();
-            
-            if (!agentShopResponse.ok || !agentShopData.plans) {
-                showToast('Failed to load shop configurations. Check server logs.', 'error');
-                managementArea.innerHTML = `<p class="text-xl text-red-500 text-center py-10">Error loading shop data. Check console for details.</p>`;
-                console.error('API Response Data on Failure:', agentShopData);
-                return;
-            }
-            
-            const shopName = agentShopData.shopName || `${userInfo.username}'s Store`; 
-            
-            renderMarkupManager(userShopId, shopName);
 
-        } else {
-            // Shop does not exist, render creation form
-            managementArea.innerHTML = createShopFormHTML;
-            document.getElementById('create-shop-form').addEventListener('submit', handleCreateShop);
+        } catch (error) { 
+            console.error('Initialization Fatal Error:', error);
+            showToast('A critical error occurred during initialization.', 'error');
+            managementArea.innerHTML = `<p class="text-xl text-red-500 text-center py-10">A network or server error occurred during page load.</p>`;
         }
-
-    } catch (error) { // 🛑 CATCH keyword should be here
-        console.error('Initialization Fatal Error:', error);
-        showToast('A critical error occurred during initialization.', 'error');
-        managementArea.innerHTML = `<p class="text-xl text-red-500 text-center py-10">A network or server error occurred during page load.</p>`;
     }
-} // 🛑 Closing brace for async function initialize()
 
     document.addEventListener('DOMContentLoaded', initialize);
 </script>
