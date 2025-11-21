@@ -167,7 +167,7 @@
             tableBody.innerHTML = '';
 
             data.plans.forEach(p => {
-                // Store plan data including markup (markup is inferred/read from DB by server)
+                // Store plan data including markup (markup is read from DB by server)
                 const markup = p.price - p.wholesalePrice;
                 currentPlans[p.id] = { ...p, markup: markup };
                 
@@ -176,15 +176,12 @@
                 const row = tableBody.insertRow();
                 row.className = 'hover:bg-gray-800 transition duration-150';
                 
-                // Use data-plan-id attribute for row and input grouping
-                row.setAttribute('data-plan-id', p.id);
-                
                 row.innerHTML = `
                     <td class="py-3 px-4 font-semibold text-white">${p.name} (${p.id}GB)</td>
                     <td class="py-3 px-4">${formatPesewasToGHS(p.wholesalePrice)}</td>
                     <td class="py-3 px-4">
                         <input type="number" min="0" value="${Math.max(0, markup)}" data-id="${p.id}"
-                               class="markup-input-${p.id} w-20 p-2 text-center border border-gray-600 rounded-lg text-sm"
+                               class="markup-input markup-input-${p.id} w-20 p-2 text-center border border-gray-600 rounded-lg text-sm"
                                placeholder="Pesewas">
                     </td>
                     <td class="py-3 px-4 text-primary font-bold selling-price-${p.id}">
@@ -192,17 +189,16 @@
                     </td>
                     <td class="py-3 px-4 text-center">
                         <button type="button" data-id="${p.id}"
-                               class="update-plan-btn py-1 px-3 bg-primary text-white text-xs font-medium rounded-xl hover:bg-secondary transition">
+                               class="update-plan-btn update-plan-btn-${p.id} py-1 px-3 bg-primary text-white text-xs font-medium rounded-xl hover:bg-secondary transition">
                             Save
                         </button>
                     </td>
                 `;
             });
             
-            // Attach input change listener for dynamic price update preview
+            // 🛑 FIX 1: Attach input change listener using the unique ID selector 🛑
             document.querySelectorAll('.markup-input').forEach(input => {
                 const id = input.dataset.id;
-                // Use the unique class to target the corresponding selling price display
                 const sellingPriceDisplay = document.querySelector(`.selling-price-${id}`);
                 
                 input.addEventListener('input', (e) => {
@@ -228,7 +224,7 @@
         const button = e.target;
         const capacityId = button.dataset.id;
         
-        // 🛑 FIX: Use unique class selector based on data-id to get the specific input's value 🛑
+        // 🛑 FIX 2: Correctly retrieve the value from the specific input using its unique class 🛑
         const input = document.querySelector(`.markup-input-${capacityId}`);
         const markupValue = parseInt(input.value) || 0;
 
@@ -259,7 +255,7 @@
 
             if (response.ok) {
                 showToast(data.message, 'success');
-                // Re-fetch plans to ensure consistency across the board (important for Paystack Fee rounding consistency)
+                // Re-fetch plans to refresh the table state
                 fetchPlans(userShopId, currentNetwork); 
             } else {
                 showToast(data.message || 'Failed to update markup.', 'error');
