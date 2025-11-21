@@ -665,9 +665,9 @@
             const userId = currentDeleteUserId;
             const secret = adminSecretInput.value.trim();
             
-            if (!secret) {
+            if (!secret || !userId) {
                 closeDeleteModal();
-                showToast('Admin secret required to delete user.', 'error');
+                showToast('Admin secret and User ID are required.', 'error');
                 return;
             }
 
@@ -678,7 +678,7 @@
                 const response = await fetch('/api/admin/delete-user', {
                     method: 'DELETE',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ userId, adminSecret: secret })
+                    body: JSON.stringify({ userId: userId, adminSecret: secret })
                 });
 
                 const data = await response.json();
@@ -691,6 +691,7 @@
                 }
             } catch (error) {
                 showToast('Network error during client deletion.', 'error');
+                console.error('Delete Network/Fetch Error:', error);
             } finally {
                 closeDeleteModal();
                 document.getElementById('delete-modal-confirm').disabled = false;
