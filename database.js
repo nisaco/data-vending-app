@@ -36,8 +36,12 @@ const agentShopSchema = new mongoose.Schema({
     userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true, unique: true },
     shopId: { type: String, required: true, unique: true },
     shopName: { type: String, required: true },
-    // 🛑 CORRECT STRUCTURE FOR INDIVIDUAL MARKUPS 🛑
-    customMarkups: { type: Map, of: Map, default: {} }, 
+    // **This is the correct structure for nested markups:**
+    customMarkups: { 
+        type: Map, 
+        of: { type: Object, default: {} }, 
+        default: {} 
+    },
     createdAt: { type: Date, default: Date.now }
 });
 
