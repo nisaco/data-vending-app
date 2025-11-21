@@ -68,7 +68,7 @@
     const headerText = document.getElementById('header-text');
     const subHeaderText = document.getElementById('sub-header-text');
     let userShopId = null;
-    let currentPlans = {}; // Stores { id: { wholesalePrice, markup, name } }
+    let currentPlans = {}; 
     let currentNetwork = 'MTN';
 
     const createShopFormHTML = `
@@ -176,12 +176,15 @@
                 const row = tableBody.insertRow();
                 row.className = 'hover:bg-gray-800 transition duration-150';
                 
+                // Use data-plan-id attribute for row and input grouping
+                row.setAttribute('data-plan-id', p.id);
+                
                 row.innerHTML = `
                     <td class="py-3 px-4 font-semibold text-white">${p.name} (${p.id}GB)</td>
                     <td class="py-3 px-4">${formatPesewasToGHS(p.wholesalePrice)}</td>
                     <td class="py-3 px-4">
                         <input type="number" min="0" value="${Math.max(0, markup)}" data-id="${p.id}"
-                               class="markup-input w-20 p-2 text-center border border-gray-600 rounded-lg text-sm"
+                               class="markup-input-${p.id} w-20 p-2 text-center border border-gray-600 rounded-lg text-sm"
                                placeholder="Pesewas">
                     </td>
                     <td class="py-3 px-4 text-primary font-bold selling-price-${p.id}">
@@ -198,12 +201,15 @@
             
             // Attach input change listener for dynamic price update preview
             document.querySelectorAll('.markup-input').forEach(input => {
+                const id = input.dataset.id;
+                // Use the unique class to target the corresponding selling price display
+                const sellingPriceDisplay = document.querySelector(`.selling-price-${id}`);
+                
                 input.addEventListener('input', (e) => {
-                    const id = e.target.dataset.id;
                     const markup = parseInt(e.target.value) || 0;
                     const wholesale = currentPlans[id].wholesalePrice;
                     const newSellingPrice = calculateSellingPrice(wholesale, markup);
-                    document.querySelector(`.selling-price-${id}`).textContent = formatPesewasToGHS(newSellingPrice);
+                    sellingPriceDisplay.textContent = formatPesewasToGHS(newSellingPrice);
                 });
             });
 
@@ -221,7 +227,9 @@
     async function handleIndividualMarkupUpdate(e) {
         const button = e.target;
         const capacityId = button.dataset.id;
-        const input = document.querySelector(`.markup-input[data-id="${capacityId}"]`);
+        
+        // 🛑 FIX: Use unique class selector based on data-id to get the specific input's value 🛑
+        const input = document.querySelector(`.markup-input-${capacityId}`);
         const markupValue = parseInt(input.value) || 0;
 
         if (isNaN(markupValue) || markupValue < 0) {
@@ -251,6 +259,7 @@
 
             if (response.ok) {
                 showToast(data.message, 'success');
+                // Re-fetch plans to ensure consistency across the board (important for Paystack Fee rounding consistency)
                 fetchPlans(userShopId, currentNetwork); 
             } else {
                 showToast(data.message || 'Failed to update markup.', 'error');
@@ -316,7 +325,6 @@
             userShopId = userInfo.shopId;
 
             if (userShopId) {
-                // Shop exists, render management
                 const agentShopResponse = await fetch(`/api/agent/plans?shopId=${userShopId}&network=MTN`);
                 
                 if (agentShopResponse.status === 404) {
@@ -339,7 +347,6 @@
                 renderMarkupManager(userShopId, shopName);
 
             } else {
-                // Shop does not exist, render creation form
                 managementArea.innerHTML = createShopFormHTML;
                 document.getElementById('create-shop-form').addEventListener('submit', handleCreateShop);
             }
