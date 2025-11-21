@@ -613,33 +613,36 @@ app.post('/api/agent/update-markup', isDbReady, isAuthenticated, async (req, res
     }
     
     try {
-        const agentShop = await AgentShop.findOne({ userId });
-        if (!agentShop) return res.status(404).json({ message: 'Shop not found. Please create one first.' });
-
-        // 1. Get the Mongoose Map instance for the customMarkups field
-        let customMarkups = agentShop.customMarkups;
-
-        // 2. Get the specific nested Map/Object for the current network
-        let networkMarkups = customMarkups.get(network) || {}; 
+        // 🛑 CRITICAL FIX USING FINDONEANDUPDATE WITH DOT NOTATION 🛑
         
-        // 3. Update ONLY the specific capacity ID's markup
-        networkMarkups[capacityId] = parseInt(markupValue, 10);
+        // 1. Create the specific key path: customMarkups.MTN.1 or customMarkups.AirtelTigo.5
+        const mapKey = `customMarkups.${network}.${capacityId}`;
         
-        // 4. Set the updated network markup object back onto the parent Map field.
-        // This is a necessary step to alert Mongoose that the contents of the Map item changed.
-        customMarkups.set(network, networkMarkups);
+        // 2. Prepare the $set operation to update ONLY the nested value directly in MongoDB
+        const updateObject = { [mapKey]: parseInt(markupValue, 10) };
 
-        // 5. CRITICAL FIX: Explicitly mark the modified path. 
-        // This forces Mongoose to recognize the change in the nested field, preventing data loss.
-        agentShop.markModified(`customMarkups`); // Mark the top-level map field as changed
+        // 3. Execute the update query
+        const updatedShop = await AgentShop.findOneAndUpdate(
+            { userId: userId },
+            { $set: updateObject },
+            { 
+                new: true, 
+                // Ensure arrayFilters or map filters are not needed since we are using explicit dot notation
+            }
+        );
 
-        await agentShop.save();
+        if (!updatedShop) {
+             // Fallback: If findOneAndUpdate didn't work (e.g., structure was missing), we can try to save the entire document, 
+             // but if the shop was just created, it should work.
+             return res.status(404).json({ message: 'Shop not found or unable to update.' });
+        }
+
 
         res.json({ status: 'success', message: `${network} ${capacityId}GB markup updated to ${markupValue} pesewas.` });
         
     } catch (error) {
-        console.error("Mongoose Map Save Error:", error);
-        res.status(500).json({ message: 'Failed to update markup. Server error.' });
+        console.error("Mongoose Map Save Error (Definitive):", error);
+        res.status(500).json({ message: 'Failed to update markup. Server error. Check database structure.' });
     }
 });
 
