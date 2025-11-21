@@ -229,7 +229,7 @@ async function runPendingOrderCheck() {
                     ref: order.reference
                 };
 
-                const statusResponse = await axios.get(RESELLER_API_BASE_URL, {
+                const statusResponse = await axios.get(RESELLERC_API_BASE_URL, {
                     params: statusPayload,
                     headers: { 'Authorization': `Bearer ${process.env.DATA_API_SECRET}` }
                 });
@@ -616,18 +616,19 @@ app.post('/api/agent/update-markup', isDbReady, isAuthenticated, async (req, res
         const agentShop = await AgentShop.findOne({ userId });
         if (!agentShop) return res.status(404).json({ message: 'Shop not found. Please create one first.' });
 
-        // 1. Get current markups for the network (Mongoose Map converts this to an object internally)
-        let currentMarkupsObject = agentShop.customMarkups.get(network) || {}; 
+        // 1. Get current markups object for the network
+        const networkMarkupsMap = agentShop.customMarkups.get(network) || {}; 
+        let updatedNetworkMarkups = { ...networkMarkupsMap };
         
         // 2. Update ONLY the specific capacity ID's markup in the object
-        currentMarkupsObject[capacityId] = parseInt(markupValue, 10);
+        updatedNetworkMarkups[capacityId] = parseInt(markupValue, 10);
         
         // 3. CRITICAL FIX: Set the entire updated object back onto the Mongoose Map field
         // This is necessary for Mongoose to correctly save the nested Map structure
-        agentShop.customMarkups.set(network, currentMarkupsObject);
+        agentShop.customMarkups.set(network, updatedNetworkMarkups);
 
         // 4. Force Mongoose to acknowledge the change in the sub-document path
-        agentShop.markModified('customMarkups'); 
+        agentShop.markModified(`customMarkups.${network}`); 
 
         await agentShop.save();
 
