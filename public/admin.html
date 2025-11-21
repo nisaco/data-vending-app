@@ -665,6 +665,7 @@
             const userId = currentDeleteUserId;
             const secret = adminSecretInput.value.trim();
             
+            // NOTE: We rely on the backend validation to ensure userId is not blank and is valid ObjectId
             if (!secret || !userId) {
                 closeDeleteModal();
                 showToast('Admin secret and User ID are required.', 'error');
