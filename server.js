@@ -10,8 +10,9 @@ const cron = require('node-cron');
 const crypto = require('crypto');
 const rateLimit = require('express-rate-limit'); 
 const MongoStore = require('connect-mongo');
+const { ObjectId } = require('mongodb'); // Import MongoDB's ObjectId utility
 
-// 🛑 Import AgentShop model 🛑
+// 🛑 Import Mongoose models and connection instance
 const { User, Order, AgentShop, mongoose } = require('./database.js'); 
 
 const app = express();
@@ -21,7 +22,6 @@ const PORT = process.env.PORT || 10000;
 const RESELLER_API_BASE_URL = 'https://datapacks.shop/api.php'; 
 
 // --- 2. DATA (PLANS) AND MAPS ---
-// PRICES ARE THE WHOLESALE COST (in PESEWAS)
 const allPlans = {
     "MTN": [
         { id: '1', name: '1GB', price: 480 }, { id: '2', name: '2GB', price: 960 }, { id: '3', name: '3GB', price: 1420 }, 
@@ -229,7 +229,7 @@ async function runPendingOrderCheck() {
                     ref: order.reference
                 };
 
-                const statusResponse = await axios.get(RESELLERC_API_BASE_URL, {
+                const statusResponse = await axios.get(RESELLER_API_BASE_URL, {
                     params: statusPayload,
                     headers: { 'Authorization': `Bearer ${process.env.DATA_API_SECRET}` }
                 });
@@ -612,37 +612,31 @@ app.post('/api/agent/update-markup', isDbReady, isAuthenticated, async (req, res
          return res.status(400).json({ message: 'Missing network, capacity ID, or markup value.' });
     }
     
+    // 🛑 DEFINITIVE FIX: Using findOneAndUpdate with $set dot notation 🛑
     try {
-        // 🛑 CRITICAL FIX USING FINDONEANDUPDATE WITH DOT NOTATION 🛑
+        const setPath = `customMarkups.${network}.${capacityId}`;
+        const updateObject = { 
+            $set: { [setPath]: parseInt(markupValue, 10) }
+        };
         
-        // 1. Create the specific key path: customMarkups.MTN.1 or customMarkups.AirtelTigo.5
-        const mapKey = `customMarkups.${network}.${capacityId}`;
-        
-        // 2. Prepare the $set operation to update ONLY the nested value directly in MongoDB
-        const updateObject = { [mapKey]: parseInt(markupValue, 10) };
-
-        // 3. Execute the update query
-        const updatedShop = await AgentShop.findOneAndUpdate(
-            { userId: userId },
-            { $set: updateObject },
-            { 
-                new: true, 
-                // Ensure arrayFilters or map filters are not needed since we are using explicit dot notation
-            }
+        // This query finds the AgentShop document by userId and performs the update.
+        // If the top-level 'customMarkups.network' path does not exist, MongoDB should create it.
+        const result = await AgentShop.findOneAndUpdate(
+            { userId: user._id },
+            updateObject,
+            { new: true, upsert: true }
         );
 
-        if (!updatedShop) {
-             // Fallback: If findOneAndUpdate didn't work (e.g., structure was missing), we can try to save the entire document, 
-             // but if the shop was just created, it should work.
-             return res.status(404).json({ message: 'Shop not found or unable to update.' });
+        if (!result) {
+            // This case should be rare due to upsert:true, but handles total failure.
+            return res.status(500).json({ message: 'Failed to find or update shop document.' });
         }
-
 
         res.json({ status: 'success', message: `${network} ${capacityId}GB markup updated to ${markupValue} pesewas.` });
         
     } catch (error) {
-        console.error("Mongoose Map Save Error (Definitive):", error);
-        res.status(500).json({ message: 'Failed to update markup. Server error. Check database structure.' });
+        console.error("Mongoose Update Error (Definitive Fix Failed):", error);
+        res.status(500).json({ message: 'Failed to update markup. Server error.' });
     }
 });
 
@@ -727,7 +721,7 @@ app.post('/api/checkout-orders', isDbReady, isAuthenticated, async (req, res) =>
         } else if (paymentMethod === 'paystack' && paymentRef) {
             chargedAmountPesewas = calculateBatchPaystackCharge(totalAmountPesewas);
 
-            // Verify Paystack payment (assuming Paystack verification logic runs here)
+            // Paystack verification logic (simplified here for brevity, assume correct verification)
             const paystackUrl = `https://api.paystack.co/transaction/verify/${paymentRef}`;
             const paystackResponse = await axios.get(paystackUrl, { headers: { Authorization: `Bearer ${process.env.PAYSTACK_SECRET_KEY}` } });
             const { data } = paystackResponse.data;
@@ -735,7 +729,6 @@ app.post('/api/checkout-orders', isDbReady, isAuthenticated, async (req, res) =>
             if (data.status !== 'success') {
                 return res.status(400).json({ status: 'error', message: 'Payment verification failed. Please try again.' });
             }
-            // Use flexible check for paystack fees
             const acceptableMin = Math.floor(chargedAmountPesewas * 0.95);
             const acceptableMax = Math.ceil(chargedAmountPesewas * 1.05);
 
@@ -743,7 +736,6 @@ app.post('/api/checkout-orders', isDbReady, isAuthenticated, async (req, res) =>
                 console.error(`Batch Fraud: Charged ${data.amount} expected ${chargedAmountPesewas}`);
                 return res.status(400).json({ status: 'error', message: 'Amount charged mismatch detected. Contact support.' });
             }
-
         } else {
             return res.status(400).json({ status: 'error', message: 'Invalid payment method or missing reference.' });
         }
@@ -763,12 +755,10 @@ app.post('/api/checkout-orders', isDbReady, isAuthenticated, async (req, res) =>
                 
                 let itemProfit = 0;
                 if (agentShop) {
-                    // Use the specific AgentShop markup stored in the nested map
                     const networkMarkups = agentShop.customMarkups.get(item.network) || {};
                     const markup = networkMarkups[item.dataPlanId] || 0;
-                    itemProfit = markup; // Profit is simply the explicit markup set by the agent
+                    itemProfit = markup; 
                 } else {
-                    // Safety net if shop doesn't exist
                     itemProfit = Math.max(0, retailPricePaid - baseWholesaleCost); 
                 }
                 
@@ -779,12 +769,11 @@ app.post('/api/checkout-orders', isDbReady, isAuthenticated, async (req, res) =>
                     network: item.network,
                     dataPlan: item.dataPlanId,
                     phoneNumber: item.phoneNumber,
-                    // Use WHOLESALE COST for API execution amount
                     amount: baseWholesaleCost / 100, 
                     reference: paymentMethod === 'paystack' ? `${paymentRef}-ITEM-${item.id}` : undefined 
                 };
                 
-                // Execute purchase for single item (using WHOLESALE COST)
+                // Execute purchase for single item 
                 const result = await executeDataPurchase(userId, itemDetails, paymentMethod);
                 if (result.status !== 'data_failed') {
                     fulfilledCount++;
@@ -818,7 +807,6 @@ app.post('/api/checkout-orders', isDbReady, isAuthenticated, async (req, res) =>
 
 app.get('/api/data-plans', isDbReady, async (req, res) => { 
     const sellingPlans = allPlans[req.query.network] || [];
-    // Standard app usage defaults to wholesale price
     res.json(sellingPlans.map(p => ({
         id: p.id,
         name: p.name,
@@ -896,18 +884,6 @@ app.get('/api/get-all-orders', async (req, res) => {
     }
 });
 
-app.get('/api/admin/user-count', async (req, res) => {
-    if (req.query.secret !== process.env.ADMIN_SECRET) return res.status(403).json({ error: 'Unauthorized' });
-    try {
-        if (mongoose.connection.readyState !== 1) return res.status(503).json({ error: 'Database not ready.' });
-
-        const count = await User.countDocuments({});
-        res.json({ count: count });
-    } catch (error) {
-        res.status(500).json({ error: 'Failed to fetch user count' });
-    }
-});
-
 app.post('/api/admin/update-order', async (req, res) => {
     if (req.body.adminSecret !== process.env.ADMIN_SECRET) return res.status(403).json({ error: 'Unauthorized access.' });
     const { orderId, newStatus } = req.body;
@@ -925,45 +901,6 @@ app.post('/api/admin/update-order', async (req, res) => {
     }
 });
 
-app.get('/api/admin/metrics', async (req, res) => {
-    if (req.query.secret !== process.env.ADMIN_SECRET) return res.status(403).json({ error: 'Unauthorized' });
-
-    try {
-        if (mongoose.connection.readyState !== 1) return res.status(503).json({ error: 'Database not ready.' });
-
-        const successfulOrders = await Order.find({ status: 'data_sent' });
-        
-        let totalRevenueGHS = 0;
-        let totalCostGHS = 0;
-        let totalPaystackFeeGHS = 0;
-
-        successfulOrders.forEach(order => {
-            const chargedAmountInPesewas = Math.round(order.amount * 100);
-            
-            const resellerCostInPesewas = findBaseCost(order.network, order.dataPlan);
-            const paystackFeeInPesewas = calculatePaystackFee(chargedAmountInPesewas);
-            
-            totalRevenueGHS += order.amount; 
-            totalPaystackFeeGHS += (paystackFeeInPesewas / 100);
-            totalCostGHS += (resellerCostInPesewas / 100); 
-        });
-        
-        const totalNetCostGHS = totalCostGHS + totalPaystackFeeGHS;
-        const totalNetProfitGHS = totalRevenueGHS - totalNetCostGHS;
-
-        res.json({
-            revenue: totalRevenueGHS.toFixed(2),
-            cost: totalCostGHS.toFixed(2),
-            paystackFee: totalPaystackFeeGHS.toFixed(2),
-            netProfit: totalNetProfitGHS.toFixed(2),
-            totalOrders: successfulOrders.length
-        });
-
-    } catch (error) {
-        res.status(500).json({ error: 'Failed to calculate metrics' });
-    }
-});
-
 app.delete('/api/admin/delete-user', async (req, res) => {
     const { userId, adminSecret } = req.body;
     
@@ -974,13 +911,24 @@ app.delete('/api/admin/delete-user', async (req, res) => {
     if (!userId) {
         return res.status(400).json({ error: 'User ID is required for deletion.' });
     }
+    
+    // 🛑 CRITICAL FIX: Ensure userId is a valid ObjectId type before query 🛑
+    if (!mongoose.Types.ObjectId.isValid(userId)) {
+        return res.status(400).json({ error: 'Invalid user ID format.' });
+    }
 
     try {
-        // 1. Delete all associated orders first
-        const ordersResult = await Order.deleteMany({ userId: userId });
+        const objectUserId = new mongoose.Types.ObjectId(userId);
 
-        // 2. Delete the user
-        const userResult = await User.findByIdAndDelete(userId);
+        // 1. Delete all associated orders first
+        // Use the validated objectId directly in the query
+        const ordersResult = await Order.deleteMany({ userId: objectUserId }); 
+
+        // 2. Delete the associated AgentShop (optional, handles clean up)
+        await AgentShop.deleteOne({ userId: objectUserId });
+
+        // 3. Delete the user
+        const userResult = await User.findByIdAndDelete(objectUserId);
 
         if (!userResult) {
             return res.status(404).json({ message: 'User not found.' });
@@ -988,11 +936,12 @@ app.delete('/api/admin/delete-user', async (req, res) => {
 
         res.json({ 
             status: 'success', 
-            message: `User '${userResult.username}' and ${ordersResult.deletedCount} associated orders deleted successfully.` 
+            message: `User '${userResult.username}' and ${ordersResult.deletedCount} associated records deleted successfully.` 
         });
     } catch (error) {
+        // Log the detailed error for debugging, but send a generic 500 error
         console.error('User Deletion Error:', error);
-        res.status(500).json({ error: 'Failed to delete user and associated data.' });
+        res.status(500).json({ error: `Server error during deletion: ${error.message}` });
     }
 });
 
