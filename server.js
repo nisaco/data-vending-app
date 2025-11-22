@@ -10,7 +10,7 @@ const cron = require('node-cron');
 const crypto = require('crypto');
 const rateLimit = require('express-rate-limit'); 
 const MongoStore = require('connect-mongo');
-const { ObjectId } = require('mongodb'); 
+const { ObjectId } = require('mongodb'); // Import MongoDB's ObjectId utility
 
 // 🛑 Import Mongoose models and connection instance
 const { User, Order, AgentShop, mongoose } = require('./database.js'); 
@@ -461,7 +461,6 @@ app.post('/api/topup', isDbReady, isAuthenticated, async (req, res) => {
 
     } catch (error) {
         console.error('Topup Verification Final Error:', error);
-        // If the error is an Axios network error or Paystack verification structure error, return 500
         res.status(500).json({ status: 'error', message: 'An internal server error occurred during top-up verification.' });
     }
 });
@@ -687,45 +686,8 @@ app.post('/api/agent/update-markup', isDbReady, isAuthenticated, async (req, res
         res.json({ status: 'success', message: `${network} ${capacityId}GB markup updated to ${markupValue} pesewas.` });
         
     } catch (error) {
-        console.error("Mongoose Update Error:", error);
+        console.error("Mongoose Update Error (Definitive Fix Failed):", error);
         res.status(500).json({ message: 'Failed to update markup. Server error.' });
-    }
-});
-
-
-// 🛑 Manual Wallet Update Endpoint (Admin Action) 🛑
-app.post('/api/admin/update-wallet', async (req, res) => {
-    const { targetUserId, newBalanceGHS, adminSecret } = req.body;
-
-    if (adminSecret !== process.env.ADMIN_SECRET) {
-        return res.status(403).json({ message: 'Unauthorized: Invalid Admin Secret' });
-    }
-    if (!targetUserId || !newBalanceGHS || isNaN(newBalanceGHS)) {
-        return res.status(400).json({ message: 'Missing User ID or invalid balance value.' });
-    }
-
-    try {
-        const newBalancePesewas = Math.round(parseFloat(newBalanceGHS) * 100);
-        
-        const updatedUser = await User.findByIdAndUpdate(
-            targetUserId,
-            { walletBalance: newBalancePesewas },
-            { new: true, runValidators: true }
-        );
-
-        if (!updatedUser) {
-            return res.status(404).json({ message: 'User not found.' });
-        }
-
-        res.json({
-            status: 'success',
-            message: `Wallet updated to GHS ${newBalanceGHS}.`,
-            newBalance: updatedUser.walletBalance
-        });
-
-    } catch (error) {
-        console.error('Manual Wallet Update Error:', error);
-        res.status(500).json({ message: 'Failed to update wallet due to server error.' });
     }
 });
 
@@ -921,7 +883,7 @@ app.get('/api/admin/all-users-status', async (req, res) => {
     try {
         if (mongoose.connection.readyState !== 1) return res.status(503).json({ error: 'Database not ready.' });
 
-        const registeredUsers = await User.find({}).select('username email createdAt role').lean();
+        const registeredUsers = await User.find({}).select('username email createdAt role'); // Removed .lean() for safety
 
         const sessionsCollection = mongoose.connection.db.collection('sessions');
         const rawSessions = await sessionsCollection.find({}).toArray();
@@ -938,8 +900,10 @@ app.get('/api/admin/all-users-status', async (req, res) => {
         });
 
         const userListWithStatus = registeredUsers.map(user => ({
+            _id: user._id, // Add ID for client-side delete/wallet update
             username: user.username, email: user.email, signedUp: user.createdAt,
-            isOnline: activeUserIds.has(user._id.toString()), role: user.role
+            isOnline: activeUserIds.has(user._id.toString()), role: user.role,
+            walletBalance: user.walletBalance, // Include balance for manual update modal initialization
         }));
 
         res.json({ users: userListWithStatus });
@@ -962,13 +926,9 @@ app.get('/api/get-all-orders', async (req, res) => {
                                  .populate('userId', 'username'); 
         
         const formattedOrders = orders.map(order => ({
-            id: order._id, 
-            username: order.userId ? order.userId.username : 'Deleted User',
-            phoneNumber: order.phoneNumber, 
-            network: order.network || 'N/A', 
-            dataPlan: order.dataPlan, 
-            amount: order.amount, 
-            status: order.status,
+            id: order._id, username: order.userId ? order.userId.username : 'Deleted User',
+            phoneNumber: order.phoneNumber, network: order.network || 'N/A', 
+            dataPlan: order.dataPlan, amount: order.amount, status: order.status,
             created_at: order.createdAt,
         }));
         res.json({ orders: formattedOrders });
