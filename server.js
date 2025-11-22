@@ -10,7 +10,7 @@ const cron = require('node-cron');
 const crypto = require('crypto');
 const rateLimit = require('express-rate-limit'); 
 const MongoStore = require('connect-mongo');
-const { ObjectId } = require('mongodb'); // Import MongoDB's ObjectId utility
+const { ObjectId } = require('mongodb'); 
 
 // 🛑 Import Mongoose models and connection instance
 const { User, Order, AgentShop, mongoose } = require('./database.js'); 
@@ -321,6 +321,11 @@ const isDbReady = (req, res, next) => {
 
 const isAuthenticated = (req, res, next) => req.session.user ? next() : res.redirect('/login.html');
 
+
+// ====================================================================
+// CORE APPLICATION ROUTES (Auth and Payment APIs first to ensure loading)
+// ====================================================================
+
 // --- USER AUTHENTICATION & INFO ROUTES ---
 app.post('/api/signup', isDbReady, async (req, res) => {
     const { username, email, password } = req.body;
@@ -391,127 +396,189 @@ app.get('/api/user-info', isDbReady, isAuthenticated, async (req, res) => {
     }
 });
 
-app.post('/api/forgot-password', isDbReady, async (req, res) => {
-    const { email } = req.body;
-    try {
-        const user = await User.findOne({ email });
-        if (!user) {
-            return res.status(404).json({ message: 'If the email exists, a password reset link has been sent.' });
-        }
-        
-        const resetToken = crypto.randomBytes(20).toString('hex');
-        
-        user.resetToken = resetToken;
-        user.resetTokenExpires = Date.now() + 3600000; // 1 hour
-        await user.save();
-        
-        res.json({ message: 'A password reset link has been sent to your email.' });
-        
-    } catch (error) {
-        res.status(500).json({ message: 'Server error while processing request.' });
+// --- WALLET & PAYMENT ROUTES ---
+
+app.post('/api/topup', isDbReady, isAuthenticated, async (req, res) => {
+    // NOTE: Client sends net deposit amount (GHS). We must charge/verify the fee-inclusive amount.
+    const { reference, amount } = req.body; 
+    if (!reference || !amount) {
+        return res.status(400).json({ status: 'error', message: 'Reference and amount are required.' });
     }
-});
-
-app.post('/api/reset-password', isDbReady, async (req, res) => {
-    const { token, newPassword } = req.body;
-    try {
-        const user = await User.findOne({
-            resetToken: token,
-            resetTokenExpires: { $gt: Date.now() } 
-        });
-
-        if (!user) {
-            return res.status(400).json({ message: 'Invalid or expired token.' });
-        }
-        
-        const hashedPassword = await bcrypt.hash(newPassword, 10);
-        
-        user.password = hashedPassword;
-        user.resetToken = undefined;
-        user.resetTokenExpires = undefined;
-        await user.save();
-
-        res.json({ message: 'Password updated successfully. Please log in.' });
-
-    } catch (error) {
-        res.status(500).json({ message: 'Server error while resetting password.' });
-    }
-});
-
-// NOTE: This Agent Signup logic is only needed for users who still want the 'Agent' role explicitly.
-app.post('/api/agent-signup', isDbReady, async (req, res) => {
-    const { username, email, password } = req.body;
-    if (!username || !email || !password) return res.status(400).json({ message: 'All fields are required.' });
     
-    const existingUser = await User.findOne({ $or: [{ username }, { email }] });
-    if (existingUser) {
-        return res.status(400).json({ message: 'User already exists.' });
-    }
+    let netDepositAmountGHS = parseFloat(amount);
+    let topupAmountPesewas = Math.round(netDepositAmountGHS * 100);
+    const userId = req.session.user.id;
+
+    // Calculate the amount Paystack should have charged (includes 2% fee)
+    const finalChargedAmountPesewas = calculateClientTopupFee(topupAmountPesewas);
 
     try {
-        const hashedPassword = await bcrypt.hash(password, 10);
-        
-        const finalRegistrationCharge = calculateClientTopupFee(AGENT_REGISTRATION_FEE_PESEWAS);
-        
-        const tempUser = await User.create({ 
-            username, 
-            email, 
-            password: hashedPassword, 
-            walletBalance: 0, 
-            payoutWalletBalance: 0, 
-            role: 'Agent_Pending' 
-        });
-
-        res.status(200).json({ 
-            message: 'Initiate payment for registration.',
-            userId: tempUser._id,
-            amountPesewas: finalRegistrationCharge 
-        });
-
-    } catch (error) {
-        res.status(500).json({ message: 'Server error during agent signup initiation.' }); 
-    }
-});
-
-app.post('/api/verify-agent-payment', async (req, res) => {
-    const { reference, userId } = req.body;
-    
-    const expectedCharge = calculateClientTopupFee(AGENT_REGISTRATION_FEE_PESEWAS);
-
-    try {
+        // --- STEP 1: VERIFY PAYMENT WITH PAYSTACK ---
         const paystackUrl = `https://api.paystack.co/transaction/verify/${reference}`;
         const paystackResponse = await axios.get(paystackUrl, { 
             headers: { Authorization: `Bearer ${process.env.PAYSTACK_SECRET_KEY}` } 
         });
         const { status, data } = paystackResponse.data;
-        
-        const acceptableMinimum = Math.floor(expectedCharge * 0.95);
-        const acceptableMaximum = Math.ceil(expectedCharge * 1.05);
-        
-        if (data.status === 'success' && data.amount >= acceptableMinimum && data.amount <= acceptableMaximum) {
-            
-            const user = await User.findByIdAndUpdate(
-                userId, 
-                { role: 'Agent' }, 
-                { new: true }
-            );
 
-            if (user) {
-                return res.json({ message: 'Registration successful! You are now an Agent.', role: 'Agent' });
-            }
+        if (!status || data.status !== 'success') {
+            let userMessage = `Payment status is currently ${data.status || 'unknown'}. If your money was deducted, please contact support with reference: ${reference}.`;
+            console.error(`Topup Verification Failed: Paystack status is not 'success'. Reference: ${reference}`);
+            return res.status(400).json({ status: 'error', message: userMessage });
         }
         
-        res.status(400).json({ message: 'Payment verification failed. Please try again.' });
+        // 🛑 CRITICAL FIX: FLEXIBLE AMOUNT CHECK against amount charged by Paystack 🛑
+        // The verification must check the amount Paystack CHARGED (data.amount) against the expected charge (finalChargedAmountPesewas).
+        
+        const chargedByPaystack = data.amount;
+        const acceptableMinimum = Math.floor(finalChargedAmountPesewas * 0.95); 
+        const acceptableMaximum = Math.ceil(finalChargedAmountPesewas * 1.05);
+
+        if (chargedByPaystack < acceptableMinimum || chargedByPaystack > acceptableMaximum) {
+            console.error(`Fraud Alert: Paystack charged ${chargedByPaystack} but expected range was ${acceptableMinimum}-${acceptableMaximum}. Ref: ${reference}`);
+            return res.status(400).json({ status: 'error', message: 'Amount charged mismatch detected. Please contact support immediately.' });
+        }
+        
+        // --- STEP 2: UPDATE USER WALLET BALANCE (NET DEPOSIT) ---
+        const updatedUser = await User.findByIdAndUpdate(
+            userId,
+            // Only credit the net amount the user intended to deposit (topupAmountPesewas)
+            { $inc: { walletBalance: topupAmountPesewas } }, 
+            { new: true, runValidators: true }
+        );
+        
+        req.session.user.walletBalance = updatedUser.walletBalance; 
+
+        // Log the top-up as a successful order for tracking
+        await Order.create({
+            userId: userId,
+            reference: reference,
+            amount: chargedByPaystack / 100, // Log the total amount paid including fees
+            status: 'topup_successful',
+            paymentMethod: 'paystack',
+            dataPlan: 'WALLET TOP-UP',
+            network: 'WALLET'
+        });
+
+        res.json({ status: 'success', message: `Wallet topped up successfully! GHS ${netDepositAmountGHS.toFixed(2)} deposited.`, newBalance: updatedUser.walletBalance });
 
     } catch (error) {
-        console.error('Agent payment verification error:', error);
-        await User.findByIdAndDelete(userId);
-        res.status(500).json({ message: 'Verification failed. Contact support.' });
+        console.error('Topup Verification Final Error:', error);
+        res.status(500).json({ status: 'error', message: 'An internal server error occurred during top-up.' });
     }
 });
 
 
-// 🛑 NEW: AGENT SHOP ENDPOINTS (Accessible to all authenticated users) 🛑
+app.post('/api/wallet-purchase', isDbReady, isAuthenticated, async (req, res) => {
+    const { network, dataPlan, phone_number, amountInPesewas } = req.body;
+    const userId = req.session.user.id;
+    
+    if (!network || !dataPlan || !phone_number || !amountInPesewas) {
+        return res.status(400).json({ message: 'Missing required order details.' });
+    }
+
+    try {
+        const user = await User.findById(userId);
+        if (!user) return res.status(404).json({ message: 'User not found.' });
+
+        // 1. Check Balance
+        if (user.walletBalance < amountInPesewas) {
+            return res.status(400).json({ message: 'Insufficient wallet balance.' });
+        }
+
+        // 2. Debit Wallet (Atomically)
+        const debitResult = await User.findByIdAndUpdate(
+            userId,
+            { $inc: { walletBalance: -amountInPesewas } },
+            { new: true, runValidators: true }
+        );
+        
+        req.session.user.walletBalance = debitResult.walletBalance;
+
+        // 3. Execute Data Purchase
+        const result = await executeDataPurchase(userId, {
+            network,
+            dataPlan,
+            phoneNumber: phone_number,
+            amount: amountInPesewas / 100 
+        }, 'wallet');
+        
+        if (result.status === 'data_sent') {
+            return res.json({ status: 'success', message: `Data successfully sent from wallet!` });
+        } else {
+            return res.status(202).json({ 
+                status: 'pending', 
+                message: `Data purchase initiated. Status: ${result.status}. Check dashboard.` 
+            });
+        }
+
+    } catch (error) {
+        res.status(500).json({ message: 'Server error during wallet purchase.' });
+    }
+});
+
+app.post('/paystack/verify', isDbReady, isAuthenticated, async (req, res) => {
+    const { reference } = req.body;
+    if (!reference) return res.status(400).json({ status: 'error', message: 'Reference is required.' });
+
+    let orderDetails = null; 
+    
+    try {
+        // --- STEP 1: VERIFY PAYMENT WITH PAYSTACK ---
+        const paystackUrl = `https://api.paystack.co/transaction/verify/${reference}`;
+        const paystackResponse = await axios.get(paystackUrl, { 
+            headers: { Authorization: `Bearer ${process.env.PAYSTACK_SECRET_KEY}` } 
+        });
+        const { status, data } = paystackResponse.data;
+
+        if (!status || data.status !== 'success') {
+            return res.status(400).json({ status: 'error', message: 'Payment verification failed.' });
+        }
+
+        const { phone_number, network, data_plan } = data.metadata; 
+        const amountInGHS = data.amount / 100;
+        const userId = req.session.user.id;
+        
+        orderDetails = {
+            userId: userId,
+            reference: reference,
+            phoneNumber: phone_number,
+            network: network,
+            dataPlan: data_plan,
+            amount: amountInGHS,
+            status: 'payment_success'
+        };
+        
+        // Execute the data transfer and save order 
+        const result = await executeDataPurchase(userId, orderDetails, 'paystack');
+
+        if (result.status === 'data_sent') {
+            return res.json({ status: 'success', message: `Payment verified. Data transfer successful!` });
+        } else {
+            return res.status(202).json({ 
+                status: 'pending', 
+                message: `Payment successful! Data transfer is pending manual review. Contact support with reference: ${reference}.` 
+            });
+        }
+
+    } catch (error) {
+        let errorMessage = 'An internal server error occurred during verification.';
+        
+        if (error.response && error.response.data && error.response.data.error) {
+            errorMessage = `External API Error: ${error.response.data.error}`;
+        } else if (error.message) {
+            errorMessage = `Network Error: ${error.message}`;
+            
+            console.error('Fatal Verification Failure:', error); 
+        }
+        
+        return res.status(500).json({ status: 'error', message: errorMessage });
+    }
+});
+
+
+// ====================================================================
+// AGENT SHOP, WITHDRAWAL, AND ADMIN ROUTES (Complex/Less Frequent)
+// ====================================================================
 
 // Agent creates their shop and sets default pricing/name
 app.post('/api/agent/create-shop', isDbReady, isAuthenticated, async (req, res) => {
@@ -519,32 +586,25 @@ app.post('/api/agent/create-shop', isDbReady, isAuthenticated, async (req, res) 
     const { shopName } = req.body;
 
     const user = await User.findById(userId);
-    // 🛑 REMOVED ROLE CHECK: Any logged-in user can create a shop.
     if (!user) {
         return res.status(404).json({ message: 'User data not found in session.' });
     }
 
-    // Check if shop already exists
     if (user.shopId) {
         return res.status(400).json({ message: 'Shop already exists.' });
     }
 
     try {
-        // Generate a simple, unique shop ID (8 characters long)
         const shopId = crypto.randomBytes(4).toString('hex');
 
-        // Create Shop with zero markup by default
         await AgentShop.create({
             userId: userId,
             shopId: shopId,
             shopName: shopName || `${user.username}'s Store`,
-            customMarkups: {} // Initialize with empty map
+            customMarkups: {} 
         });
 
-        // Link the shop ID back to the user
         await User.findByIdAndUpdate(userId, { shopId: shopId });
-        
-        // Update session immediately
         req.session.user.shopId = shopId; 
 
         res.json({
@@ -571,16 +631,13 @@ app.get('/api/agent/plans', isDbReady, async (req, res) => {
         if (!networkPlans) return res.status(404).json({ message: 'Invalid network.' });
         if (!agentShop) return res.status(404).json({ message: 'Shop not found.' });
 
-        // Safely access the map for the specific network, defaulting to empty Map if not set
         const networkMarkups = agentShop.customMarkups.get(network) || {}; 
 
         const sellingPlans = networkPlans.map(p => {
             const wholesalePrice = p.price;
-            // Lookup markup using the plan ID (e.g., '1', '5')
             const individualMarkup = networkMarkups[p.id] || 0; 
             
             let rawSellingPrice = wholesalePrice + individualMarkup; 
-            // Final price calculation (Rounded to nearest 5 pesewas, ensuring it meets wholesale price)
             const finalPrice = Math.ceil(Math.max(rawSellingPrice, wholesalePrice) / 5) * 5; 
             
             return { 
@@ -599,7 +656,7 @@ app.get('/api/agent/plans', isDbReady, async (req, res) => {
     }
 });
 
-// Updates markup for a single package
+// Updates markup for a single package (Final Working Fix)
 app.post('/api/agent/update-markup', isDbReady, isAuthenticated, async (req, res) => {
     const userId = req.session.user.id;
     const { network, capacityId, markupValue } = req.body;
@@ -614,15 +671,11 @@ app.post('/api/agent/update-markup', isDbReady, isAuthenticated, async (req, res
     
     // 🛑 DEFINITIVE FIX: Using findOneAndUpdate with $set dot notation 🛑
     try {
-        // Construct the specific dot notation path to the nested value
-        // Example path: customMarkups.MTN.1
         const setPath = `customMarkups.${network}.${capacityId}`;
         const updateObject = { 
             $set: { [setPath]: parseInt(markupValue, 10) }
         };
         
-        // This query finds the AgentShop document by userId and performs the update.
-        // If the top-level 'customMarkups.network' path does not exist, MongoDB should create it.
         const result = await AgentShop.findOneAndUpdate(
             { userId: user._id },
             updateObject,
@@ -640,7 +693,6 @@ app.post('/api/agent/update-markup', isDbReady, isAuthenticated, async (req, res
         res.status(500).json({ message: 'Failed to update markup. Server error.' });
     }
 });
-
 
 // 🛑 Withdrawal Request 🛑
 app.post('/api/withdraw-profit', isDbReady, isAuthenticated, async (req, res) => {
