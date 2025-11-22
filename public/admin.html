@@ -269,9 +269,11 @@
             // Animate out and remove
             setTimeout(() => {
                 toast.style.transform = 'translateX(120%)';
-                setTimeout(() => {
-                    container.removeChild(toast);
-                }, 400);
+                // 🛑 FIXED: Safe removal by checking if the element still exists 🛑
+                const parent = toast.parentNode;
+                if (parent) {
+                    setTimeout(() => { parent.removeChild(toast); }, 400);
+                }
             }, 6000);
         }
         // --- END TOAST SYSTEM ---
@@ -665,7 +667,6 @@
             const userId = currentDeleteUserId;
             const secret = adminSecretInput.value.trim();
             
-            // NOTE: We rely on the backend validation to ensure userId is not blank and is valid ObjectId
             if (!secret || !userId) {
                 closeDeleteModal();
                 showToast('Admin secret and User ID are required.', 'error');
@@ -719,6 +720,7 @@
                 return; 
             }
             
+            // 🛑 CRITICAL FIX: Update global secret variable right before fetch 🛑
             adminSecret = secret;
 
             fetchDataBtn.disabled = true;
@@ -727,6 +729,7 @@
             try {
                 const metricsReady = await fetchMetrics();
                 if (!metricsReady) { 
+                    // Metrics fetch failed, logging already happened inside fetchMetrics
                     throw new Error("Failed to load core metrics. Check secret."); 
                 }
 
@@ -736,6 +739,7 @@
 
             } catch (error) {
                 console.error('Master Fetch Error:', error);
+                // The generic error message displayed to the user:
                 showToast(`CRITICAL ERROR: ${error.message}`, 'error');
             } finally {
                 fetchDataBtn.disabled = false;
@@ -751,7 +755,7 @@
             const initialSecret = urlParams.get('secret');
             if (initialSecret) {
                 adminSecretInput.value = initialSecret;
-                adminSecret = initialSecret;
+                // No need to set global adminSecret here, it's set just before fetchAllData
                 fetchAllData();
             }
 
