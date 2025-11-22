@@ -6,29 +6,102 @@
     <link rel="icon" type="image/x-icon" href="apple-touch-icon.png">
     <title>Welcome to AJEnterprise</title>
     <style>
-        body { margin: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; height: 100vh; overflow: hidden; color: #fff; }
+        /* Base Reset */
+        body { margin: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; min-height: 100vh; color: #fff; }
+        
+        /* Hero Section Styling */
         .hero {
-            height: 100%; width: 100%; display: flex; flex-direction: column; justify-content: center; align-items: center;
-            text-align: center; padding: 0 2rem; position: relative;
+            /* Use min-height to ensure the section fills the viewport */
+            min-height: 100vh; 
+            width: 100%; 
+            display: flex; 
+            flex-direction: column; 
+            justify-content: center; 
+            align-items: center;
+            text-align: center; 
+            padding: 40px 2rem; /* Add padding for small screens */
+            position: relative;
+            box-sizing: border-box; /* Include padding in height calculation */
         }
+        
+        /* Background Image & Overlay */
         .hero::before {
-            content: ''; position: absolute; top: 0; left: 0; width: 100%; height: 100%;
-            background-image: url('https://images.unsplash.com/photo-1554435493-93422e8220c8?q=80&w=2070&auto=format&fit=crop');
-            background-size: cover; background-position: center; filter: brightness(0.4); z-index: 1;
+            content: ''; 
+            position: absolute; 
+            top: 0; 
+            left: 0; 
+            width: 100%; 
+            height: 100%;
+            /* Kept high-quality URL, ensured compatibility */
+            background-image: url('https://images.unsplash.com/photo-1554435493-93422e8220c8?q=80&w=2070&auto=format&fit=crop'); 
+            background-size: cover; 
+            background-position: center; 
+            filter: brightness(0.4); 
+            z-index: 1;
         }
-        .hero-content { position: relative; z-index: 2; opacity: 0; animation: fadeIn 1.5s forwards 0.5s; }
-        @keyframes fadeIn { to { opacity: 1; transform: translateY(0); } from { opacity: 0; transform: translateY(20px); } }
-        h1 { font-size: 3.5rem; margin-bottom: 1rem; text-shadow: 2px 2px 4px rgba(0,0,0,0.5); }
-        p { font-size: 1.25rem; margin-bottom: 2rem; max-width: 600px; text-shadow: 1px 1px 2px rgba(0,0,0,0.5); }
+        
+        /* Content Container */
+        .hero-content { 
+            position: relative; 
+            z-index: 2; 
+            opacity: 0; 
+            animation: fadeIn 1.5s forwards 0.5s; 
+            /* Constrain content width */
+            max-width: 90%; 
+        }
+        
+        /* Animation */
+        @keyframes fadeIn { 
+            to { opacity: 1; transform: translateY(0); } 
+            from { opacity: 0; transform: translateY(20px); } 
+        }
+        
+        /* Typography */
+        h1 { 
+            font-size: 3.5rem; /* Base size for desktop */
+            margin-bottom: 1rem; 
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.5); 
+            line-height: 1.1;
+        }
+        p { 
+            font-size: 1.25rem; 
+            margin-bottom: 2rem; 
+            max-width: 600px; 
+            text-shadow: 1px 1px 2px rgba(0,0,0,0.5); 
+            margin-left: auto; 
+            margin-right: auto;
+        }
+        
+        /* CTA Button */
         .cta-button {
-            display: inline-block; padding: 1rem 2.5rem; font-size: 1.1rem; font-weight: 600; color: #fff;
-            background-color: #009879; border: none; border-radius: 50px; text-decoration: none;
+            display: inline-block; 
+            padding: 1rem 2.5rem; 
+            font-size: 1.1rem; 
+            font-weight: 600; 
+            color: #fff;
+            background-color: #009879; 
+            border: none; 
+            border-radius: 50px; 
+            text-decoration: none;
             transition: background-color 0.3s, transform 0.3s;
         }
-        .cta-button:hover { background-color: #007a63; transform: translateY(-3px); }
+        .cta-button:hover { 
+            background-color: #007a63; 
+            transform: translateY(-3px); 
+        }
+        
+        /* Media Query for Mobile and Tablets */
         @media (max-width: 768px) {
-            h1 { font-size: 2.5rem; }
-            p { font-size: 1rem; }
+            h1 { 
+                font-size: 2.2rem; /* Scaled down heading */
+            }
+            p { 
+                font-size: 1rem; /* Scaled down body text */
+            }
+            .hero-content {
+                /* Ensure content fits without touching edges */
+                padding: 0 1rem; 
+            }
         }
     </style>
 </head>
@@ -41,5 +114,4 @@
         </div>
     </section>
 </body>
-
 </html>
