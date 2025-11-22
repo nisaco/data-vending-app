@@ -323,7 +323,7 @@ const isAuthenticated = (req, res, next) => req.session.user ? next() : res.redi
 
 
 // ====================================================================
-// CORE APPLICATION ROUTES (Auth and Payment APIs first to ensure loading)
+// CORE APPLICATION ROUTES (Routes defined early for stability)
 // ====================================================================
 
 // --- USER AUTHENTICATION & INFO ROUTES ---
@@ -427,8 +427,6 @@ app.post('/api/topup', isDbReady, isAuthenticated, async (req, res) => {
         }
         
         // 🛑 CRITICAL FIX: FLEXIBLE AMOUNT CHECK against amount charged by Paystack 🛑
-        // The verification must check the amount Paystack CHARGED (data.amount) against the expected charge (finalChargedAmountPesewas).
-        
         const chargedByPaystack = data.amount;
         const acceptableMinimum = Math.floor(finalChargedAmountPesewas * 0.95); 
         const acceptableMaximum = Math.ceil(finalChargedAmountPesewas * 1.05);
@@ -463,7 +461,8 @@ app.post('/api/topup', isDbReady, isAuthenticated, async (req, res) => {
 
     } catch (error) {
         console.error('Topup Verification Final Error:', error);
-        res.status(500).json({ status: 'error', message: 'An internal server error occurred during top-up.' });
+        // If the error is an Axios network error or Paystack verification structure error, return 500
+        res.status(500).json({ status: 'error', message: 'An internal server error occurred during top-up verification.' });
     }
 });
 
@@ -577,10 +576,11 @@ app.post('/paystack/verify', isDbReady, isAuthenticated, async (req, res) => {
 
 
 // ====================================================================
-// AGENT SHOP, WITHDRAWAL, AND ADMIN ROUTES (Complex/Less Frequent)
+// AGENT SHOP, WITHDRAWAL, ADMIN MANAGEMENT ROUTES 
 // ====================================================================
 
-// Agent creates their shop and sets default pricing/name
+// --- AGENT SHOP ENDPOINTS ---
+
 app.post('/api/agent/create-shop', isDbReady, isAuthenticated, async (req, res) => {
     const userId = req.session.user.id;
     const { shopName } = req.body;
@@ -619,7 +619,6 @@ app.post('/api/agent/create-shop', isDbReady, isAuthenticated, async (req, res) 
     }
 });
 
-// Agent sets or retrieves custom plans for their shop
 app.get('/api/agent/plans', isDbReady, async (req, res) => {
     const { shopId, network } = req.query;
     if (!shopId || !network) return res.status(400).json({ message: 'Shop ID and network are required.' });
@@ -656,7 +655,6 @@ app.get('/api/agent/plans', isDbReady, async (req, res) => {
     }
 });
 
-// Updates markup for a single package (Final Working Fix)
 app.post('/api/agent/update-markup', isDbReady, isAuthenticated, async (req, res) => {
     const userId = req.session.user.id;
     const { network, capacityId, markupValue } = req.body;
@@ -671,8 +669,6 @@ app.post('/api/agent/update-markup', isDbReady, isAuthenticated, async (req, res
     
     // 🛑 DEFINITIVE FIX: Using findOneAndUpdate with $set dot notation 🛑
     try {
-        // Construct the specific dot notation path to the nested value
-        // Example path: customMarkups.MTN.1
         const setPath = `customMarkups.${network}.${capacityId}`;
         const updateObject = { 
             $set: { [setPath]: parseInt(markupValue, 10) }
@@ -691,10 +687,48 @@ app.post('/api/agent/update-markup', isDbReady, isAuthenticated, async (req, res
         res.json({ status: 'success', message: `${network} ${capacityId}GB markup updated to ${markupValue} pesewas.` });
         
     } catch (error) {
-        console.error("Mongoose Update Error (Definitive Fix Failed):", error);
+        console.error("Mongoose Update Error:", error);
         res.status(500).json({ message: 'Failed to update markup. Server error.' });
     }
 });
+
+
+// 🛑 Manual Wallet Update Endpoint (Admin Action) 🛑
+app.post('/api/admin/update-wallet', async (req, res) => {
+    const { targetUserId, newBalanceGHS, adminSecret } = req.body;
+
+    if (adminSecret !== process.env.ADMIN_SECRET) {
+        return res.status(403).json({ message: 'Unauthorized: Invalid Admin Secret' });
+    }
+    if (!targetUserId || !newBalanceGHS || isNaN(newBalanceGHS)) {
+        return res.status(400).json({ message: 'Missing User ID or invalid balance value.' });
+    }
+
+    try {
+        const newBalancePesewas = Math.round(parseFloat(newBalanceGHS) * 100);
+        
+        const updatedUser = await User.findByIdAndUpdate(
+            targetUserId,
+            { walletBalance: newBalancePesewas },
+            { new: true, runValidators: true }
+        );
+
+        if (!updatedUser) {
+            return res.status(404).json({ message: 'User not found.' });
+        }
+
+        res.json({
+            status: 'success',
+            message: `Wallet updated to GHS ${newBalanceGHS}.`,
+            newBalance: updatedUser.walletBalance
+        });
+
+    } catch (error) {
+        console.error('Manual Wallet Update Error:', error);
+        res.status(500).json({ message: 'Failed to update wallet due to server error.' });
+    }
+});
+
 
 // 🛑 Withdrawal Request 🛑
 app.post('/api/withdraw-profit', isDbReady, isAuthenticated, async (req, res) => {
@@ -923,7 +957,6 @@ app.get('/api/get-all-orders', async (req, res) => {
             return res.status(503).json({ error: 'Database not ready for admin query.' });
         }
         
-        // Use populate to safely join user data, handling cases where the user might have been deleted
         const orders = await Order.find({})
                                  .sort({ createdAt: -1 })
                                  .populate('userId', 'username'); 
@@ -1001,6 +1034,42 @@ app.delete('/api/admin/delete-user', async (req, res) => {
         // Log the detailed error for debugging, but send a generic 500 error
         console.error('User Deletion Error:', error);
         res.status(500).json({ error: `Server error during deletion: ${error.message}` });
+    }
+});
+
+// 🛑 Manual Wallet Update Endpoint (Admin Action) 🛑
+app.post('/api/admin/update-wallet', async (req, res) => {
+    const { targetUserId, newBalanceGHS, adminSecret } = req.body;
+
+    if (adminSecret !== process.env.ADMIN_SECRET) {
+        return res.status(403).json({ message: 'Unauthorized: Invalid Admin Secret' });
+    }
+    if (!targetUserId || !newBalanceGHS || isNaN(newBalanceGHS)) {
+        return res.status(400).json({ message: 'Missing User ID or invalid balance value.' });
+    }
+
+    try {
+        const newBalancePesewas = Math.round(parseFloat(newBalanceGHS) * 100);
+        
+        const updatedUser = await User.findByIdAndUpdate(
+            targetUserId,
+            { walletBalance: newBalancePesewas },
+            { new: true, runValidators: true }
+        );
+
+        if (!updatedUser) {
+            return res.status(404).json({ message: 'User not found.' });
+        }
+
+        res.json({
+            status: 'success',
+            message: `Wallet updated to GHS ${newBalanceGHS}.`,
+            newBalance: updatedUser.walletBalance
+        });
+
+    } catch (error) {
+        console.error('Manual Wallet Update Error:', error);
+        res.status(500).json({ message: 'Failed to update wallet due to server error.' });
     }
 });
 
