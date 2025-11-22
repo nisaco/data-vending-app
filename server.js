@@ -229,7 +229,7 @@ async function runPendingOrderCheck() {
                     ref: order.reference
                 };
 
-                const statusResponse = await axios.get(RESELLER_API_BASE_URL, {
+                const statusResponse = await axios.get(RESELLERC_API_BASE_URL, {
                     params: statusPayload,
                     headers: { 'Authorization': `Bearer ${process.env.DATA_API_SECRET}` }
                 });
@@ -614,6 +614,8 @@ app.post('/api/agent/update-markup', isDbReady, isAuthenticated, async (req, res
     
     // 🛑 DEFINITIVE FIX: Using findOneAndUpdate with $set dot notation 🛑
     try {
+        // Construct the specific dot notation path to the nested value
+        // Example path: customMarkups.MTN.1
         const setPath = `customMarkups.${network}.${capacityId}`;
         const updateObject = { 
             $set: { [setPath]: parseInt(markupValue, 10) }
@@ -628,7 +630,6 @@ app.post('/api/agent/update-markup', isDbReady, isAuthenticated, async (req, res
         );
 
         if (!result) {
-            // This case should be rare due to upsert:true, but handles total failure.
             return res.status(500).json({ message: 'Failed to find or update shop document.' });
         }
 
@@ -921,7 +922,6 @@ app.delete('/api/admin/delete-user', async (req, res) => {
         const objectUserId = new mongoose.Types.ObjectId(userId);
 
         // 1. Delete all associated orders first
-        // Use the validated objectId directly in the query
         const ordersResult = await Order.deleteMany({ userId: objectUserId }); 
 
         // 2. Delete the associated AgentShop (optional, handles clean up)
