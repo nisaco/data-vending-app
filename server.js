@@ -671,6 +671,8 @@ app.post('/api/agent/update-markup', isDbReady, isAuthenticated, async (req, res
     
     // 🛑 DEFINITIVE FIX: Using findOneAndUpdate with $set dot notation 🛑
     try {
+        // Construct the specific dot notation path to the nested value
+        // Example path: customMarkups.MTN.1
         const setPath = `customMarkups.${network}.${capacityId}`;
         const updateObject = { 
             $set: { [setPath]: parseInt(markupValue, 10) }
@@ -921,14 +923,19 @@ app.get('/api/get-all-orders', async (req, res) => {
             return res.status(503).json({ error: 'Database not ready for admin query.' });
         }
         
+        // Use populate to safely join user data, handling cases where the user might have been deleted
         const orders = await Order.find({})
                                  .sort({ createdAt: -1 })
                                  .populate('userId', 'username'); 
         
         const formattedOrders = orders.map(order => ({
-            id: order._id, username: order.userId ? order.userId.username : 'Deleted User',
-            phoneNumber: order.phoneNumber, network: order.network || 'N/A', 
-            dataPlan: order.dataPlan, amount: order.amount, status: order.status,
+            id: order._id, 
+            username: order.userId ? order.userId.username : 'Deleted User',
+            phoneNumber: order.phoneNumber, 
+            network: order.network || 'N/A', 
+            dataPlan: order.dataPlan, 
+            amount: order.amount, 
+            status: order.status,
             created_at: order.createdAt,
         }));
         res.json({ orders: formattedOrders });
