@@ -49,6 +49,7 @@
         .type-deposit { color: #10b981; font-weight: 700; } 
         .type-purchase { color: #ef4444; font-weight: 700; } 
         .type-payout { color: #2563eb; font-weight: 700; } /* Blue for withdrawals */
+        .type-profit { color: #16a34a; font-weight: 800; } /* Green for profit */
 
         /* Modal Backdrop */
         #modal-backdrop, #withdrawal-modal-backdrop {
@@ -120,7 +121,7 @@
             <div id="modal-content-status" class="text-sm font-medium mb-3 text-red-500"></div>
             <label for="modal-topup-amount" class="block text-gray-700 dark:text-gray-300 mb-2">Amount (GHS, Min 1.00)</label>
             <input type="number" id="modal-topup-amount" min="1.00" step="0.50" placeholder="e.g., 10.00" value="1.00"
-                    class="w-full p-2 border border-gray-300 rounded-lg text-gray-800 focus:ring-primary focus:border-primary dark:bg-gray-700 dark:border-gray-600 dark:text-white">
+                   class="w-full p-2 border border-gray-300 rounded-lg text-gray-800 focus:ring-primary focus:border-primary dark:bg-gray-700 dark:border-gray-600 dark:text-white">
             <div class="mt-4 flex justify-end space-x-3">
                 <button id="modal-cancel" type="button" class="py-2 px-4 bg-gray-200 text-gray-800 rounded-lg hover:bg-gray-300 transition">Cancel</button>
                 <button id="modal-pay" type="button" class="py-2 px-4 bg-primary text-white rounded-lg hover:bg-secondary transition">Pay</button>
@@ -135,7 +136,7 @@
             
             <label for="modal-withdrawal-amount" class="block text-gray-700 dark:text-gray-300 mb-2">Amount (GHS, Min 5.00)</label>
             <input type="number" id="modal-withdrawal-amount" min="5.00" step="1.00" placeholder="e.g., 10.00"
-                    class="w-full p-2 border border-gray-300 rounded-lg text-gray-800 focus:ring-primary focus:border-primary dark:bg-gray-700 dark:border-gray-600 dark:text-white">
+                   class="w-full p-2 border border-gray-300 rounded-lg text-gray-800 focus:ring-primary focus:border-primary dark:bg-gray-700 dark:border-gray-600 dark:text-white">
 
             <label for="withdrawal-network" class="block text-gray-700 dark:text-gray-300 mt-4 mb-2">Mobile Network</label>
             <select id="withdrawal-network" required
@@ -149,7 +150,7 @@
             
             <label for="withdrawal-account" class="block text-gray-700 dark:text-gray-300 mt-4 mb-2">Account/MoMo Number</label>
             <input type="text" id="withdrawal-account" required placeholder="02X XXX XXXX or Bank Account"
-                    class="w-full p-2 border border-gray-300 rounded-lg text-gray-800 focus:ring-primary focus:border-primary dark:bg-gray-700 dark:border-gray-600 dark:text-white">
+                   class="w-full p-2 border border-gray-300 rounded-lg text-gray-800 focus:ring-primary focus:border-primary dark:bg-gray-700 dark:border-gray-600 dark:text-white">
 
             <div class="mt-4 flex justify-end space-x-3">
                 <button id="withdrawal-cancel" type="button" class="py-2 px-4 bg-gray-200 text-gray-800 rounded-lg hover:bg-gray-300 transition">Cancel</button>
@@ -249,10 +250,8 @@
             <h2 class="text-xl font-bold text-gray-800 dark:text-white mb-4 border-b pb-2">Recent Activity Log</h2>
 
             <div id="network-filters" class="flex justify-start space-x-4 mb-6 border-b border-gray-200 text-gray-600 dark:border-gray-700 dark:text-gray-400 overflow-x-auto pb-1">
-                <div class="filter-tab active" data-network="All">All Activity</div>
-                <div class="filter-tab" data-network="MTN">MTN</div>
-                <div class="filter-tab" data-network="AirtelTigo">AirtelTigo</div>
-                <div class="filter-tab" data-network="Telecel">Telecel</div>
+                <div class="filter-tab active" data-filter="all">My Purchases</div>
+                <div class="filter-tab" data-filter="agent_sales">Client Sales (Profit)</div>
             </div>
             
             <div id="status" class="text-center font-medium mb-4 text-gray-700 dark:text-gray-400">Loading your orders...</div>
@@ -265,7 +264,7 @@
                             <th scope="col" class="py-3 px-6">Source</th>
                             <th scope="col" class="py-3 px-6">Recipient Phone</th> 
                             <th scope="col" class="py-3 px-6">Package / Network</th>
-                            <th scope="col" class="py-3 px-6">Change (GHS)</th>
+                            <th scope="col" class="py-3 px-6">Change / Profit</th>
                             <th scope="col" class="py-3 px-6 rounded-tr-xl">Status</th>
                         </tr>
                     </thead>
@@ -364,14 +363,23 @@
     
     // --- GLOBAL STATE & CONSTANTS ---
     let userOrders = []; 
+    let agentSales = []; // 🛑 New Array for Agent Sales
     let userEmail = null; 
     let userRole = 'Client'; 
     let userShopId = null; 
     let payoutWalletBalance = 0;
     const MIN_TOPUP_GHS = 1.00; 
-    const MIN_WITHDRAWAL_GHS = 5.00; // NEW CONSTANT
+    const MIN_WITHDRAWAL_GHS = 5.00; 
     const PAYSTACK_PUBLIC_KEY = 'pk_live_3be2ebebc6edd6fa9f5f9a7303c80a55ee9e0be1'; 
     
+    // --- DATA & MAPS ---
+    // Used to calculate profit display (approximate based on wholesale)
+    const wholesaleMap = {
+        "MTN": { '1': 4.80, '2': 9.60, '3': 14.20, '4': 20.00, '5': 24.00, '6': 28.00, '8': 36.00, '10': 44.00, '15': 64.00, '20': 82.00, '25': 102.00, '30': 122.00, '40': 162.00, '50': 198.00 },
+        "AirtelTigo": { '1': 4.30, '2': 9.00, '3': 13.20, '4': 16.80, '5': 21.00, '6': 25.00, '7': 28.30, '8': 34.00, '9': 38.00, '10': 42.50, '12': 52.00, '15': 62.50, '20': 84.00 },
+        "Telecel": { '5': 23.00, '10': 43.00, '15': 62.20, '20': 83.00, '25': 103.00, '30': 123.00, '40': 155.00, '50': 195.00, '100': 400.00 }
+    };
+
     // --- DOM ELEMENTS ---
     const statusDiv = document.getElementById('status');
     const tableBody = document.getElementById('ordersTableBody');
@@ -499,39 +507,45 @@
 
     async function fetchOrderHistory() {
         try {
-            const response = await fetch('/api/my-orders');
-            
-            if (response.status === 401) return;
-            if (!response.ok) {
-                 showToast('Could not connect to fetch order history.', 'error');
-                 throw new Error('Could not fetch orders.');
+            // Fetch Personal Orders
+            const myOrdersResponse = await fetch('/api/my-orders');
+            if (myOrdersResponse.ok) {
+                const data = await myOrdersResponse.json();
+                userOrders = data.orders || [];
             }
-            
-            const data = await response.json();
-            userOrders = data.orders || [];
 
-            if (userOrders.length === 0) { 
-                statusDiv.textContent = "You haven't made any transactions yet."; 
-                return; 
+            // Fetch Agent Sales (Profit History)
+            const salesResponse = await fetch('/api/agent/sales');
+            if (salesResponse.ok) {
+                const salesData = await salesResponse.json();
+                agentSales = salesData.sales || [];
             }
-            
-            // Render all orders by default on load
-            filterAndRenderOrders(filterContainer.querySelector('.filter-tab.active').dataset.network);
+
+            // Check currently active tab to decide what to render
+            const activeTab = filterContainer.querySelector('.filter-tab.active').dataset.filter;
+            renderSelectedTab(activeTab);
 
         } catch (error) {
-            statusDiv.textContent = `Error fetching order history.`;
+            statusDiv.textContent = `Error fetching history.`;
         }
     }
 
-    // --- RENDERING AND FILTERING ---
+    // --- RENDERING ---
 
-    function renderOrders(orders) {
+    function renderSelectedTab(filterType) {
+        if (filterType === 'agent_sales') {
+            renderAgentSales(agentSales);
+        } else {
+            renderMyPurchases(userOrders);
+        }
+    }
+
+    function renderMyPurchases(orders) {
         tableBody.innerHTML = '';
         if (orders.length === 0) {
-            statusDiv.textContent = "No orders found for this network.";
+            statusDiv.textContent = "You haven't made any purchases yet.";
             return;
         }
-
         statusDiv.textContent = ''; 
         
         orders.forEach(order => {
@@ -542,7 +556,6 @@
             let source = order.paymentMethod === 'wallet' ? 'Wallet' : (order.paymentMethod === 'payout' ? 'Payout' : 'Paystack');
             let item = order.dataPlan === 'WALLET TOP-UP' ? 'Wallet Top-up' : (order.dataPlan === 'WITHDRAWAL REQUEST' ? 'Withdrawal' : `${order.dataPlan} (${order.network || 'N/A'})`);
             
-            // Display phone number if not a top-up
             const recipientInfo = (order.dataPlan === 'WALLET TOP-UP') ? 'N/A' : (order.phoneNumber || 'N/A');
 
             let amountSign = (order.dataPlan === 'WALLET TOP-UP') ? '+' : (order.dataPlan === 'WITHDRAWAL REQUEST' ? '-' : '-');
@@ -566,16 +579,54 @@
             `;
         });
     }
-    
-    // 🛑 FILTERING FUNCTIONALITY (Filters orders based on network tab selected)
-    function filterAndRenderOrders(network) {
-        let filtered = userOrders;
-        
-        if (network !== 'All') {
-            filtered = userOrders.filter(order => order.network === network || (network === 'WALLET' && (order.dataPlan === 'WALLET TOP-UP' || order.dataPlan === 'WITHDRAWAL REQUEST')));
+
+    function renderAgentSales(orders) {
+        tableBody.innerHTML = '';
+        if (orders.length === 0) {
+            statusDiv.textContent = "No sales made from your shop yet.";
+            return;
         }
-        
-        renderOrders(filtered);
+        statusDiv.textContent = '';
+
+        orders.forEach(order => {
+            const row = tableBody.insertRow();
+            const statusText = order.status.replace(/_/g, ' '); 
+            let statusClass = `status-${order.status}`;
+            
+            let item = `${order.dataPlan} (${order.network || 'N/A'})`;
+            const recipientInfo = order.phoneNumber || 'N/A';
+
+            // 🛑 PROFIT CALCULATION 🛑
+            // We estimate profit by subtracting known wholesale price from the sold amount
+            let profitDisplay = "N/A";
+            
+            // Wholesale prices are in Pesewas in the Map, convert to GHS
+            const wholesalePriceGHS = (wholesaleMap[order.network] && wholesaleMap[order.network][order.dataPlan]) 
+                                      ? (wholesaleMap[order.network][order.dataPlan] / 100) 
+                                      : 0;
+            
+            if (wholesalePriceGHS > 0) {
+                const profit = order.amount - wholesalePriceGHS; // amount is already GHS in DB for these orders
+                profitDisplay = `+ GHS ${profit.toFixed(2)}`;
+            }
+
+            row.className = 'hover:bg-gray-50 transition duration-150 dark:hover:bg-gray-800';
+
+            row.innerHTML = `
+                <td class="py-4 px-6 dark:text-gray-400">${safeDateFormatter(order.created_at)}</td>
+                <td class="py-4 px-6 font-medium text-gray-800 dark:text-gray-300">Shop Sale</td>
+                <td class="py-4 px-6 dark:text-gray-400">${recipientInfo}</td>
+                <td class="py-4 px-6 dark:text-gray-400">${item}</td>
+                <td class="py-4 px-6 font-semibold type-profit">
+                    ${profitDisplay}
+                </td>
+                <td class="py-4 px-6">
+                    <span class="px-3 py-1 text-white text-xs font-bold uppercase rounded-full ${statusClass}">
+                        ${statusText}
+                    </span>
+                </td>
+            `;
+        });
     }
 
     // --- TOP-UP MODAL LOGIC ---
@@ -615,7 +666,7 @@
         const paymentCallback = function(response) {
             showToast("Verifying top-up...", 'warning');
             
-            fetch('/api/topup', {
+            fetch('/api/verify-payment', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ 
@@ -825,14 +876,14 @@
         withdrawalCancelBtn.addEventListener('click', closeWithdrawalModal);
         withdrawalConfirmBtn.addEventListener('click', handleWithdrawal);
 
-        // 🛑 Network Filter Listener
+        // 🛑 Filter Tab Listener
         filterContainer.addEventListener('click', (e) => {
             const target = e.target.closest('.filter-tab');
             if (target) {
                 document.querySelectorAll('.filter-tab').forEach(tab => tab.classList.remove('active'));
                 target.classList.add('active');
                 
-                filterAndRenderOrders(target.dataset.network);
+                renderSelectedTab(target.dataset.filter);
             }
         });
         
