@@ -854,6 +854,20 @@ app.get('/api/my-orders', isDbReady, isAuthenticated, async (req, res) => {
         res.status(500).json({ error: "Failed to fetch orders" });
     }
 });
+// 🛑 NEW: Fetch Sales History for the Agent 🛑
+app.get('/api/agent/sales', isDbReady, isAuthenticated, async (req, res) => {
+    try {
+        // Find orders where the logged-in user is the AGENT (Seller)
+        // We populate the buyer details just in case you want to see who bought it (optional)
+        const sales = await Order.find({ agentId: req.session.user.id })
+                                 .sort({ createdAt: -1 });
+        
+        res.json({ sales });
+    } catch (error) {
+        console.error('Agent sales fetch error:', error);
+        res.status(500).json({ error: "Failed to fetch sales history" });
+    }
+});
 
 
 // --- ADMIN & MANAGEMENT ROUTES ---
