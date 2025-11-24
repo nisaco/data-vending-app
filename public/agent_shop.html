@@ -109,6 +109,8 @@
     
 <script src="https://js.paystack.co/v1/inline.js"></script>
 
+<script src="https://js.paystack.co/v1/inline.js"></script>
+
 <script>
     // --- TOAST NOTIFICATION SYSTEM ---
     function showToast(message, type = 'success') {
@@ -121,23 +123,15 @@
         const toast = document.createElement('div');
         toast.className = `p-4 mb-2 text-white text-sm font-semibold rounded-lg shadow-lg border-b-4 ${colors[type]} transform translate-x-full transition-all duration-300 ease-out`;
         toast.textContent = message;
-
         container.prepend(toast);
-
-        setTimeout(() => {
-            toast.style.transform = 'translateX(0)';
-        }, 10);
-
-        setTimeout(() => {
-            toast.style.transform = 'translateX(120%)';
-            setTimeout(() => {
-                container.removeChild(toast);
-            }, 400);
+        setTimeout(() => { toast.style.transform = 'translateX(0)'; }, 10);
+        setTimeout(() => { 
+            toast.style.transform = 'translateX(120%)'; 
+            setTimeout(() => { container.removeChild(toast); }, 400);
         }, 6000);
     }
-    // --- END TOAST SYSTEM ---
 
-    // --- GLOBAL STATE & CONSTANTS ---
+    // --- CONFIGURATION ---
     const PAYSTACK_PUBLIC_KEY = 'pk_live_3be2ebebc6edd6fa9f5f9a7303c80a55ee9e0be1'; 
     let currentShopId = null;
     let allPlans = [];
@@ -155,7 +149,6 @@
     const priceDisplay = document.getElementById('price-display');
     const purchaseButton = document.getElementById('purchase-button');
 
-    // --- URL PARAMETER & INITIAL CHECK ---
     function getShopIdFromUrl() {
         const urlParams = new URLSearchParams(window.location.search);
         return urlParams.get('shopId');
@@ -166,8 +159,6 @@
         dataPlanSelect.innerHTML = '<option value="">Loading...</option>';
         purchaseButton.disabled = true;
         priceDisplay.classList.add('hidden');
-        priceDisplay.textContent = 'Price: GHS 0.00';
-        currentPricePesewas = 0;
         
         if (!network || !currentShopId) return;
 
@@ -176,24 +167,20 @@
             const data = await response.json();
 
             if (response.status === 404) {
-                statusMessage.textContent = data.message || 'Shop not found for this ID.';
+                statusMessage.textContent = data.message || 'Shop not found.';
                 purchaseForm.classList.add('hidden');
                 return;
             }
 
             if (!response.ok || !data.plans || data.plans.length === 0) {
-                dataPlanSelect.innerHTML = '<option value="">No plans available for this network.</option>';
-                planSelectionContainer.classList.remove('hidden');
+                dataPlanSelect.innerHTML = '<option value="">No plans available.</option>';
                 throw new Error('No plans found');
             }
 
-            // Update shop name display
             shopNameDisplay.textContent = `| ${data.shopName || 'Agent Shop'}`;
             welcomeMessage.textContent = `Welcome to ${data.shopName || 'the Agent Shop'}!`;
-
             allPlans = data.plans;
             
-            // Populate dropdown
             let options = '<option value="">-- Select a Plan --</option>';
             data.plans.forEach(plan => {
                 const priceGHS = (plan.price / 100).toFixed(2);
@@ -207,25 +194,19 @@
             purchaseForm.classList.remove('hidden');
 
         } catch (error) {
-            console.error('Error fetching plans:', error);
+            console.error(error);
             dataPlanSelect.innerHTML = '<option value="">Error loading plans.</option>';
-            purchaseButton.disabled = true;
         }
     }
 
-    // --- EVENT HANDLERS ---
-    function handleNetworkChange() {
-        const selectedNetwork = networkSelect.value;
-        fetchPlansForNetwork(selectedNetwork);
-    }
+    // --- HANDLERS ---
+    networkSelect.addEventListener('change', () => fetchPlansForNetwork(networkSelect.value));
 
-    function handlePlanChange() {
+    dataPlanSelect.addEventListener('change', () => {
         const selectedOption = dataPlanSelect.options[dataPlanSelect.selectedIndex];
-        
         if (selectedOption.value) {
             currentPricePesewas = parseInt(selectedOption.dataset.price, 10);
-            const priceGHS = (currentPricePesewas / 100).toFixed(2);
-            priceDisplay.textContent = `Price: GHS ${priceGHS}`;
+            priceDisplay.textContent = `Price: GHS ${(currentPricePesewas / 100).toFixed(2)}`;
             priceDisplay.classList.remove('hidden');
             purchaseButton.disabled = false;
         } else {
@@ -233,70 +214,67 @@
             priceDisplay.classList.add('hidden');
             purchaseButton.disabled = true;
         }
-    }
+    });
 
+    // --- PURCHASE LOGIC ---
     async function handlePurchase(e) {
         e.preventDefault();
 
         const network = networkSelect.value;
         const dataPlanId = dataPlanSelect.value;
-        const phoneNumber = phoneNumberInput.value.replace(/[^0-9]/g, ''); // Clean the number
+        const phoneNumber = phoneNumberInput.value.replace(/[^0-9]/g, ''); 
         const amountPesewas = currentPricePesewas;
 
-        if (!network || !dataPlanId || phoneNumber.length < 10 || amountPesewas <= 0) {
-            return showToast('Please select a plan and enter a valid 10-digit phone number.', 'error');
+        if (!network || !dataPlanId || phoneNumber.length < 10) {
+            return showToast('Please fill all fields correctly.', 'error');
         }
         
-        // Find the full plan object for price check
-        const selectedPlan = allPlans.find(p => p.id === dataPlanId);
-        if (!selectedPlan || selectedPlan.price !== amountPesewas) {
-            return showToast('Price mismatch error. Please re-select the plan.', 'error');
-        }
-        
-        purchaseButton.disabled = true;
-        purchaseButton.textContent = 'Initiating Payment...';
+        // 🛑 1. FORCE INTEGER AMOUNT (Fixes 400 Error)
+        // Paystack will crash if you send 10.5 or "100". It must be Number(100).
+        const chargedAmount = Math.floor(Number(amountPesewas)); 
 
-        const chargedAmount = Math.ceil(amountPesewas * 1.05); // Estimate a high-side charge for Paystack.
-        const metadata = {
-            custom_fields: [{ display_name: "Shop ID", variable_name: "shop_id", value: currentShopId }],
-            phone_number: phoneNumber,
-            network: network,
-            data_plan: dataPlanId,
-            is_agent_sale: true 
-        };
-        
+        if (isNaN(chargedAmount) || chargedAmount <= 0) {
+            return showToast('Invalid price detected. Please refresh.', 'error');
+        }
+
+        purchaseButton.disabled = true;
+        purchaseButton.textContent = 'Opening Payment...';
+
+        // 2. PREPARE ORDER DATA
         const singleOrderItem = {
-            id: '1', // Dummy ID for the single item
+            id: '1', 
             network: network,
             dataPlanId: dataPlanId,
             phoneNumber: phoneNumber,
             amountPesewas: amountPesewas 
         };
 
+        // 3. DEFINE CALLBACK
         const paymentCallback = function(response) {
-            showToast("Verifying payment and processing order...", 'warning');
+            showToast("Verifying payment...", 'warning');
             
-            // 🛑 CRITICAL: Including shopId here ensures the Agent gets credited 🛑
             fetch('/api/checkout-orders', { 
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     orders: [singleOrderItem],
                     paymentMethod: 'paystack',
-                    totalAmountPesewas: amountPesewas, 
+                    totalAmountPesewas: chargedAmount, // Send exact amount paid
                     reference: response.reference,
-                    shopId: currentShopId // <--- THIS IS THE KEY FIX
+                    shopId: currentShopId 
                 }),
             })
-            .then(checkoutResponse => checkoutResponse.json())
+            .then(res => res.json())
             .then(data => {
-                const statusType = data.status === 'success' ? 'success' : (data.status === 'pending' ? 'warning' : 'error');
-                showToast(data.message, statusType);
-                // Pre-fill the track input for convenience
-                document.getElementById('track-ref-input').value = response.reference;
+                const type = data.status === 'success' ? 'success' : 'error';
+                showToast(data.message, type);
+                if (data.status === 'success') {
+                    document.getElementById('track-ref-input').value = response.reference;
+                }
             })
             .catch(err => {
-                showToast("Order verification failed. Contact support with your payment reference.", 'error');
+                console.error(err);
+                showToast("Verification connection failed.", 'error');
             })
             .finally(() => {
                 purchaseButton.disabled = false;
@@ -304,92 +282,78 @@
             });
         };
         
-        PaystackPop.setup({
-            key: PAYSTACK_PUBLIC_KEY, 
-            email: 'customer@agentshop.com', 
-            amount: chargedAmount, 
-            currency: 'GHS',
-            ref: 'AGENT-' + Math.floor((Math.random() * 1000000000) + 1),
-            metadata: metadata,
-            callback: paymentCallback,
-            onClose: function() { 
-                showToast("Payment cancelled.", 'error');
-                purchaseButton.disabled = false;
-                purchaseButton.textContent = 'Buy Now via Paystack';
-            }
-        }).openIframe();
+        // 4. OPEN PAYSTACK
+        try {
+            const handler = PaystackPop.setup({
+                key: PAYSTACK_PUBLIC_KEY, 
+                email: `customer-${Date.now()}@agentshop.com`, // Unique email every time
+                amount: chargedAmount, 
+                currency: 'GHS',
+                channels: ['card', 'mobile_money'], // Explicitly allow MoMo
+                ref: 'SHOP-' + Math.floor((Math.random() * 1000000000) + 1),
+                metadata: {
+                    custom_fields: [
+                        { display_name: "Shop ID", variable_name: "shop_id", value: currentShopId },
+                        { display_name: "Phone", variable_name: "phone", value: phoneNumber }
+                    ]
+                },
+                callback: paymentCallback,
+                onClose: function() { 
+                    showToast("Payment cancelled.", 'warning');
+                    purchaseButton.disabled = false;
+                    purchaseButton.textContent = 'Buy Now via Paystack';
+                }
+            });
+            handler.openIframe();
+        } catch (error) {
+            console.error("Paystack Init Error:", error);
+            showToast("Could not load payment window.", 'error');
+            purchaseButton.disabled = false;
+        }
     }
 
-    // --- NEW: TRACK ORDER LOGIC ---
-   // --- UPDATED: TRACK ORDER LOGIC ---
+    // --- TRACKING LOGIC ---
     async function trackOrder() {
         const ref = document.getElementById('track-ref-input').value.trim();
         const resultDiv = document.getElementById('track-result');
         
-        if(!ref) {
-            showToast("Please enter a reference number.", "error");
-            return;
-        }
+        if(!ref) { return showToast("Enter a reference number.", "error"); }
 
         resultDiv.classList.remove('hidden');
-        resultDiv.innerHTML = `<span class="text-gray-500">Checking status for <b>${ref}</b>...</span>`;
+        resultDiv.innerHTML = `<span class="text-gray-500">Checking...</span>`;
 
         try {
             const response = await fetch(`/api/public/track-order?reference=${ref}`);
             const data = await response.json();
 
             if (response.ok) {
-                let statusColor = 'text-blue-600';
-                let statusText = data.data.status;
-
-                // Make status user-friendly
-                if (data.data.status === 'data_sent' || data.data.status === 'payment_success') {
-                    statusColor = 'text-green-600';
-                    statusText = 'Successful / Delivered';
-                } else if (data.data.status === 'pending_review') {
-                    statusColor = 'text-orange-500';
-                    statusText = 'Processing (Pending)';
-                } else if (data.data.status.includes('failed')) {
-                    statusColor = 'text-red-600';
-                    statusText = 'Failed';
-                }
+                let color = 'text-blue-600';
+                let text = data.data.status;
+                if (text === 'data_sent' || text === 'payment_success') { color = 'text-green-600'; text = 'Delivered / Success'; }
+                else if (text === 'pending_review') { color = 'text-orange-500'; text = 'Processing'; }
+                else if (text.includes('failed')) { color = 'text-red-600'; text = 'Failed'; }
 
                 resultDiv.innerHTML = `
                     <div class="text-left p-3 bg-gray-50 dark:bg-gray-800 rounded border border-gray-200 dark:border-gray-700">
-                        <p class="text-sm text-gray-500">Order Reference:</p>
-                        <p class="font-mono font-bold text-gray-800 dark:text-white mb-2">${data.data.reference}</p>
-                        
-                        <p class="text-sm text-gray-500">Item:</p>
-                        <p class="font-medium text-gray-800 dark:text-white mb-2">${data.data.description}</p>
-
-                        <p class="text-sm text-gray-500">Status:</p>
-                        <p class="text-lg font-bold ${statusColor}">${statusText}</p>
-                    </div>
-                `;
+                        <p class="text-xs text-gray-500">Ref: <span class="font-mono text-gray-800 dark:text-white">${data.data.reference}</span></p>
+                        <p class="font-bold text-gray-800 dark:text-white my-1">${data.data.description}</p>
+                        <p class="text-lg font-bold ${color}">${text}</p>
+                    </div>`;
             } else {
-                resultDiv.innerHTML = `<span class="text-red-500 font-medium">${data.message}</span>`;
+                resultDiv.innerHTML = `<span class="text-red-500">${data.message || 'Not found'}</span>`;
             }
-        } catch (error) {
-            resultDiv.innerHTML = `<span class="text-red-500">Network error. Please try again.</span>`;
+        } catch (e) {
+            resultDiv.innerHTML = `<span class="text-red-500">Connection error.</span>`;
         }
     }
-
 
     // --- INITIALIZATION ---
     document.addEventListener('DOMContentLoaded', () => {
         currentShopId = getShopIdFromUrl();
-        
         if (!currentShopId) {
-            statusMessage.textContent = 'Error: Shop ID is missing from the URL.';
+            statusMessage.textContent = 'Error: Shop ID missing.';
             return;
         }
-
-        // 1. Initial Load
-        networkSelect.addEventListener('change', handleNetworkChange);
-        dataPlanSelect.addEventListener('change', handlePlanChange);
-        purchaseForm.addEventListener('submit', handlePurchase);
-        
-        // 2. Load Plans for default network (MTN)
         networkSelect.value = 'MTN';
         fetchPlansForNetwork('MTN');
     });
