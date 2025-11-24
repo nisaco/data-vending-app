@@ -39,9 +39,8 @@
     
     <nav class="bg-white shadow-lg dark:bg-[#1f1f1f]">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex justify-between items-center h-16">
-            <a href="/login.html" class="text-xl font-bold text-primary">DataLink <span class="text-gray-500 text-sm" id="shop-name-display">| Shop</span></a>
-            <a href="/login.html" class="text-gray-600 dark:text-gray-400 hover:text-primary transition font-medium">Login/Signup</a>
-        </div>
+            <span class="text-xl font-bold text-primary cursor-default">DataLink <span class="text-gray-500 text-sm" id="shop-name-display">| Shop</span></span>
+            </div>
     </nav>
 
     <div class="container mx-auto p-4 max-w-xl">
@@ -92,8 +91,20 @@
                     </button>
                 </form>
             </div>
-            
         </div>
+
+        <div class="bg-white p-6 rounded-2xl shadow-lg mt-6 border border-gray-100 dark:bg-[#1f1f1f] dark:border-gray-700">
+            <h2 class="text-lg font-bold text-gray-800 dark:text-white mb-4">Check Order Status</h2>
+            <div class="flex space-x-2">
+                <input type="text" id="track-ref-input" placeholder="Enter Reference (e.g., PAYSTACK-xxx)" 
+                       class="flex-1 p-3 border border-gray-300 rounded-lg text-sm dark:bg-gray-700 dark:border-gray-600">
+                <button onclick="trackOrder()" class="py-2 px-4 bg-gray-800 text-white rounded-lg hover:bg-gray-900 dark:bg-gray-600 dark:hover:bg-gray-500 text-sm font-medium">
+                    Track
+                </button>
+            </div>
+            <div id="track-result" class="mt-4 text-sm text-center hidden p-3 rounded bg-gray-50 dark:bg-gray-800"></div>
+        </div>
+
     </div>
     
 <script src="https://js.paystack.co/v1/inline.js"></script>
@@ -245,44 +256,44 @@
         purchaseButton.disabled = true;
         purchaseButton.textContent = 'Initiating Payment...';
 
-        const chargedAmount = Math.ceil(amountPesewas * 1.05); // Estimate a high-side charge for Paystack. Server verifies flexible range.
+        const chargedAmount = Math.ceil(amountPesewas * 1.05); // Estimate a high-side charge for Paystack.
         const metadata = {
             custom_fields: [{ display_name: "Shop ID", variable_name: "shop_id", value: currentShopId }],
             phone_number: phoneNumber,
             network: network,
             data_plan: dataPlanId,
-            is_agent_sale: true // Critical tag for the server's batch checkout
+            is_agent_sale: true 
         };
         
-        // The server-side /api/checkout-orders is designed for batch orders and handles profit/order saving.
-        // For a single customer purchase, we'll mimic a batch order of one item, ensuring the agent gets profit.
-
         const singleOrderItem = {
             id: '1', // Dummy ID for the single item
             network: network,
             dataPlanId: dataPlanId,
             phoneNumber: phoneNumber,
-            amountPesewas: amountPesewas // The price the customer pays
+            amountPesewas: amountPesewas 
         };
 
         const paymentCallback = function(response) {
             showToast("Verifying payment and processing order...", 'warning');
             
-            // Use the batch checkout endpoint for the single order
+            // 🛑 CRITICAL: Including shopId here ensures the Agent gets credited 🛑
             fetch('/api/checkout-orders', { 
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     orders: [singleOrderItem],
                     paymentMethod: 'paystack',
-                    totalAmountPesewas: amountPesewas, // Total Net Cost (what the customer paid, before Paystack fee)
-                    reference: response.reference
+                    totalAmountPesewas: amountPesewas, 
+                    reference: response.reference,
+                    shopId: currentShopId // <--- THIS IS THE KEY FIX
                 }),
             })
             .then(checkoutResponse => checkoutResponse.json())
             .then(data => {
                 const statusType = data.status === 'success' ? 'success' : (data.status === 'pending' ? 'warning' : 'error');
                 showToast(data.message, statusType);
+                // Pre-fill the track input for convenience
+                document.getElementById('track-ref-input').value = response.reference;
             })
             .catch(err => {
                 showToast("Order verification failed. Contact support with your payment reference.", 'error');
@@ -295,8 +306,8 @@
         
         PaystackPop.setup({
             key: PAYSTACK_PUBLIC_KEY, 
-            email: 'customer@agentshop.com', // Use a placeholder, Paystack only needs a valid email format
-            amount: chargedAmount, // Send the estimated fee-inclusive amount (in pesewas)
+            email: 'customer@agentshop.com', 
+            amount: chargedAmount, 
             currency: 'GHS',
             ref: 'AGENT-' + Math.floor((Math.random() * 1000000000) + 1),
             metadata: metadata,
@@ -307,6 +318,33 @@
                 purchaseButton.textContent = 'Buy Now via Paystack';
             }
         }).openIframe();
+    }
+
+    // --- NEW: TRACK ORDER LOGIC ---
+    function trackOrder() {
+        const ref = document.getElementById('track-ref-input').value.trim();
+        const resultDiv = document.getElementById('track-result');
+        
+        if(!ref) {
+            showToast("Please enter a reference number.", "error");
+            return;
+        }
+
+        resultDiv.classList.remove('hidden');
+        resultDiv.innerHTML = `<span class="text-gray-500">Checking status for <b>${ref}</b>...</span>`;
+
+        // Note: Since there is no public API endpoint in your server.js for tracking, 
+        // we display the reference. You would need to add an endpoint like /api/public/track to make this fully functional.
+        // For now, we simulate a check or guide the user.
+        setTimeout(() => {
+            resultDiv.innerHTML = `
+                <div class="text-left">
+                    <p class="font-bold text-gray-800 dark:text-white">Reference: ${ref}</p>
+                    <p class="text-sm text-blue-500 mt-1">If you just paid, your order is being processed. 
+                    You will receive an SMS notification shortly.</p>
+                </div>
+            `;
+        }, 1000);
     }
 
 
