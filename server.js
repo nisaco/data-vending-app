@@ -229,7 +229,7 @@ async function runPendingOrderCheck() {
                     ref: order.reference
                 };
 
-                const statusResponse = await axios.get(RESELLERC_API_BASE_URL, {
+                const statusResponse = await axios.get(RESELLER_API_BASE_URL, {
                     params: statusPayload,
                     headers: { 'Authorization': `Bearer ${process.env.DATA_API_SECRET}` }
                 });
