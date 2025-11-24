@@ -1047,6 +1047,78 @@ app.get('/api/public/track-order', isDbReady, async (req, res) => {
     }
 });
 
+// 🛑 RESTORED: WALLET TOP-UP VERIFICATION ROUTE 🛑
+app.post('/api/verify-payment', isDbReady, isAuthenticated, async (req, res) => {
+    const { reference } = req.body;
+    const userId = req.session.user.id;
+
+    if (!reference) {
+        return res.status(400).json({ status: 'error', message: 'No reference provided.' });
+    }
+
+    try {
+        // 1. Verify with Paystack
+        const paystackUrl = `https://api.paystack.co/transaction/verify/${reference}`;
+        const paystackResponse = await axios.get(paystackUrl, {
+            headers: { Authorization: `Bearer ${process.env.PAYSTACK_SECRET_KEY}` }
+        });
+
+        const { status, data } = paystackResponse.data;
+
+        if (status && data.status === 'success') {
+            // 2. Check for duplicate transaction to prevent double crediting
+            const existingOrder = await Order.findOne({ reference: reference });
+            if (existingOrder) {
+                return res.status(400).json({ status: 'error', message: 'Transaction already processed.' });
+            }
+
+            // 3. Calculate Amount to Credit
+            // We credit the full amount paid (in pesewas)
+            const amountPaidPesewas = data.amount;
+            const amountGHS = amountPaidPesewas / 100;
+
+            // 4. Credit User Wallet
+            const updatedUser = await User.findByIdAndUpdate(
+                userId, 
+                { $inc: { walletBalance: amountPaidPesewas } },
+                { new: true }
+            );
+
+            // 5. Log the Transaction in Orders
+            await Order.create({
+                userId: userId,
+                reference: reference,
+                phoneNumber: 'N/A', // Wallet funding doesn't need a recipient phone
+                network: 'WALLET',
+                dataPlan: 'WALLET TOP-UP',
+                amount: amountGHS,
+                status: 'topup_successful',
+                paymentMethod: 'paystack'
+            });
+
+            // 6. Update Session Balance
+            req.session.user.walletBalance = updatedUser.walletBalance;
+
+            return res.json({ 
+                status: 'success', 
+                message: 'Wallet funded successfully!', 
+                newBalance: updatedUser.walletBalance 
+            });
+
+        } else {
+            return res.status(400).json({ status: 'error', message: 'Paystack verification failed.' });
+        }
+
+    } catch (error) {
+        console.error('Topup Verification Error:', error);
+        // If it's a network error from Paystack
+        if (error.response) {
+             return res.status(500).json({ status: 'error', message: 'Failed to connect to Paystack.' });
+        }
+        res.status(500).json({ status: 'error', message: 'Server error during verification.' });
+    }
+});
+
 
 // --- SERVE HTML FILES (Includes New Agent Shop Routes) ---
 app.get('/', (req, res) => res.sendFile(path.join(__dirname, 'public', 'index.html')));
