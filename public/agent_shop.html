@@ -19,7 +19,6 @@
         .dark .text-gray-600 { color: #b0b0b0; }
         .dark .border-gray-300 { border-color: #4b5563; }
         
-        /* Add focus ring color */
         input:focus, select:focus {
             --tw-ring-color: var(--primary) !important;
             border-color: var(--primary) !important;
@@ -40,7 +39,7 @@
     <nav class="bg-white shadow-lg dark:bg-[#1f1f1f]">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex justify-between items-center h-16">
             <span class="text-xl font-bold text-primary cursor-default">DataLink <span class="text-gray-500 text-sm" id="shop-name-display">| Shop</span></span>
-            </div>
+        </div>
     </nav>
 
     <div class="container mx-auto p-4 max-w-xl">
@@ -54,7 +53,7 @@
             <div id="shop-form-area" class="space-y-6">
                 <div id="status-message" class="text-center text-red-500 font-medium">Loading shop details...</div>
                 
-                <form id="purchase-form" class="space-y-4 hidden">
+                <div id="purchase-form" class="space-y-4 hidden">
                     <div>
                         <label for="network" class="block text-gray-700 dark:text-gray-300 mb-2">Select Network</label>
                         <select id="network" required
@@ -67,15 +66,14 @@
                     </div>
 
                     <div>
-                        <label for="phone_number" class="block text-gray-700 dark:text-gray-300 mb-2">Recipient Phone Number (e.g., 05X-XXX-XXXX)</label>
-                        <input type="tel" id="phone_number" required pattern="[0-9]{10}" maxlength="10"
-                               placeholder="05X-XXX-XXXX"
+                        <label for="phone_number" class="block text-gray-700 dark:text-gray-300 mb-2">Recipient Phone Number</label>
+                        <input type="tel" id="phone_number" maxlength="10" placeholder="05X-XXX-XXXX"
                                class="w-full p-3 border border-gray-300 rounded-lg dark:bg-gray-700 dark:border-gray-600">
                     </div>
 
                     <div id="plan-selection-container" class="hidden">
                         <label for="data-plan" class="block text-gray-700 dark:text-gray-300 mb-2">Select Data Plan</label>
-                        <select id="data-plan" required
+                        <select id="data-plan"
                                 class="w-full p-3 border border-gray-300 rounded-lg dark:bg-gray-700 dark:border-gray-600">
                             <option value="">-- Select a Plan --</option>
                         </select>
@@ -85,18 +83,18 @@
                         Price: GHS 0.00
                     </div>
 
-                    <button type="submit" id="purchase-button" disabled
+                    <button type="button" id="purchase-button" disabled
                             class="w-full py-3 px-4 bg-primary text-white font-bold rounded-lg hover:bg-secondary transition disabled:bg-gray-400 disabled:cursor-not-allowed">
                         Buy Now via Paystack
                     </button>
-                </form>
+                </div>
             </div>
         </div>
 
         <div class="bg-white p-6 rounded-2xl shadow-lg mt-6 border border-gray-100 dark:bg-[#1f1f1f] dark:border-gray-700">
             <h2 class="text-lg font-bold text-gray-800 dark:text-white mb-4">Check Order Status</h2>
             <div class="flex space-x-2">
-                <input type="text" id="track-ref-input" placeholder="Enter Reference (e.g., PAYSTACK-xxx)" 
+                <input type="text" id="track-ref-input" placeholder="Enter Reference" 
                        class="flex-1 p-3 border border-gray-300 rounded-lg text-sm dark:bg-gray-700 dark:border-gray-600">
                 <button onclick="trackOrder()" class="py-2 px-4 bg-gray-800 text-white rounded-lg hover:bg-gray-900 dark:bg-gray-600 dark:hover:bg-gray-500 text-sm font-medium">
                     Track
@@ -104,40 +102,29 @@
             </div>
             <div id="track-result" class="mt-4 text-sm text-center hidden p-3 rounded bg-gray-50 dark:bg-gray-800"></div>
         </div>
-
     </div>
     
 <script src="https://js.paystack.co/v1/inline.js"></script>
 
-<script src="https://js.paystack.co/v1/inline.js"></script>
-
 <script>
-    // --- TOAST NOTIFICATION SYSTEM ---
+    // --- TOAST ---
     function showToast(message, type = 'success') {
         const container = document.getElementById('toast-container');
-        const colors = {
-            success: 'bg-green-500 border-green-700',
-            error: 'bg-red-500 border-red-700',
-            warning: 'bg-yellow-500 border-yellow-700',
-        };
+        const colors = { success: 'bg-green-500 border-green-700', error: 'bg-red-500 border-red-700', warning: 'bg-yellow-500 border-yellow-700' };
         const toast = document.createElement('div');
         toast.className = `p-4 mb-2 text-white text-sm font-semibold rounded-lg shadow-lg border-b-4 ${colors[type]} transform translate-x-full transition-all duration-300 ease-out`;
         toast.textContent = message;
         container.prepend(toast);
         setTimeout(() => { toast.style.transform = 'translateX(0)'; }, 10);
-        setTimeout(() => { 
-            toast.style.transform = 'translateX(120%)'; 
-            setTimeout(() => { container.removeChild(toast); }, 400);
-        }, 6000);
+        setTimeout(() => { toast.style.transform = 'translateX(120%)'; setTimeout(() => { container.removeChild(toast); }, 400); }, 6000);
     }
 
-    // --- CONFIGURATION ---
+    // --- CONSTANTS ---
     const PAYSTACK_PUBLIC_KEY = 'pk_live_3be2ebebc6edd6fa9f5f9a7303c80a55ee9e0be1'; 
     let currentShopId = null;
-    let allPlans = [];
     let currentPricePesewas = 0;
     
-    // --- DOM ELEMENTS ---
+    // --- ELEMENTS ---
     const shopNameDisplay = document.getElementById('shop-name-display');
     const welcomeMessage = document.getElementById('welcome-message');
     const statusMessage = document.getElementById('status-message');
@@ -154,7 +141,6 @@
         return urlParams.get('shopId');
     }
 
-    // --- DATA FETCHING ---
     async function fetchPlansForNetwork(network) {
         dataPlanSelect.innerHTML = '<option value="">Loading...</option>';
         purchaseButton.disabled = true;
@@ -177,9 +163,8 @@
                 throw new Error('No plans found');
             }
 
-            shopNameDisplay.textContent = `| ${data.shopName || 'Agent Shop'}`;
-            welcomeMessage.textContent = `Welcome to ${data.shopName || 'the Agent Shop'}!`;
-            allPlans = data.plans;
+            shopNameDisplay.textContent = `| ${data.shopName}`;
+            welcomeMessage.textContent = `Welcome to ${data.shopName}!`;
             
             let options = '<option value="">-- Select a Plan --</option>';
             data.plans.forEach(plan => {
@@ -199,7 +184,7 @@
         }
     }
 
-    // --- HANDLERS ---
+    // --- LISTENERS ---
     networkSelect.addEventListener('change', () => fetchPlansForNetwork(networkSelect.value));
 
     dataPlanSelect.addEventListener('change', () => {
@@ -216,40 +201,40 @@
         }
     });
 
-    // --- PURCHASE LOGIC ---
-    async function handlePurchase(e) {
-        e.preventDefault();
-
+    // --- PURCHASE LOGIC (CLICK HANDLER) ---
+    // Note: No e.preventDefault() needed because button type is "button"
+    purchaseButton.addEventListener('click', async () => {
         const network = networkSelect.value;
         const dataPlanId = dataPlanSelect.value;
         const phoneNumber = phoneNumberInput.value.replace(/[^0-9]/g, ''); 
-        const amountPesewas = currentPricePesewas;
+        let amountPesewas = currentPricePesewas;
 
         if (!network || !dataPlanId || phoneNumber.length < 10) {
             return showToast('Please fill all fields correctly.', 'error');
         }
         
-        // 🛑 1. FORCE INTEGER AMOUNT (Fixes 400 Error)
-        // Paystack will crash if you send 10.5 or "100". It must be Number(100).
-        const chargedAmount = Math.floor(Number(amountPesewas)); 
+        // 🛑 SAFEGUARD: Ensure Amount is an Integer
+        const chargedAmount = Math.round(Number(amountPesewas));
 
         if (isNaN(chargedAmount) || chargedAmount <= 0) {
-            return showToast('Invalid price detected. Please refresh.', 'error');
+            console.error("Invalid Amount:", amountPesewas);
+            return showToast('Price error. Refresh page.', 'error');
         }
 
         purchaseButton.disabled = true;
         purchaseButton.textContent = 'Opening Payment...';
 
-        // 2. PREPARE ORDER DATA
+        // Debug Log for Paystack issues
+        console.log("Initializing Paystack:", { 
+            key: PAYSTACK_PUBLIC_KEY, 
+            email: "customer@agentshop.com", 
+            amount: chargedAmount 
+        });
+
         const singleOrderItem = {
-            id: '1', 
-            network: network,
-            dataPlanId: dataPlanId,
-            phoneNumber: phoneNumber,
-            amountPesewas: amountPesewas 
+            id: '1', network: network, dataPlanId: dataPlanId, phoneNumber: phoneNumber, amountPesewas: amountPesewas 
         };
 
-        // 3. DEFINE CALLBACK
         const paymentCallback = function(response) {
             showToast("Verifying payment...", 'warning');
             
@@ -259,7 +244,7 @@
                 body: JSON.stringify({
                     orders: [singleOrderItem],
                     paymentMethod: 'paystack',
-                    totalAmountPesewas: chargedAmount, // Send exact amount paid
+                    totalAmountPesewas: chargedAmount, 
                     reference: response.reference,
                     shopId: currentShopId 
                 }),
@@ -274,7 +259,7 @@
             })
             .catch(err => {
                 console.error(err);
-                showToast("Verification connection failed.", 'error');
+                showToast("Connection failed during verification.", 'error');
             })
             .finally(() => {
                 purchaseButton.disabled = false;
@@ -282,14 +267,12 @@
             });
         };
         
-        // 4. OPEN PAYSTACK
         try {
             const handler = PaystackPop.setup({
                 key: PAYSTACK_PUBLIC_KEY, 
-                email: `customer-${Date.now()}@agentshop.com`, // Unique email every time
+                email: `shop-customer-${Math.floor(Math.random() * 10000)}@agentshop.com`, 
                 amount: chargedAmount, 
                 currency: 'GHS',
-                channels: ['card', 'mobile_money'], // Explicitly allow MoMo
                 ref: 'SHOP-' + Math.floor((Math.random() * 1000000000) + 1),
                 metadata: {
                     custom_fields: [
@@ -307,12 +290,13 @@
             handler.openIframe();
         } catch (error) {
             console.error("Paystack Init Error:", error);
-            showToast("Could not load payment window.", 'error');
+            showToast("Could not load payment. Check console.", 'error');
             purchaseButton.disabled = false;
+            purchaseButton.textContent = 'Buy Now via Paystack';
         }
-    }
+    });
 
-    // --- TRACKING LOGIC ---
+    // --- TRACKING ---
     async function trackOrder() {
         const ref = document.getElementById('track-ref-input').value.trim();
         const resultDiv = document.getElementById('track-result');
@@ -347,11 +331,11 @@
         }
     }
 
-    // --- INITIALIZATION ---
+    // --- INIT ---
     document.addEventListener('DOMContentLoaded', () => {
         currentShopId = getShopIdFromUrl();
         if (!currentShopId) {
-            statusMessage.textContent = 'Error: Shop ID missing.';
+            statusMessage.textContent = 'Error: Shop ID missing from URL.';
             return;
         }
         networkSelect.value = 'MTN';
