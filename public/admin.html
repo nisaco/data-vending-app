@@ -87,7 +87,6 @@
 
     <div id="toast-container"></div>
     
-    <!-- Status Update Modal -->
     <div id="modal-backdrop" class="fixed inset-0 hidden items-center justify-center bg-black bg-opacity-75 z-50 opacity-0 transition-opacity duration-300">
         <div id="status-modal" class="bg-white p-6 rounded-xl shadow-2xl w-full max-w-md transform scale-95 transition-all duration-300 dark:bg-gray-800">
             <h3 class="text-xl font-bold text-gray-800 dark:text-white mb-4">Update Order Status</h3>
@@ -118,7 +117,6 @@
         </div>
     </div>
 
-    <!-- 🛑 NEW: Custom Delete Confirmation Modal 🛑 -->
     <div id="delete-confirm-modal-backdrop" class="fixed inset-0 hidden items-center justify-center bg-black bg-opacity-75 z-50 opacity-0 transition-opacity duration-300">
         <div id="delete-confirm-modal" class="bg-white p-6 rounded-xl shadow-2xl w-full max-w-sm transform scale-95 transition-all duration-300 dark:bg-gray-800">
             <h3 class="text-xl font-bold text-red-500 mb-4">Confirm Deletion</h3>
@@ -269,11 +267,9 @@
             // Animate out and remove
             setTimeout(() => {
                 toast.style.transform = 'translateX(120%)';
-                // 🛑 FIXED: Safe removal by checking if the element still exists 🛑
-                const parent = toast.parentNode;
-                if (parent) {
-                    setTimeout(() => { parent.removeChild(toast); }, 400);
-                }
+                setTimeout(() => {
+                    container.removeChild(toast);
+                }, 400);
             }, 6000);
         }
         // --- END TOAST SYSTEM ---
@@ -520,6 +516,12 @@
                     displayPhone = order.phoneNumber || 'N/A';
                 }
 
+                // 🛑 NEW: Check if this is an Agent Sale (requires backend to send agentId)
+                let networkDisplay = `${order.dataPlan} (${order.network})`;
+                if (order.agentId) {
+                    networkDisplay += ` <span class="bg-purple-100 text-purple-800 text-xs font-bold px-2 py-0.5 rounded dark:bg-purple-900 dark:text-purple-300">[AGENT SALE]</span>`;
+                }
+
                 row.className = 'hover:bg-gray-50 transition duration-150 dark:hover:bg-gray-800';
                 
                 // Determine button text based on status
@@ -534,7 +536,7 @@
                     <td class="py-4 px-6 dark:text-gray-400 text-xs">${safeDateFormatter(order.created_at)}</td>
                     <td class="py-4 px-6 font-medium text-gray-800 dark:text-gray-300">${order.username || 'N/A'}</td>
                     <td class="py-4 px-6 dark:text-gray-400 text-xs">${displayPhone}</td>
-                    <td class="py-4 px-6 dark:text-gray-400 text-xs">${order.dataPlan} (${order.network})</td>
+                    <td class="py-4 px-6 dark:text-gray-400 text-xs">${networkDisplay}</td>
                     <td class="py-4 px-6 font-semibold ${amountColor}">
                         ${amountSign} GHS ${order.amount.toFixed(2)}
                     </td>
@@ -667,9 +669,9 @@
             const userId = currentDeleteUserId;
             const secret = adminSecretInput.value.trim();
             
-            if (!secret || !userId) {
+            if (!secret) {
                 closeDeleteModal();
-                showToast('Admin secret and User ID are required.', 'error');
+                showToast('Admin secret required to delete user.', 'error');
                 return;
             }
 
@@ -680,7 +682,7 @@
                 const response = await fetch('/api/admin/delete-user', {
                     method: 'DELETE',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ userId: userId, adminSecret: secret })
+                    body: JSON.stringify({ userId, adminSecret: secret })
                 });
 
                 const data = await response.json();
@@ -693,7 +695,6 @@
                 }
             } catch (error) {
                 showToast('Network error during client deletion.', 'error');
-                console.error('Delete Network/Fetch Error:', error);
             } finally {
                 closeDeleteModal();
                 document.getElementById('delete-modal-confirm').disabled = false;
@@ -720,7 +721,6 @@
                 return; 
             }
             
-            // 🛑 CRITICAL FIX: Update global secret variable right before fetch 🛑
             adminSecret = secret;
 
             fetchDataBtn.disabled = true;
@@ -729,7 +729,6 @@
             try {
                 const metricsReady = await fetchMetrics();
                 if (!metricsReady) { 
-                    // Metrics fetch failed, logging already happened inside fetchMetrics
                     throw new Error("Failed to load core metrics. Check secret."); 
                 }
 
@@ -739,7 +738,6 @@
 
             } catch (error) {
                 console.error('Master Fetch Error:', error);
-                // The generic error message displayed to the user:
                 showToast(`CRITICAL ERROR: ${error.message}`, 'error');
             } finally {
                 fetchDataBtn.disabled = false;
@@ -755,7 +753,7 @@
             const initialSecret = urlParams.get('secret');
             if (initialSecret) {
                 adminSecretInput.value = initialSecret;
-                // No need to set global adminSecret here, it's set just before fetchAllData
+                adminSecret = initialSecret;
                 fetchAllData();
             }
 
