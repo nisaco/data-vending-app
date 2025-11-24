@@ -135,6 +135,9 @@
     const planSelectionContainer = document.getElementById('plan-selection-container');
     const priceDisplay = document.getElementById('price-display');
     const purchaseButton = document.getElementById('purchase-button');
+    
+    // Track Result Div
+    const trackResultDiv = document.getElementById('track-result');
 
     function getShopIdFromUrl() {
         const urlParams = new URLSearchParams(window.location.search);
@@ -201,8 +204,44 @@
         }
     });
 
-    // --- PURCHASE LOGIC (CLICK HANDLER) ---
-    // Note: No e.preventDefault() needed because button type is "button"
+    // --- DISPLAY RECEIPT FUNCTION (The Solution) ---
+    function showInstantReceipt(reference, description, status) {
+        let color = 'text-orange-500';
+        let text = 'Processing (Pending)';
+        
+        if (status === 'success') { 
+            color = 'text-green-600'; 
+            text = 'Payment Received / Processing Data'; 
+        }
+
+        // Unhide the result box immediately
+        trackResultDiv.classList.remove('hidden');
+        
+        // Populate with known data without asking the server
+        trackResultDiv.innerHTML = `
+            <div class="text-left p-4 bg-green-50 dark:bg-gray-800 rounded-lg border border-green-200 dark:border-gray-700 shadow-sm">
+                <div class="flex items-center mb-2">
+                    <svg class="w-6 h-6 text-green-500 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                    <h3 class="font-bold text-gray-800 dark:text-white text-lg">Order Placed!</h3>
+                </div>
+                
+                <p class="text-xs text-gray-500 uppercase mt-2">Reference ID</p>
+                <p class="font-mono font-bold text-gray-800 dark:text-white text-md mb-3 select-all">${reference}</p>
+                
+                <p class="text-xs text-gray-500 uppercase">Item</p>
+                <p class="font-medium text-gray-800 dark:text-white mb-3">${description}</p>
+
+                <p class="text-xs text-gray-500 uppercase">Status</p>
+                <p class="text-lg font-bold ${color}">${text}</p>
+                
+                <p class="text-xs text-gray-400 mt-3 italic">You will receive an SMS shortly.</p>
+            </div>`;
+            
+        // Scroll down to it
+        trackResultDiv.scrollIntoView({ behavior: 'smooth' });
+    }
+
+    // --- PURCHASE LOGIC ---
     purchaseButton.addEventListener('click', async () => {
         const network = networkSelect.value;
         const dataPlanId = dataPlanSelect.value;
@@ -213,23 +252,14 @@
             return showToast('Please fill all fields correctly.', 'error');
         }
         
-        // 🛑 SAFEGUARD: Ensure Amount is an Integer
         const chargedAmount = Math.round(Number(amountPesewas));
 
         if (isNaN(chargedAmount) || chargedAmount <= 0) {
-            console.error("Invalid Amount:", amountPesewas);
             return showToast('Price error. Refresh page.', 'error');
         }
 
         purchaseButton.disabled = true;
         purchaseButton.textContent = 'Opening Payment...';
-
-        // Debug Log for Paystack issues
-        console.log("Initializing Paystack:", { 
-            key: PAYSTACK_PUBLIC_KEY, 
-            email: "customer@agentshop.com", 
-            amount: chargedAmount 
-        });
 
         const singleOrderItem = {
             id: '1', network: network, dataPlanId: dataPlanId, phoneNumber: phoneNumber, amountPesewas: amountPesewas 
@@ -238,6 +268,7 @@
         const paymentCallback = function(response) {
             showToast("Verifying payment...", 'warning');
             
+            // Send to server
             fetch('/api/checkout-orders', { 
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -251,15 +282,22 @@
             })
             .then(res => res.json())
             .then(data => {
-                const type = data.status === 'success' ? 'success' : 'error';
-                showToast(data.message, type);
                 if (data.status === 'success') {
-                    document.getElementById('track-ref-input').value = response.reference;
+                    showToast('Order Successful!', 'success');
+                    
+                    // 🛑 NEW: Show Receipt Immediately (No Server Fetch needed yet)
+                    const planName = dataPlanSelect.options[dataPlanSelect.selectedIndex].text;
+                    showInstantReceipt(response.reference, `${planName} - ${phoneNumber}`, 'success');
+                    
+                    // Clear form slightly
+                    phoneNumberInput.value = '';
+                } else {
+                    showToast(data.message, 'error');
                 }
             })
             .catch(err => {
                 console.error(err);
-                showToast("Connection failed during verification.", 'error');
+                showToast("Connection failed during verification. Check SMS.", 'warning');
             })
             .finally(() => {
                 purchaseButton.disabled = false;
@@ -296,7 +334,7 @@
         }
     });
 
-    // --- TRACKING ---
+    // --- TRACKING (For returning users) ---
     async function trackOrder() {
         const ref = document.getElementById('track-ref-input').value.trim();
         const resultDiv = document.getElementById('track-result');
@@ -304,7 +342,7 @@
         if(!ref) { return showToast("Enter a reference number.", "error"); }
 
         resultDiv.classList.remove('hidden');
-        resultDiv.innerHTML = `<span class="text-gray-500">Checking...</span>`;
+        resultDiv.innerHTML = `<span class="text-gray-500">Searching...</span>`;
 
         try {
             const response = await fetch(`/api/public/track-order?reference=${ref}`);
@@ -324,7 +362,8 @@
                         <p class="text-lg font-bold ${color}">${text}</p>
                     </div>`;
             } else {
-                resultDiv.innerHTML = `<span class="text-red-500">${data.message || 'Not found'}</span>`;
+                // Give user a hint if it's too recent
+                resultDiv.innerHTML = `<span class="text-red-500">${data.message || 'Not found. If you just paid, wait 30s.'}</span>`;
             }
         } catch (e) {
             resultDiv.innerHTML = `<span class="text-red-500">Connection error.</span>`;
