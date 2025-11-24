@@ -1014,6 +1014,38 @@ app.delete('/api/admin/delete-user', async (req, res) => {
         res.status(500).json({ error: 'Failed to delete user and associated data.' });
     }
 });
+// 🛑 PUBLIC ORDER TRACKING ENDPOINT 🛑
+app.get('/api/public/track-order', isDbReady, async (req, res) => {
+    const { reference } = req.query;
+
+    if (!reference) {
+        return res.status(400).json({ message: 'Reference number is required.' });
+    }
+
+    try {
+        // Find order by reference (Case insensitive search recommended if possible, but exact match is faster)
+        const order = await Order.findOne({ reference: reference }).select('status network dataPlan amount updatedAt');
+
+        if (!order) {
+            return res.status(404).json({ message: 'Order not found. Please check the reference number.' });
+        }
+
+        // Return limited info for privacy (don't return user IDs or phone numbers publicly)
+        res.json({
+            status: 'success',
+            data: {
+                reference: reference,
+                status: order.status,
+                description: `${order.dataPlan} (${order.network})`,
+                last_updated: order.updatedAt
+            }
+        });
+
+    } catch (error) {
+        console.error('Track Order Error:', error);
+        res.status(500).json({ message: 'Server error while searching for order.' });
+    }
+});
 
 
 // --- SERVE HTML FILES (Includes New Agent Shop Routes) ---
