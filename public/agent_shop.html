@@ -321,7 +321,8 @@
     }
 
     // --- NEW: TRACK ORDER LOGIC ---
-    function trackOrder() {
+   // --- UPDATED: TRACK ORDER LOGIC ---
+    async function trackOrder() {
         const ref = document.getElementById('track-ref-input').value.trim();
         const resultDiv = document.getElementById('track-result');
         
@@ -333,18 +334,44 @@
         resultDiv.classList.remove('hidden');
         resultDiv.innerHTML = `<span class="text-gray-500">Checking status for <b>${ref}</b>...</span>`;
 
-        // Note: Since there is no public API endpoint in your server.js for tracking, 
-        // we display the reference. You would need to add an endpoint like /api/public/track to make this fully functional.
-        // For now, we simulate a check or guide the user.
-        setTimeout(() => {
-            resultDiv.innerHTML = `
-                <div class="text-left">
-                    <p class="font-bold text-gray-800 dark:text-white">Reference: ${ref}</p>
-                    <p class="text-sm text-blue-500 mt-1">If you just paid, your order is being processed. 
-                    You will receive an SMS notification shortly.</p>
-                </div>
-            `;
-        }, 1000);
+        try {
+            const response = await fetch(`/api/public/track-order?reference=${ref}`);
+            const data = await response.json();
+
+            if (response.ok) {
+                let statusColor = 'text-blue-600';
+                let statusText = data.data.status;
+
+                // Make status user-friendly
+                if (data.data.status === 'data_sent' || data.data.status === 'payment_success') {
+                    statusColor = 'text-green-600';
+                    statusText = 'Successful / Delivered';
+                } else if (data.data.status === 'pending_review') {
+                    statusColor = 'text-orange-500';
+                    statusText = 'Processing (Pending)';
+                } else if (data.data.status.includes('failed')) {
+                    statusColor = 'text-red-600';
+                    statusText = 'Failed';
+                }
+
+                resultDiv.innerHTML = `
+                    <div class="text-left p-3 bg-gray-50 dark:bg-gray-800 rounded border border-gray-200 dark:border-gray-700">
+                        <p class="text-sm text-gray-500">Order Reference:</p>
+                        <p class="font-mono font-bold text-gray-800 dark:text-white mb-2">${data.data.reference}</p>
+                        
+                        <p class="text-sm text-gray-500">Item:</p>
+                        <p class="font-medium text-gray-800 dark:text-white mb-2">${data.data.description}</p>
+
+                        <p class="text-sm text-gray-500">Status:</p>
+                        <p class="text-lg font-bold ${statusColor}">${statusText}</p>
+                    </div>
+                `;
+            } else {
+                resultDiv.innerHTML = `<span class="text-red-500 font-medium">${data.message}</span>`;
+            }
+        } catch (error) {
+            resultDiv.innerHTML = `<span class="text-red-500">Network error. Please try again.</span>`;
+        }
     }
 
 
