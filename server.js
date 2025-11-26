@@ -11,7 +11,7 @@ const crypto = require('crypto');
 const rateLimit = require('express-rate-limit'); 
 const MongoStore = require('connect-mongo');
 
-// 🛑 Import Database Models 🛑
+// 🛑 Import AgentShop model 🛑
 const { User, Order, AgentShop, mongoose } = require('./database.js'); 
 
 const app = express();
@@ -21,32 +21,33 @@ const PORT = process.env.PORT || 10000;
 const RESELLER_API_BASE_URL = 'https://datapacks.shop/api.php'; 
 
 // --- 2. DATA (PLANS) AND MAPS ---
+// PRICES ARE THE WHOLESALE COST (in PESEWAS)
 const allPlans = {
-    "MTN": [
-        { id: '1', name: '1GB', price: 480 }, { id: '2', name: '2GB', price: 960 }, { id: '3', name: '3GB', price: 1420 }, 
-        { id: '4', name: '4GB', price: 2000 }, { id: '5', name: '5GB', price: 2400 }, { id: '6', name: '6GB', price: 2800 }, 
-        { id: '8', name: '8GB', price: 3600 }, { id: '10', name: '10GB', price: 4400 }, { id: '15', name: '15GB', price: 6400 },
-        { id: '20', name: '20GB', price: 8200 }, { id: '25', name: '25GB', price: 10200 }, { id: '30', name: '30GB', price: 12200 },
-        { id: '40', name: '40GB', price: 16200 }, { id: '50', name: '50GB', price: 19800 }
-    ],
-    "AirtelTigo": [
-        { id: '1', name: '1GB', price: 430 }, { id: '2', name: '2GB', price: 900 }, { id: '3', name: '3GB', price: 1320 },  
-        { id: '4', name: '4GB', price: 1680 }, { id: '5', name: '5GB', price: 2100 }, { id: '6', name: '6GB', price: 2500 },  
-        { id: '7', name: '7GB', price: 2830 }, { id: '8', name: '8GB', price: 3400 }, { id: '9', name: '9GB', price: 3800 },  
-        { id: '10', name: '10GB', price: 4250 }, { id: '12', name: '12GB', price: 5200 }, { id: '15', name: '15GB', price: 6250 },
-        { id: '20', name: '20GB', price: 8400 }
-    ],
-    "Telecel": [
-        { id: '5', name: '5GB', price: 2300 }, { id: '10', name: '10GB', price: 4300 }, { id: '15', name: '15GB', price: 6220 }, 
-        { id: '20', name: '20GB', price: 8300 }, { id: '25', name: '25GB', price: 10300 }, { id: '30', name: '30GB', price: 12300 },
-        { id: '40', name: '40GB', price: 15500 }, { id: '50', name: '50GB', price: 19500 }, { id: '100', name: '100GB', price: 40000}
-    ]
+    "MTN": [
+        { id: '1', name: '1GB', price: 480 }, { id: '2', name: '2GB', price: 960 }, { id: '3', name: '3GB', price: 1420 }, 
+        { id: '4', name: '4GB', price: 2000 }, { id: '5', name: '5GB', price: 2400 }, { id: '6', name: '6GB', price: 2800 }, 
+        { id: '8', name: '8GB', price: 3600 }, { id: '10', name: '10GB', price: 4400 }, { id: '15', name: '15GB', price: 6400 },
+        { id: '20', name: '20GB', price: 8200 }, { id: '25', name: '25GB', price: 10200 }, { id: '30', name: '30GB', price: 12200 },
+        { id: '40', name: '40GB', price: 16200 }, { id: '50', name: '50GB', price: 19800 }
+    ],
+    "AirtelTigo": [
+        { id: '1', name: '1GB', price: 430 }, { id: '2', name: '2GB', price: 900 }, { id: '3', name: '3GB', price: 1320 },  
+        { id: '4', name: '4GB', price: 1680 }, { id: '5', name: '5GB', price: 2100 }, { id: '6', name: '6GB', price: 2500 },  
+        { id: '7', name: '7GB', price: 2830 }, { id: '8', name: '8GB', price: 3400 }, { id: '9', name: '9GB', price: 3800 },  
+        { id: '10', name: '10GB', price: 4250 }, { id: '12', name: '12GB', price: 5200 }, { id: '15', name: '15GB', price: 6250 },
+        { id: '20', name: '20GB', price: 8400 }
+    ],
+    "Telecel": [
+        { id: '5', name: '5GB', price: 2300 }, { id: '10', name: '10GB', price: 4300 }, { id: '15', name: '15GB', price: 6220 }, 
+        { id: '20', name: '20GB', price: 8300 }, { id: '25', name: '25GB', price: 10300 }, { id: '30', name: '30GB', price: 12300 },
+        { id: '40', name: '40GB', price: 15500 }, { id: '50', name: '50GB', price: 19500 }, { id: '100', name: '100GB', price: 40000}
+    ]
 };
 
 const NETWORK_KEY_MAP = {
-    "MTN": 'MTN', 
-    "AirtelTigo": 'AT', 
-    "Telecel": 'VOD', 
+    "MTN": 'MTN', 
+    "AirtelTigo": 'AT', 
+    "Telecel": 'VOD', 
 };
 
 const AGENT_REGISTRATION_FEE_PESEWAS = 2000;
@@ -54,189 +55,207 @@ const TOPUP_FEE_RATE = 0.02;
 
 // --- HELPER FUNCTIONS ---
 function findBaseCost(network, capacityId) {
-    const networkPlans = allPlans[network];
-    if (!networkPlans) return 0;
-    const plan = networkPlans.find(p => p.id === capacityId);
-    return plan ? plan.price : 0; 
+    const networkPlans = allPlans[network];
+    if (!networkPlans) return 0;
+    const plan = networkPlans.find(p => p.id === capacityId);
+    return plan ? plan.price : 0; 
 }
 
 function calculatePaystackFee(chargedAmountInPesewas) {
-    const TRANSACTION_FEE_RATE = 0.00200; const TRANSACTION_FEE_CAP = 2000;
-    let fullFee = (chargedAmountInPesewas * TRANSACTION_FEE_RATE) + 80;
-    let totalFeeChargedByPaystack = Math.min(fullFee, TRANSACTION_FEE_CAP);
-    return totalFeeChargedByPaystack;
+    const TRANSACTION_FEE_RATE = 0.00200; const TRANSACTION_FEE_CAP = 2000;
+    let fullFee = (chargedAmountInPesewas * TRANSACTION_FEE_RATE) + 80;
+    let totalFeeChargedByPaystack = Math.min(fullFee, TRANSACTION_FEE_CAP);
+    return totalFeeChargedByPaystack;
 }
 
 function calculateClientTopupFee(netDepositPesewas) {
-    const feeAmount = netDepositPesewas * TOPUP_FEE_RATE;
-    const finalCharge = netDepositPesewas + feeAmount;
-    return Math.ceil(finalCharge); 
+    const feeAmount = netDepositPesewas * TOPUP_FEE_RATE;
+    const finalCharge = netDepositPesewas + feeAmount;
+    return Math.ceil(finalCharge); 
 }
 
+// Helper to calculate Paystack fee for a batch order (single fee applied to total)
 function calculateBatchPaystackCharge(netTotalPesewas) {
-    const CUSTOMER_FLAT_FEE_PESEWAS = 25; 
-    const totalCharged = netTotalPesewas + CUSTOMER_FLAT_FEE_PESEWAS;
-    return Math.round(totalCharged); 
+    const CUSTOMER_FLAT_FEE_PESEWAS = 25; 
+    const totalCharged = netTotalPesewas + CUSTOMER_FLAT_FEE_PESEWAS;
+    return Math.round(totalCharged); // Return the total amount to charge the user
 }
 
 async function sendAdminAlertEmail(order) {
-    if (!process.env.SENDGRID_API_KEY) {
-        console.error("SENDGRID_API_KEY not set. Cannot send alert email.");
-        return;
-    }
-    sgMail.setApiKey(process.env.SENDGRID_API_KEY);
-    const msg = {
-        to: 'ajcustomercare2@gmail.com', 
-        from: process.env.SENDGRID_SENDER_EMAIL || 'jnkpappoe@gmail.com', 
-        subject: `🚨 MANUAL REVIEW REQUIRED: ${order.network || 'N/A'} Data Transfer Failed`,
-        html: `
-            <h1>Urgent Action Required!</h1>
-            <p>A customer payment was successful, but the data bundle transfer failed automatically. Please fulfill this order manually through the Datapacks.shop dashboard.</p>
-            <hr>
-            <p><strong>Status:</strong> PENDING REVIEW</p>
-            <p><strong>Network:</strong> ${order.network || 'N/A'}</p>
-            <p><strong>Plan:</strong> ${order.dataPlan || 'N/A'}</p>
-            <p><strong>Phone:</strong> ${order.phoneNumber || 'N/A'}</p>
-            <p><strong>Amount Paid:</strong> GHS ${order.amount ? order.amount.toFixed(2) : 'N/A'}</p>
-            <p><strong>Reference:</strong> ${order.reference || 'N/A'}</p>
-            <p><strong>Action:</strong> Go to the Admin Dashboard and click 'Mark Sent' after fulfilling manually.</p>
-        `,
-    };
-    try {
-        await sgMail.send(msg);
-        console.log(`Manual alert email sent for reference: ${order.reference}`);
-    } catch (error) {
-        console.error('Failed to send admin alert email:', error.response?.body?.errors || error.message);
-    }
+    if (!process.env.SENDGRID_API_KEY) {
+        console.error("SENDGRID_API_KEY not set. Cannot send alert email.");
+        return;
+    }
+    sgMail.setApiKey(process.env.SENDGRID_API_KEY);
+    const msg = {
+        to: 'ajcustomercare2@gmail.com', 
+        from: process.env.SENDGRID_SENDER_EMAIL || 'jnkpappoe@gmail.com', 
+        subject: `🚨 MANUAL REVIEW REQUIRED: ${order.network || 'N/A'} Data Transfer Failed`,
+        html: `
+            <h1>Urgent Action Required!</h1>
+            <p>A customer payment was successful, but the data bundle transfer failed automatically. Please fulfill this order manually through the Datapacks.shop dashboard.</p>
+            <hr>
+            <p><strong>Status:</strong> PENDING REVIEW</p>
+            <p><strong>Network:</strong> ${order.network || 'N/A'}</p>
+            <p><strong>Plan:</strong> ${order.dataPlan || 'N/A'}</p>
+            <p><strong>Phone:</strong> ${order.phoneNumber || 'N/A'}</p>
+            <p><strong>Amount Paid:</strong> GHS ${order.amount ? order.amount.toFixed(2) : 'N/A'}</p>
+            <p><strong>Reference:</strong> ${order.reference || 'N/A'}</p>
+            <p><strong>Action:</strong> Go to the Admin Dashboard and click 'Mark Sent' after fulfilling manually.</p>
+        `,
+    };
+   try {
+        await sgMail.send(msg);
+        console.log(`Manual alert email sent for reference: ${order.reference}`);
+    } catch (error) {
+        console.error('Failed to send admin alert email:', error.response?.body?.errors || error.message);
+    }
 }
 
-// 🛑 FIXED: executeDataPurchase now saves agentId to DB 🛑
 async function executeDataPurchase(userId, orderDetails, paymentMethod) {
-    const { network, dataPlan, amount, reference, agentId } = orderDetails;
-    
-    let finalStatus = 'payment_success'; 
-    
-    const purchaseReference = reference || `${paymentMethod.toUpperCase()}-${crypto.randomBytes(16).toString('hex')}`;
+    const { network, dataPlan, amount, reference } = orderDetails;
+    
+    let finalStatus = 'payment_success'; 
+    
+    // If reference is not provided (single wallet purchase), generate one.
+    const purchaseReference = reference || `${paymentMethod.toUpperCase()}-${crypto.randomBytes(16).toString('hex')}`;
 
-    // --- STEP 1: SETUP & VALIDATION ---
-    const resellerApiUrl = RESELLER_API_BASE_URL;
-    const networkKey = NETWORK_KEY_MAP[network]; 
-    const apiToken = process.env.DATA_API_SECRET; 
-    
-    if (!networkKey) {
-        console.error(`ERROR: Invalid network provided: ${network}`);
-        finalStatus = 'pending_review';
-    }
-    if (!apiToken) {
-        console.error("CRITICAL ERROR: DATA_API_SECRET is missing in environment variables.");
-        finalStatus = 'pending_review'; 
-    }
-    
-    const resellerPayload = {
-        network: networkKey,        
-        capacity: dataPlan,           
-        recipient: orderDetails.phoneNumber,       
-        client_ref: purchaseReference       
-    };
-    
-    // --- STEP 2: ATTEMPT DATA TRANSFER ---
-    if (finalStatus === 'payment_success') { 
-        try {
-            const transferResponse = await axios.post(
-                `${resellerApiUrl}?action=order`, 
-                resellerPayload, 
-                {
-                    headers: {
-                        'Authorization': `Bearer ${apiToken}`, 
-                        'Content-Type': 'application/json'
-                    }
-                }
-            );
+    // --- STEP 1: SETUP & VALIDATION ---
+    const resellerApiUrl = RESELLER_API_BASE_URL;
+    const networkKey = NETWORK_KEY_MAP[network]; 
+    const apiToken = process.env.DATA_API_SECRET; 
+    
+    if (!networkKey) {
+        console.error(`ERROR: Invalid network provided: ${network}`);
+        finalStatus = 'pending_review';
+    }
+    if (!apiToken) {
+        console.error("CRITICAL ERROR: DATA_API_SECRET is missing in environment variables.");
+        finalStatus = 'pending_review'; 
+    }
+    
+    const resellerPayload = {
+        network: networkKey,        
+        capacity: dataPlan,           
+        recipient: orderDetails.phoneNumber,       
+        client_ref: purchaseReference       
+    };
+    
+    // --- STEP 2: ATTEMPT DATA TRANSFER ---
+    if (finalStatus === 'payment_success') { 
+        try {
+            const transferResponse = await axios.post(
+                `${resellerApiUrl}?action=order`, 
+                resellerPayload, 
+                {
+                    headers: {
+                        'Authorization': `Bearer ${apiToken}`, 
+                        'Content-Type': 'application/json'
+                    }
+                }
+            );
 
-            const apiResponseData = transferResponse.data;
-            const firstResult = apiResponseData.results && apiResponseData.results.length > 0 ? apiResponseData.results[0] : null;
+            const apiResponseData = transferResponse.data;
+            const firstResult = apiResponseData.results && apiResponseData.results.length > 0 ? apiResponseData.results[0] : null;
 
-            if (apiResponseData.success === true && firstResult && 
-                (firstResult.status === 'processing' || firstResult.success === true)) {
-                finalStatus = 'data_sent'; 
-            } else {
-                console.error("Data API Failed.");
-                if (firstResult && firstResult.error) { console.error('SPECIFIC RESELLER ERROR:', firstResult.error); }
-                finalStatus = 'pending_review';
-            }
+            if (apiResponseData.success === true && firstResult && 
+                (firstResult.status === 'processing' || firstResult.success === true)) {
+                
+                finalStatus = 'data_sent'; 
+                
+            } else {
+                console.error("Data API Failed: Could not confirm successful submission.");
+                
+                if (firstResult && firstResult.error) {
+                    console.error('SPECIFIC RESELLER ERROR:', firstResult.error); 
+                }
+                
+                console.error('Full Reseller API Response:', apiResponseData);
+                finalStatus = 'pending_review';
+            }
 
-        } catch (transferError) {
-            console.error('Data API Network/Authentication Error:', transferError.message);
-            finalStatus = 'pending_review';
-        }
-    }
+        } catch (transferError) {
+            console.error('Data API Network/Authentication Error:', transferError.message);
+            if (transferError.response) {
+                console.error('Reseller API Error Status:', transferError.response.status);
+                console.error('Reseller API Error Data:', transferError.response.data);
+            }
+            finalStatus = 'pending_review';
+        }
+    }
 
-    // --- STEP 3: SAVE FINAL ORDER STATUS & ALERT ---
-    await Order.create({
-        userId: userId,
-        agentId: agentId, // 🛑 Saving Agent ID here!
-        reference: purchaseReference,
-        phoneNumber: orderDetails.phoneNumber,
-        network: network,
-        dataPlan: dataPlan,
-        amount: amount,
-        status: finalStatus,
-        paymentMethod: paymentMethod
-    });
+    // --- STEP 3: SAVE FINAL ORDER STATUS & ALERT ---
+    await Order.create({
+        userId: userId,
+        reference: purchaseReference,
+        phoneNumber: orderDetails.phoneNumber,
+        network: network,
+        dataPlan: dataPlan,
+        amount: amount,
+        status: finalStatus,
+        paymentMethod: paymentMethod
+    });
 
-    if (finalStatus === 'pending_review') {
-        await sendAdminAlertEmail(orderDetails); 
-    }
+    if (finalStatus === 'pending_review') {
+        await sendAdminAlertEmail(orderDetails); 
+    }
 
-    return { status: finalStatus, reference: purchaseReference };
+    return { status: finalStatus, reference: purchaseReference };
 }
 
-// 🛑 FIXED: Cron Job Typo Corrected (RESELLERC -> RESELLER) 🛑
+
 async function runPendingOrderCheck() {
-    console.log('--- CRON: Checking for pending orders... ---');
-    
-    try {
-        if (mongoose.connection.readyState !== 1) {
-            console.log('CRON: Skipping check, database not ready.');
-            return;
-        }
+    console.log('--- CRON: Checking for pending orders needing status update... ---');
+    
+    try {
+        if (mongoose.connection.readyState !== 1) {
+            console.log('CRON: Skipping check, database not ready (State: ' + mongoose.connection.readyState + ')');
+            return;
+        }
 
-        // 🛑 NOTE: I am adding 'metrics_reset' here temporarily for metric reset safety,
-        // but this status must exist in the database.js schema to avoid validation errors.
-        const pendingOrders = await Order.find({ status: { $in: ['pending_review', 'metrics_reset'] } }).limit(20); 
+        // Only checking data transfer orders that failed immediately
+        const pendingOrders = await Order.find({ status: 'pending_review' }).limit(20); 
 
-        if (pendingOrders.length === 0) {
-            console.log('CRON: No orders currently pending review.');
-            return;
-        }
+        if (pendingOrders.length === 0) {
+            console.log('CRON: No orders currently pending review.');
+            return;
+        }
 
-        for (const order of pendingOrders) {
-            try {
-                const statusPayload = { action: 'status', ref: order.reference };
+        for (const order of pendingOrders) {
+            try {
+                // DATAPACKS.SHOP STATUS CHECK LOGIC
+                const statusPayload = {
+                    action: 'status', 
+                    ref: order.reference
+                };
 
-                const statusResponse = await axios.get(RESELLER_API_BASE_URL, {
-                    params: statusPayload,
-                    headers: { 'Authorization': `Bearer ${process.env.DATA_API_SECRET}` }
-                });
+                const statusResponse = await axios.get(RESELLER_API_BASE_URL, {
+                    params: statusPayload,
+                    headers: { 'Authorization': `Bearer ${process.env.DATA_API_SECRET}` }
+                });
 
-                const apiData = statusResponse.data;
-                
-                if (apiData.status === 'SUCCESSFUL' || apiData.status === 'DELIVERED') {
-                    await Order.findByIdAndUpdate(order._id, { status: 'data_sent' });
-                    console.log(`CRON SUCCESS: Order ${order.reference} marked 'data_sent'.`);
+                const apiData = statusResponse.data;
+                
+                if (apiData.status === 'SUCCESSFUL' || apiData.status === 'DELIVERED') {
+                    await Order.findByIdAndUpdate(order._id, { status: 'data_sent' });
+                    console.log(`CRON SUCCESS: Order ${order.reference} automatically marked 'data_sent'.`);
 
-                } else if (apiData.status === 'FAILED' || apiData.status === 'REJECTED') {
-                    await Order.findByIdAndUpdate(order._id, { status: 'data_failed' });
-                    console.log(`CRON FAILURE: Order ${order.reference} marked 'data_failed'.`);
-                }
-            } catch (apiError) {
-                console.error(`CRON ERROR for ${order.reference}:`, apiError.message);
-            }
-        }
+                } else if (apiData.status === 'FAILED' || apiData.status === 'REJECTED') {
+                    await Order.findByIdAndUpdate(order._id, { status: 'data_failed' });
+                    console.log(`CRON FAILURE: Order ${order.reference} marked 'data_failed'.`);
+                }
+            } catch (apiError) {
+                if (axios.isAxiosError(apiError)) {
+                    console.error(`CRON ERROR: Failed to check status for ${order.reference}. Vendor Status: ${apiError.response?.status || 'Network Error'}`);
+                } else {
+                    console.error(`CRON ERROR: Failed to check status for ${order.reference}.`, apiError.message);
+                }
+            }
+        }
 
-    } catch (dbError) {
-        console.error('CRON FATAL ERROR: Database read failed.', dbError.message);
-    }
+    } catch (dbError) {
+        console.error('CRON FATAL ERROR: Database read failed.', dbError.message);
+    }
 }
 
 
@@ -247,609 +266,958 @@ const sessionSecret = process.env.SESSION_SECRET || 'fallback-secret-for-local-d
 const mongoUri = process.env.MONGO_URI;
 
 app.use(session({
-    secret: sessionSecret,
-    resave: false,
-    saveUninitialized: false,
-    store: MongoStore.create({
-        mongoUrl: mongoUri, 
-        collectionName: 'sessions',
-        touchAfter: 24 * 3600 
-    }),
-    cookie: { secure: true, maxAge: 1000 * 60 * 60 * 24 } 
+    secret: sessionSecret,
+    resave: false,
+    saveUninitialized: false,
+    store: MongoStore.create({
+        mongoUrl: mongoUri, 
+        collectionName: 'sessions',
+        touchAfter: 24 * 3600 
+    }),
+    cookie: { 
+        secure: true, 
+        maxAge: 1000 * 60 * 60 * 24 
+    } 
 }));
 
 app.use(express.json());
 
 // 🛑 SECURITY HEADERS MIDDLEWARE 🛑
 app.use((req, res, next) => {
-    res.setHeader('X-Content-Type-Options', 'nosniff');
-    res.setHeader('X-Frame-Options', 'SAMEORIGIN');
-    res.setHeader('X-XSS-Protection', '1; mode=block');
-    next();
+    res.setHeader('X-Content-Type-Options', 'nosniff');
+    res.setHeader('X-Frame-Options', 'SAMEORIGIN');
+    res.setHeader('X-XSS-Protection', '1; mode=block');
+    next();
 });
 
+// --- ADDED HEALTH CHECK ENDPOINT ---
 app.get('/health', (req, res) => {
-    res.status(200).json({ status: 'ok', uptime: process.uptime() });
+    res.status(200).json({ status: 'ok', uptime: process.uptime() });
 });
+// ------------------------------------
 
 app.use(express.static(path.join(__dirname, 'public')));
 
+// 🛑 RATE LIMITING MIDDLEWARE (Applied to Login route) 🛑
 const loginLimiter = rateLimit({
-    windowMs: 15 * 60 * 1000, 
-    max: 5, 
-    message: { message: "Too many login attempts, please try again after 15 minutes." },
-    standardHeaders: true,
-    legacyHeaders: false,
+    windowMs: 15 * 60 * 1000, // 15 minutes
+    max: 5, // Limit each IP to 5 requests per windowMs
+    message: {
+        message: "Too many login attempts from this IP, please try again after 15 minutes."
+    },
+    standardHeaders: true,
+    legacyHeaders: false,
 });
 
 
 // --- 4. DATABASE CHECK MIDDLEWARE ---
 const isDbReady = (req, res, next) => {
-    if (mongoose.connection.readyState !== 1) {
-        return res.status(503).json({ message: 'Database connection is temporarily unavailable.' });
-    }
-    next();
+    if (mongoose.connection.readyState !== 1) {
+        console.error("DB NOT READY. State:", mongoose.connection.readyState);
+        return res.status(503).json({ message: 'Database connection is temporarily unavailable. Please try again in 10 seconds.' });
+    }
+    next();
 };
 
 const isAuthenticated = (req, res, next) => req.session.user ? next() : res.redirect('/login.html');
 
 // --- USER AUTHENTICATION & INFO ROUTES ---
 app.post('/api/signup', isDbReady, async (req, res) => {
-    const { username, email, password } = req.body;
-    if (!username || !email || !password) return res.status(400).json({ message: 'All fields are required.' });
-    try {
-        const hashedPassword = await bcrypt.hash(password, 10);
-        await User.create({ username, email, password: hashedPassword, walletBalance: 0, payoutWalletBalance: 0, role: 'Client' }); 
-        res.status(201).json({ message: 'Account created successfully! Please log in.' });
-    } catch (error) { 
-        if (error.code === 11000) return res.status(400).json({ message: 'Username or email already exists.' });
-        res.status(500).json({ message: 'Server error during signup.' }); 
-    }
+    const { username, email, password } = req.body;
+    if (!username || !email || !password) return res.status(400).json({ message: 'All fields are required.' });
+    try {
+        const hashedPassword = await bcrypt.hash(password, 10);
+        
+        // Default role is 'Client'
+        await User.create({ username, email, password: hashedPassword, walletBalance: 0, payoutWalletBalance: 0, role: 'Client' }); 
+        
+        res.status(201).json({ message: 'Account created successfully! Please log in.' });
+    } catch (error) { 
+        if (error.code === 11000) return res.status(400).json({ message: 'Username or email already exists.' });
+        res.status(500).json({ message: 'Server error during signup.' }); 
+    }
 });
 
+// 🛑 APPLY RATE LIMITER TO LOGIN ROUTE
 app.post('/api/login', loginLimiter, isDbReady, async (req, res) => {
-    const { username, password } = req.body;
-    if (!username || !password) return res.status(400).json({ message: 'Username and password are required.' });
-    try {
-        const user = await User.findOne({ username });
-        if (!user || !await bcrypt.compare(password, user.password)) {
-            return res.status(401).json({ message: 'Invalid credentials.' });
-        }
-        if (!user.role) {
-            user.role = 'Client';
-            await User.findByIdAndUpdate(user._id, { role: 'Client' });
-        }
-        const freshUser = await User.findById(user._id).select('username walletBalance role payoutWalletBalance shopId'); 
-        req.session.user = { id: user._id, username: freshUser.username, walletBalance: freshUser.walletBalance, role: freshUser.role, payoutWalletBalance: freshUser.payoutWalletBalance, shopId: freshUser.shopId }; 
-        res.json({ message: 'Logged in successfully!', redirect: '/purchase.html' });
-    } catch (error) {
-        res.status(500).json({ message: 'Server error during login.' });
-    }
+    const { username, password } = req.body;
+    if (!username || !password) return res.status(400).json({ message: 'Username and password are required.' });
+    try {
+        const user = await User.findOne({ username });
+        if (!user || !await bcrypt.compare(password, user.password)) {
+            return res.status(401).json({ message: 'Invalid credentials.' });
+        }
+        
+        if (!user.role) {
+            user.role = 'Client';
+            await User.findByIdAndUpdate(user._id, { role: 'Client' });
+        }
+        
+        const freshUser = await User.findById(user._id).select('username walletBalance role payoutWalletBalance shopId'); 
+        
+        req.session.user = { id: user._id, username: freshUser.username, walletBalance: freshUser.walletBalance, role: freshUser.role, payoutWalletBalance: freshUser.payoutWalletBalance, shopId: freshUser.shopId }; 
+        
+        const redirectUrl = '/purchase.html'; 
+        
+        res.json({ message: 'Logged in successfully!', redirect: redirectUrl });
+        
+    } catch (error) {
+        res.status(500).json({ message: 'Server error during login.' });
+    }
 });
 
 app.get('/api/logout', (req, res) => {
-    req.session.destroy(() => res.redirect('/index.html'));
+    req.session.destroy(() => res.redirect('/index.html'));
 });
 
 app.get('/api/user-info', isDbReady, isAuthenticated, async (req, res) => {
-    try {
-        const user = await User.findById(req.session.user.id).select('username walletBalance email role payoutWalletBalance shopId'); 
-        if (!user) {
-            req.session.destroy(() => res.status(404).json({ error: 'User not found' }));
-            return;
-        }
-        req.session.user.walletBalance = user.walletBalance; 
-        res.json({ 
-            username: user.username, 
-            walletBalance: user.walletBalance, 
-            email: user.email, 
-            role: user.role,
-            payoutWalletBalance: user.payoutWalletBalance || 0,
-            shopId: user.shopId || null
-        });
-    } catch (error) {
-        res.status(500).json({ error: 'Failed to fetch user data' });
-    }
+    try {
+        const user = await User.findById(req.session.user.id).select('username walletBalance email role payoutWalletBalance shopId'); 
+        if (!user) {
+            req.session.destroy(() => res.status(404).json({ error: 'User not found' }));
+            return;
+        }
+        req.session.user.walletBalance = user.walletBalance; 
+        res.json({ 
+            username: user.username, 
+            walletBalance: user.walletBalance, 
+            email: user.email, 
+            role: user.role,
+            payoutWalletBalance: user.payoutWalletBalance || 0,
+            shopId: user.shopId || null
+        });
+    } catch (error) {
+        res.status(500).json({ error: 'Failed to fetch user data' });
+    }
 });
 
 app.post('/api/forgot-password', isDbReady, async (req, res) => {
-    const { email } = req.body;
-    try {
-        const user = await User.findOne({ email });
-        if (!user) return res.status(404).json({ message: 'If the email exists, a password reset link has been sent.' });
-        
-        const resetToken = crypto.randomBytes(20).toString('hex');
-        user.resetToken = resetToken;
-        user.resetTokenExpires = Date.now() + 3600000; 
-        await user.save();
-        res.json({ message: 'A password reset link has been sent to your email.' });
-    } catch (error) {
-        res.status(500).json({ message: 'Server error while processing request.' });
-    }
+    const { email } = req.body;
+    try {
+        const user = await User.findOne({ email });
+        if (!user) {
+            return res.status(404).json({ message: 'If the email exists, a password reset link has been sent.' });
+        }
+        
+        const resetToken = crypto.randomBytes(20).toString('hex');
+        
+        user.resetToken = resetToken;
+        user.resetTokenExpires = Date.now() + 3600000; // 1 hour
+        await user.save();
+        
+        res.json({ message: 'A password reset link has been sent to your email.' });
+        
+    } catch (error) {
+        res.status(500).json({ message: 'Server error while processing request.' });
+    }
 });
 
 app.post('/api/reset-password', isDbReady, async (req, res) => {
-    const { token, newPassword } = req.body;
-    try {
-        const user = await User.findOne({ resetToken: token, resetTokenExpires: { $gt: Date.now() } });
-        if (!user) return res.status(400).json({ message: 'Invalid or expired token.' });
-        
-        const hashedPassword = await bcrypt.hash(newPassword, 10);
-        user.password = hashedPassword;
-        user.resetToken = undefined;
-        user.resetTokenExpires = undefined;
-        await user.save();
-        res.json({ message: 'Password updated successfully. Please log in.' });
-    } catch (error) {
-        res.status(500).json({ message: 'Server error while resetting password.' });
-    }
+    const { token, newPassword } = req.body;
+    try {
+        const user = await User.findOne({
+            resetToken: token,
+            resetTokenExpires: { $gt: Date.now() } 
+        });
+
+        if (!user) {
+            return res.status(400).json({ message: 'Invalid or expired token.' });
+        }
+        
+        const hashedPassword = await bcrypt.hash(newPassword, 10);
+        
+        user.password = hashedPassword;
+        user.resetToken = undefined;
+        user.resetTokenExpires = undefined;
+        await user.save();
+
+        res.json({ message: 'Password updated successfully. Please log in.' });
+
+    } catch (error) {
+        res.status(500).json({ message: 'Server error while resetting password.' });
+    }
 });
 
+// NOTE: This Agent Signup logic is only needed for users who still want the 'Agent' role explicitly.
 app.post('/api/agent-signup', isDbReady, async (req, res) => {
-    const { username, email, password } = req.body;
-    if (!username || !email || !password) return res.status(400).json({ message: 'All fields are required.' });
-    
-    const existingUser = await User.findOne({ $or: [{ username }, { email }] });
-    if (existingUser) return res.status(400).json({ message: 'User already exists.' });
+    const { username, email, password } = req.body;
+    if (!username || !email || !password) return res.status(400).json({ message: 'All fields are required.' });
+    
+    const existingUser = await User.findOne({ $or: [{ username }, { email }] });
+    if (existingUser) {
+        return res.status(400).json({ message: 'User already exists.' });
+    }
 
-    try {
-        const hashedPassword = await bcrypt.hash(password, 10);
-        const finalRegistrationCharge = calculateClientTopupFee(AGENT_REGISTRATION_FEE_PESEWAS);
-        const tempUser = await User.create({ 
-            username, email, password: hashedPassword, 
-            walletBalance: 0, payoutWalletBalance: 0, role: 'Agent_Pending' 
-        });
-        res.status(200).json({ message: 'Initiate payment for registration.', userId: tempUser._id, amountPesewas: finalRegistrationCharge });
-    } catch (error) {
-        res.status(500).json({ message: 'Server error during agent signup initiation.' }); 
-    }
+    try {
+        const hashedPassword = await bcrypt.hash(password, 10);
+        
+        const finalRegistrationCharge = calculateClientTopupFee(AGENT_REGISTRATION_FEE_PESEWAS);
+        
+        const tempUser = await User.create({ 
+            username, 
+            email, 
+            password: hashedPassword, 
+            walletBalance: 0, 
+            payoutWalletBalance: 0, 
+            role: 'Agent_Pending' 
+        });
+
+        res.status(200).json({ 
+            message: 'Initiate payment for registration.',
+            userId: tempUser._id,
+            amountPesewas: finalRegistrationCharge 
+        });
+
+    } catch (error) {
+        res.status(500).json({ message: 'Server error during agent signup initiation.' }); 
+    }
 });
 
 app.post('/api/verify-agent-payment', async (req, res) => {
-    const { reference, userId } = req.body;
-    const expectedCharge = calculateClientTopupFee(AGENT_REGISTRATION_FEE_PESEWAS);
+    const { reference, userId } = req.body;
+    
+    const expectedCharge = calculateClientTopupFee(AGENT_REGISTRATION_FEE_PESEWAS);
 
-    try {
-        const paystackUrl = `https://api.paystack.co/transaction/verify/${reference}`;
-        const paystackResponse = await axios.get(paystackUrl, { headers: { Authorization: `Bearer ${process.env.PAYSTACK_SECRET_KEY}` } });
-        const { status, data } = paystackResponse.data;
-        const acceptableMinimum = Math.floor(expectedCharge * 0.95);
-        
-        if (data.status === 'success' && data.amount >= acceptableMinimum) {
-            const user = await User.findByIdAndUpdate(userId, { role: 'Agent' }, { new: true });
-            if (user) return res.json({ message: 'Registration successful!', role: 'Agent' });
-        }
-        res.status(400).json({ message: 'Payment verification failed.' });
-    } catch (error) {
-        await User.findByIdAndDelete(userId);
-        res.status(500).json({ message: 'Verification failed. Contact support.' });
-    }
-});
+    try {
+        const paystackUrl = `https://api.paystack.co/transaction/verify/${reference}`;
+        const paystackResponse = await axios.get(paystackUrl, { 
+            headers: { Authorization: `Bearer ${process.env.PAYSTACK_SECRET_KEY}` } 
+        });
+        const { status, data } = paystackResponse.data;
+        
+        const acceptableMinimum = Math.floor(expectedCharge * 0.95);
+        const acceptableMaximum = Math.ceil(expectedCharge * 1.05);
+        
+        if (data.status === 'success' && data.amount >= acceptableMinimum && data.amount <= acceptableMaximum) {
+            
+            const user = await User.findByIdAndUpdate(
+                userId, 
+                { role: 'Agent' }, 
+                { new: true }
+            );
 
-// --- ADMIN USER MANAGEMENT ENDPOINTS ---
+            if (user) {
+                return res.json({ message: 'Registration successful! You are now an Agent.', role: 'Agent' });
+            }
+        }
+        
+        res.status(400).json({ message: 'Payment verification failed. Please try again.' });
 
-// 🛑 NEW: Update User Role Endpoint 🛑
-app.post('/api/admin/update-role', async (req, res) => {
-    const { userId, newRole, adminSecret } = req.body;
-    
-    if (adminSecret !== process.env.ADMIN_SECRET) {
-        return res.status(403).json({ status: 'error', message: 'Unauthorized access.' });
-    }
-    if (!userId || !newRole) {
-        return res.status(400).json({ status: 'error', message: 'Missing user ID or role.' });
-    }
-    
-    // Ensure the new role is valid according to the database schema
-    const validRoles = ['Client', 'Agent', 'Admin'];
-    if (!validRoles.includes(newRole)) {
-        return res.status(400).json({ status: 'error', message: 'Invalid role provided.' });
-    }
-
-    try {
-        const updatedUser = await User.findByIdAndUpdate(
-            userId, 
-            { role: newRole }, 
-            { new: true, runValidators: true }
-        );
-
-        if (!updatedUser) {
-            return res.status(404).json({ status: 'error', message: 'User not found.' });
-        }
-
-        res.json({ 
-            status: 'success', 
-            message: `Role for ${updatedUser.username} updated to ${newRole}.`,
-            newRole: updatedUser.role
-        });
-
-    } catch (error) {
-        console.error('Role update error:', error);
-        res.status(500).json({ status: 'error', message: 'Server error during role update.' });
-    }
-});
-
-// 🛑 NEW: Reset Metrics Endpoint 🛑
-app.post('/api/admin/reset-metrics', async (req, res) => {
-    const { adminSecret } = req.body;
-    
-    if (adminSecret !== process.env.ADMIN_SECRET) {
-        return res.status(403).json({ status: 'error', message: 'Unauthorized access.' });
-    }
-
-    try {
-        // Change status of all counted orders (data_sent) to metrics_reset
-        // NOTE: metrics_reset must be a valid enum in your database.js file to avoid validation errors
-        const result = await Order.updateMany(
-            { status: 'data_sent' },
-            { $set: { status: 'metrics_reset' } }
-        );
-
-        res.json({ 
-            status: 'success', 
-            message: `Metrics reset complete. ${result.modifiedCount} orders archived.`,
-            modifiedCount: result.modifiedCount
-        });
-
-    } catch (error) {
-        console.error('Metric Reset Error:', error);
-        res.status(500).json({ status: 'error', message: 'Server error during metric reset.' });
-    }
+    } catch (error) {
+        console.error('Agent payment verification error:', error);
+        await User.findByIdAndDelete(userId);
+        res.status(500).json({ message: 'Verification failed. Contact support.' });
+    }
 });
 
 
-// --- AGENT SHOP ENDPOINTS ---
+// 🛑 NEW: AGENT SHOP ENDPOINTS (Accessible to all authenticated users) 🛑
+
+// Agent creates their shop and sets default pricing/name
 app.post('/api/agent/create-shop', isDbReady, isAuthenticated, async (req, res) => {
-    const userId = req.session.user.id;
-    const { shopName } = req.body;
-    const user = await User.findById(userId);
-    
-    if (!user) return res.status(404).json({ message: 'User not found.' });
-    if (user.shopId) return res.status(400).json({ message: 'Shop already exists.' });
+    const userId = req.session.user.id;
+    const { shopName } = req.body;
 
-    try {
-        const shopId = crypto.randomBytes(4).toString('hex');
-        await AgentShop.create({ userId: userId, shopId: shopId, shopName: shopName || `${user.username}'s Store`, customMarkups: {} });
-        await User.findByIdAndUpdate(userId, { shopId: shopId });
-        req.session.user.shopId = shopId; 
-        res.json({ status: 'success', shopId: shopId, link: `/agent_shop.html?shopId=${shopId}`, message: 'Shop created successfully!' });
-    } catch (error) {
-        res.status(500).json({ message: 'Failed to create shop.' });
-    }
+    const user = await User.findById(userId);
+    // 🛑 REMOVED ROLE CHECK: Any logged-in user can create a shop.
+    if (!user) {
+        return res.status(404).json({ message: 'User data not found in session.' });
+    }
+
+    // Check if shop already exists
+    if (user.shopId) {
+        return res.status(400).json({ message: 'Shop already exists.' });
+    }
+
+    try {
+        // Generate a simple, unique shop ID (8 characters long)
+        const shopId = crypto.randomBytes(4).toString('hex');
+
+        // Create Shop with zero markup by default
+        await AgentShop.create({
+            userId: userId,
+            shopId: shopId,
+            shopName: shopName || `${user.username}'s Store`,
+            customMarkups: {} // Initialize with empty map
+        });
+
+        // Link the shop ID back to the user
+        await User.findByIdAndUpdate(userId, { shopId: shopId });
+        
+        // Update session immediately
+        req.session.user.shopId = shopId; 
+
+        res.json({
+            status: 'success',
+            shopId: shopId,
+            link: `${req.protocol}://${req.get('host')}/agent_shop.html?shopId=${shopId}`,
+            message: 'Shop created successfully!'
+        });
+    } catch (error) {
+        console.error('Shop creation error:', error);
+        res.status(500).json({ message: 'Failed to create shop. Server error.' });
+    }
 });
 
+// Agent sets or retrieves custom plans for their shop
 app.get('/api/agent/plans', isDbReady, async (req, res) => {
-    const { shopId, network } = req.query;
-    if (!shopId || !network) return res.status(400).json({ message: 'Shop ID and network are required.' });
+    const { shopId, network } = req.query;
+    if (!shopId || !network) return res.status(400).json({ message: 'Shop ID and network are required.' });
 
-    try {
-        const agentShop = await AgentShop.findOne({ shopId });
-        const networkPlans = allPlans[network];
-        
-        if (!networkPlans) return res.status(404).json({ message: 'Invalid network.' });
-        if (!agentShop) return res.status(404).json({ message: 'Shop not found.' });
+    try {
+        const agentShop = await AgentShop.findOne({ shopId });
+        const networkPlans = allPlans[network];
+        
+        if (!networkPlans) return res.status(404).json({ message: 'Invalid network.' });
+        if (!agentShop) return res.status(404).json({ message: 'Shop not found.' });
 
-        const networkMarkups = agentShop.customMarkups.get(network) || {}; 
-        const sellingPlans = networkPlans.map(p => {
-            const wholesalePrice = p.price;
-            const individualMarkup = networkMarkups[p.id] || 0; 
-            let rawSellingPrice = wholesalePrice + individualMarkup; 
-            const finalPrice = Math.ceil(Math.max(rawSellingPrice, wholesalePrice) / 5) * 5; 
-            return { id: p.id, name: p.name, price: finalPrice, wholesalePrice: wholesalePrice };
-        });
-        res.json({ plans: sellingPlans, shopName: agentShop.shopName });
-    } catch (error) {
-        res.status(500).json({ message: 'Server error loading plans.' });
-    }
+        // Safely access the map for the specific network, defaulting to empty Map if not set
+        const networkMarkups = agentShop.customMarkups.get(network) || {}; 
+
+        const sellingPlans = networkPlans.map(p => {
+            const wholesalePrice = p.price;
+            // Lookup markup using the plan ID (e.g., '1', '5')
+            const individualMarkup = networkMarkups[p.id] || 0; 
+            
+            let rawSellingPrice = wholesalePrice + individualMarkup; 
+            // Final price calculation (Rounded to nearest 5 pesewas, ensuring it meets wholesale price)
+            const finalPrice = Math.ceil(Math.max(rawSellingPrice, wholesalePrice) / 5) * 5; 
+            
+            return { 
+                id: p.id, 
+                name: p.name, 
+                price: finalPrice, 
+                wholesalePrice: wholesalePrice 
+            };
+        });
+
+        res.json({ plans: sellingPlans, shopName: agentShop.shopName });
+        
+    } catch (error) {
+        console.error('Agent plans error:', error);
+        res.status(500).json({ message: 'Server error loading plans.' });
+    }
 });
 
+// Updates markup for a single package
 app.post('/api/agent/update-markup', isDbReady, isAuthenticated, async (req, res) => {
-    const userId = req.session.user.id;
-    const { network, capacityId, markupValue } = req.body;
-    
-    try {
-        const mapKey = `customMarkups.${network}.${capacityId}`;
-        const updateObject = { [mapKey]: parseInt(markupValue, 10) };
-        const updatedShop = await AgentShop.findOneAndUpdate({ userId: userId }, { $set: updateObject }, { new: true });
+    const userId = req.session.user.id;
+    const { network, capacityId, markupValue } = req.body;
+    
+    const user = await User.findById(userId);
+    if (!user) {
+        return res.status(403).json({ message: 'Unauthorized. User data not found.' });
+    }
+    if (!network || !capacityId || markupValue === undefined) {
+         return res.status(400).json({ message: 'Missing network, capacity ID, or markup value.' });
+    }
+    
+    try {
+        // 🛑 CRITICAL FIX USING FINDONEANDUPDATE WITH DOT NOTATION 🛑
+        
+        // 1. Create the specific key path: customMarkups.MTN.1 or customMarkups.AirtelTigo.5
+        const mapKey = `customMarkups.${network}.${capacityId}`;
+        
+        // 2. Prepare the $set operation to update ONLY the nested value directly in MongoDB
+        const updateObject = { [mapKey]: parseInt(markupValue, 10) };
 
-        if (!updatedShop) return res.status(404).json({ message: 'Shop not found.' });
-        res.json({ status: 'success', message: 'Markup updated.' });
-    } catch (error) {
-        res.status(500).json({ message: 'Failed to update markup.' });
-    }
+        // 3. Execute the update query
+        const updatedShop = await AgentShop.findOneAndUpdate(
+            { userId: userId },
+            { $set: updateObject },
+            { 
+                new: true, 
+                // Ensure arrayFilters or map filters are not needed since we are using explicit dot notation
+            }
+        );
+
+        if (!updatedShop) {
+             // Fallback: If findOneAndUpdate didn't work (e.g., structure was missing), we can try to save the entire document, 
+             // but if the shop was just created, it should work.
+             return res.status(404).json({ message: 'Shop not found or unable to update.' });
+        }
+
+
+        res.json({ status: 'success', message: `${network} ${capacityId}GB markup updated to ${markupValue} pesewas.` });
+        
+    } catch (error) {
+        console.error("Mongoose Map Save Error (Definitive):", error);
+        res.status(500).json({ message: 'Failed to update markup. Server error. Check database structure.' });
+    }
 });
 
+
+// 🛑 Withdrawal Request 🛑
 app.post('/api/withdraw-profit', isDbReady, isAuthenticated, async (req, res) => {
-    const userId = req.session.user.id;
-    const { amountPesewas, accountDetails } = req.body;
-    
-    if (!amountPesewas || amountPesewas < 500) return res.status(400).json({ message: 'Minimum withdrawal is GHS 5.00.' });
+    const userId = req.session.user.id;
+    const { amountPesewas, accountDetails } = req.body;
+    
+    if (!amountPesewas || amountPesewas < 500) { 
+        return res.status(400).json({ message: 'Minimum withdrawal is GHS 5.00.' });
+    }
+    if (!accountDetails || !accountDetails.accountNumber || !accountDetails.network) {
+        return res.status(400).json({ message: 'Missing account or network details.' });
+    }
 
-    try {
-        const user = await User.findById(userId);
-        if (user.payoutWalletBalance < amountPesewas) return res.status(400).json({ message: 'Insufficient payout balance.' });
-        
-        const debitResult = await User.findByIdAndUpdate(userId, { $inc: { payoutWalletBalance: -amountPesewas } }, { new: true });
-        req.session.user.payoutWalletBalance = debitResult.payoutWalletBalance;
+    try {
+        const user = await User.findById(userId);
+        if (!user) return res.status(404).json({ message: 'User not found.' });
 
-        await Order.create({
-            userId: userId,
-            reference: `WITHDRAWAL-${crypto.randomBytes(12).toString('hex')}`,
-            phoneNumber: accountDetails.accountNumber,
-            network: accountDetails.network,
-            dataPlan: 'WITHDRAWAL REQUEST',
-            amount: amountPesewas / 100, 
-            status: 'withdrawal_pending',
-            paymentMethod: 'payout'
-        });
-        res.json({ status: 'success', message: 'Withdrawal requested.', newPayoutBalance: debitResult.payoutWalletBalance });
-    } catch (error) {
-        res.status(500).json({ message: 'Server error during withdrawal request.' });
-    }
+        if (user.payoutWalletBalance < amountPesewas) {
+            return res.status(400).json({ message: 'Insufficient payout balance.' });
+        }
+        
+        const debitResult = await User.findByIdAndUpdate(
+            userId,
+            { $inc: { payoutWalletBalance: -amountPesewas } },
+            { new: true, runValidators: true }
+        );
+
+        req.session.user.payoutWalletBalance = debitResult.payoutWalletBalance;
+
+        await Order.create({
+            userId: userId,
+            reference: `WITHDRAWAL-${crypto.randomBytes(12).toString('hex')}`,
+            phoneNumber: accountDetails.accountNumber,
+            network: accountDetails.network,
+            dataPlan: 'WITHDRAWAL REQUEST',
+            amount: amountPesewas / 100, 
+            status: 'withdrawal_pending',
+            paymentMethod: 'payout'
+        });
+
+        res.json({ 
+            status: 'success', 
+            message: `Withdrawal of GHS ${(amountPesewas / 100).toFixed(2)} requested successfully.`,
+            newPayoutBalance: debitResult.payoutWalletBalance
+        });
+
+    } catch (error) {
+        res.status(500).json({ message: 'Server error during withdrawal request.' });
+    }
 });
 
-// 🛑 CHECKOUT ROUTE 🛑
+
+// 🛑 BATCH CHECKOUT (Handles Agent Shop Public Sales) 🛑
 app.post('/api/checkout-orders', isDbReady, isAuthenticated, async (req, res) => {
-    const { orders, paymentMethod, totalAmountPesewas, reference, shopId } = req.body;
-    const userId = req.session.user.id;
-    
-    if (!orders || orders.length === 0) return res.status(400).json({ status: 'error', message: 'Cart is empty.' });
+    // 1. ADDED shopId to the destructured body to capture which shop the user is visiting
+    const { orders, paymentMethod, totalAmountPesewas, reference, shopId } = req.body;
+    const userId = req.session.user.id;
+    
+    if (!orders || orders.length === 0 || !totalAmountPesewas) {
+        return res.status(400).json({ status: 'error', message: 'Cart is empty or total amount is missing.' });
+    }
 
-    let user;
-    let chargedAmountPesewas;
-    let fulfilledCount = 0;
+    let user;
+    let chargedAmountPesewas;
+    let paymentRef = reference;
+    let fulfilledCount = 0;
 
-    try {
-        user = await User.findById(userId);
-        if (!user) return res.status(404).json({ status: 'error', message: 'User not found.' });
+    try {
+        user = await User.findById(userId);
+        if (!user) return res.status(404).json({ status: 'error', message: 'User not found.' });
 
-        if (paymentMethod === 'wallet') {
-            chargedAmountPesewas = totalAmountPesewas;
-            if (user.walletBalance < chargedAmountPesewas) return res.status(400).json({ status: 'error', message: 'Insufficient wallet balance.' });
-            await User.findByIdAndUpdate(userId, { $inc: { walletBalance: -chargedAmountPesewas } });
-        } else if (paymentMethod === 'paystack' && reference) {
-            chargedAmountPesewas = calculateBatchPaystackCharge(totalAmountPesewas);
-            const paystackUrl = `https://api.paystack.co/transaction/verify/${reference}`;
-            const paystackResponse = await axios.get(paystackUrl, { headers: { Authorization: `Bearer ${process.env.PAYSTACK_SECRET_KEY}` } });
-            if (paystackResponse.data.data.status !== 'success') return res.status(400).json({ status: 'error', message: 'Payment verification failed.' });
-        } else {
-            return res.status(400).json({ status: 'error', message: 'Invalid payment method.' });
-        }
-        
-        const updatedUser = await User.findById(userId).select('walletBalance');
-        req.session.user.walletBalance = updatedUser.walletBalance;
+        // --- PHASE 1: HANDLE PAYMENT DEBIT/VERIFICATION ---
 
-        // IDENTIFY SHOP
-        let agentShop = null;
-        if (shopId) {
-            agentShop = await AgentShop.findOne({ shopId: shopId });
-        } else if (user.shopId) {
-            agentShop = await AgentShop.findOne({ shopId: user.shopId });
-        }
+        if (paymentMethod === 'wallet') {
+            chargedAmountPesewas = totalAmountPesewas;
+            if (user.walletBalance < chargedAmountPesewas) {
+                return res.status(400).json({ status: 'error', message: 'Insufficient wallet balance for batch order.' });
+            }
+            await User.findByIdAndUpdate(userId, { $inc: { walletBalance: -chargedAmountPesewas } });
+        } else if (paymentMethod === 'paystack' && paymentRef) {
+            chargedAmountPesewas = calculateBatchPaystackCharge(totalAmountPesewas);
 
-        let profitToCredit = 0; 
-        
-        for (const item of orders) {
-            try {
-                const baseWholesaleCost = findBaseCost(item.network, item.dataPlanId);
-                const retailPricePaid = item.amountPesewas;
-                let itemProfit = 0;
-                if (agentShop) {
-                    const networkMarkups = agentShop.customMarkups.get(item.network) || {};
-                    const markup = networkMarkups[item.dataPlanId] || 0; 
-                    itemProfit = markup; 
-                } else {
-                    itemProfit = Math.max(0, retailPricePaid - baseWholesaleCost); 
-                }
-                profitToCredit += itemProfit;
-                
-                const itemDetails = {
-                    network: item.network, dataPlan: item.dataPlanId, phoneNumber: item.phoneNumber,
-                    amount: baseWholesaleCost / 100, 
-                    reference: paymentMethod === 'paystack' ? `${reference}-ITEM-${item.id}` : undefined,
-                    agentId: agentShop ? agentShop.userId : null // PASSING AGENT ID
-                };
-                
-                const result = await executeDataPurchase(userId, itemDetails, paymentMethod);
-                if (result.status !== 'data_failed') fulfilledCount++;
-            } catch (e) { console.error(`Error processing item: ${e.message}`); }
-        }
-        
-        if (profitToCredit > 0 && agentShop && agentShop.userId) {
-            await User.findByIdAndUpdate(agentShop.userId, { $inc: { payoutWalletBalance: profitToCredit } });
-            if (agentShop.userId.toString() === userId.toString()) {
-                 const finalUser = await User.findById(userId);
-                 req.session.user.payoutWalletBalance = finalUser.payoutWalletBalance;
-            }
-        }
+            // Verify Paystack payment (assuming Paystack verification logic runs here)
+            const paystackUrl = `https://api.paystack.co/transaction/verify/${paymentRef}`;
+            const paystackResponse = await axios.get(paystackUrl, { headers: { Authorization: `Bearer ${process.env.PAYSTACK_SECRET_KEY}` } });
+            const { data } = paystackResponse.data;
 
-        if (fulfilledCount > 0) return res.json({ status: 'success', message: `${fulfilledCount} orders placed.` });
-        return res.status(500).json({ status: 'error', message: 'Zero orders fulfilled.' });
+            if (data.status !== 'success') {
+                return res.status(400).json({ status: 'error', message: 'Payment verification failed. Please try again.' });
+            }
+            // Use flexible check for paystack fees
+            const acceptableMin = Math.floor(chargedAmountPesewas * 0.95);
+            const acceptableMax = Math.ceil(chargedAmountPesewas * 1.05);
 
-    } catch (error) {
-        res.status(500).json({ status: 'error', message: 'Server error during checkout.' });
-    }
+            if (data.amount < acceptableMin || data.amount > acceptableMax) {
+                console.error(`Batch Fraud: Charged ${data.amount} expected ${chargedAmountPesewas}`);
+                return res.status(400).json({ status: 'error', message: 'Amount charged mismatch detected. Contact support.' });
+            }
+
+        } else {
+            return res.status(400).json({ status: 'error', message: 'Invalid payment method or missing reference.' });
+        }
+        
+        // Refresh user balance for session
+        const updatedUser = await User.findById(userId).select('walletBalance');
+        req.session.user.walletBalance = updatedUser.walletBalance;
+
+        // --- PHASE 2: IDENTIFY AGENT SHOP & CALCULATE PROFIT ---
+        
+        let agentShop = null;
+        
+        // FIX: Check if shopId was sent in request (Client buying from Agent)
+        if (shopId) {
+            agentShop = await AgentShop.findOne({ shopId: shopId });
+        } 
+        // Fallback: If no shopId sent, check if the user is the agent buying for themselves
+        else if (user.shopId) {
+            agentShop = await AgentShop.findOne({ shopId: user.shopId });
+        }
+
+        let profitToCredit = 0; 
+        
+        for (const item of orders) {
+            try {
+                const baseWholesaleCost = findBaseCost(item.network, item.dataPlanId);
+                const retailPricePaid = item.amountPesewas;
+                
+                let itemProfit = 0;
+                if (agentShop) {
+                    // Use the specific AgentShop markup stored in the nested map
+                    const networkMarkups = agentShop.customMarkups.get(item.network) || {};
+                    const markup = networkMarkups[item.dataPlanId] || 0;
+                    itemProfit = markup; // Profit is simply the explicit markup set by the agent
+                } else {
+                    // Safety net if shop doesn't exist
+                    itemProfit = Math.max(0, retailPricePaid - baseWholesaleCost); 
+                }
+                
+                // 🛑 Profit is credited unconditionally 🛑
+                profitToCredit += itemProfit;
+                
+                const itemDetails = {
+                    network: item.network,
+                    dataPlan: item.dataPlanId,
+                    phoneNumber: item.phoneNumber,
+                    // Use WHOLESALE COST for API execution amount
+                    amount: baseWholesaleCost / 100, 
+                    reference: paymentMethod === 'paystack' ? `${paymentRef}-ITEM-${item.id}` : undefined 
+                };
+                
+                // Execute purchase for single item (using WHOLESALE COST)
+                const result = await executeDataPurchase(userId, itemDetails, paymentMethod);
+                if (result.status !== 'data_failed') {
+                    fulfilledCount++;
+                }
+
+            } catch (e) {
+                console.error(`Error processing single item in batch: ${e.message}`);
+            }
+        }
+        
+        // --- PHASE 3: CREDIT PROFIT TO AGENT (Updated Logic) ---
+        
+        // FIX: If we found a valid Agent Shop, credit the AGENT USER ID, not necessarily the current logged in user (who might be a client)
+        if (profitToCredit > 0 && agentShop && agentShop.userId) {
+            await User.findByIdAndUpdate(agentShop.userId, { $inc: { payoutWalletBalance: profitToCredit } });
+            
+            // Only update session if the person currently logged in IS the agent
+            if (agentShop.userId.toString() === userId.toString()) {
+                 const finalUser = await User.findById(userId);
+                 req.session.user.payoutWalletBalance = finalUser.payoutWalletBalance;
+            }
+        }
+
+        if (fulfilledCount > 0) {
+            return res.json({ status: 'success', message: `${fulfilledCount} orders placed. Check dashboard.`, fulfilledCount });
+        } else {
+             return res.status(500).json({ status: 'error', message: 'Zero orders could be fulfilled. Contact support.', fulfilledCount: 0 });
+        }
+
+    } catch (error) {
+        console.error('Batch Checkout Error:', error);
+        res.status(500).json({ status: 'error', message: 'Server error during batch checkout.' });
+    }
 });
 
-// 🛑 RESTORED: WALLET TOP-UP VERIFICATION ROUTE 🛑
-app.post('/api/verify-payment', isDbReady, isAuthenticated, async (req, res) => {
-    const { reference } = req.body;
-    const userId = req.session.user.id;
 
-    if (!reference) return res.status(400).json({ status: 'error', message: 'No reference provided.' });
+// --- DATA & PROTECTED PAGES ---
 
-    try {
-        const paystackUrl = `https://api.paystack.co/transaction/verify/${reference}`;
-        if (!process.env.PAYSTACK_SECRET_KEY) return res.status(500).json({ status: 'error', message: 'Server config error.' });
-
-        const paystackResponse = await axios.get(paystackUrl, { headers: { Authorization: `Bearer ${process.env.PAYSTACK_SECRET_KEY}` } });
-        const { status, data } = paystackResponse.data;
-
-        if (status && data.status === 'success') {
-            const existingOrder = await Order.findOne({ reference: reference });
-            if (existingOrder) return res.status(400).json({ status: 'error', message: 'Transaction already processed.' });
-
-            const amountPaidPesewas = data.amount;
-            const amountGHS = amountPaidPesewas / 100;
-
-            const updatedUser = await User.findByIdAndUpdate(userId, { $inc: { walletBalance: amountPaidPesewas } }, { new: true });
-
-            await Order.create({
-                userId: userId, reference: reference, phoneNumber: 'N/A', network: 'WALLET', dataPlan: 'WALLET TOP-UP',
-                amount: amountGHS, status: 'topup_successful', paymentMethod: 'paystack'
-            });
-
-            req.session.user.walletBalance = updatedUser.walletBalance;
-            return res.json({ status: 'success', message: 'Wallet funded successfully!', newBalance: updatedUser.walletBalance });
-        } else {
-            return res.status(400).json({ status: 'error', message: 'Paystack verification failed.' });
-        }
-    } catch (error) {
-        res.status(500).json({ status: 'error', message: 'Server error during verification.' });
-    }
-});
-
-// --- DATA FETCHING ENDPOINTS ---
 app.get('/api/data-plans', isDbReady, async (req, res) => { 
-    const sellingPlans = allPlans[req.query.network] || [];
-    res.json(sellingPlans.map(p => ({ id: p.id, name: p.name, price: p.price })));
+    const sellingPlans = allPlans[req.query.network] || [];
+    // Standard app usage defaults to wholesale price
+    res.json(sellingPlans.map(p => ({
+        id: p.id,
+        name: p.name,
+        price: p.price
+    })));
 });
 
 app.get('/api/my-orders', isDbReady, isAuthenticated, async (req, res) => {
-    try {
-        const orders = await Order.find({ userId: req.session.user.id }).sort({ createdAt: -1 }); 
-        res.json({ orders });
-    } catch (error) { res.status(500).json({ error: "Failed to fetch orders" }); }
+    try {
+        const orders = await Order.find({ userId: req.session.user.id })
+                                 .sort({ createdAt: -1 }); 
+        res.json({ orders });
+    } catch (error) {
+        res.status(500).json({ error: "Failed to fetch orders" });
+    }
 });
-
-// 🛑 NEW: Agent Sales History 🛑
+// 🛑 NEW: Fetch Sales History for the Agent 🛑
 app.get('/api/agent/sales', isDbReady, isAuthenticated, async (req, res) => {
-    try {
-        const sales = await Order.find({ agentId: req.session.user.id }).sort({ createdAt: -1 });
-        res.json({ sales });
-    } catch (error) { res.status(500).json({ error: "Failed to fetch sales history" }); }
+    try {
+        // Find orders where the logged-in user is the AGENT (Seller)
+        // We populate the buyer details just in case you want to see who bought it (optional)
+        const sales = await Order.find({ agentId: req.session.user.id })
+                                 .sort({ createdAt: -1 });
+        
+        res.json({ sales });
+    } catch (error) {
+        console.error('Agent sales fetch error:', error);
+        res.status(500).json({ error: "Failed to fetch sales history" });
+    }
 });
 
-// 🛑 NEW: Public Track Order 🛑
-app.get('/api/public/track-order', isDbReady, async (req, res) => {
-    const { reference } = req.query;
-    if (!reference) return res.status(400).json({ message: 'Reference required.' });
-    try {
-        const order = await Order.findOne({ reference: reference }).select('status network dataPlan amount updatedAt reference');
-        if (!order) return res.status(404).json({ message: 'Order not found.' });
-        res.json({ status: 'success', data: { reference: order.reference, status: order.status, description: `${order.dataPlan} (${order.network})`, last_updated: order.updatedAt } });
-    } catch (error) { res.status(500).json({ message: 'Server error.' }); }
+
+// --- ADMIN & MANAGEMENT ROUTES ---
+
+// 🛑 UPDATED: Update User Role Endpoint 🛑
+app.post('/api/admin/update-user-role', async (req, res) => {
+    const { userId, newRole, adminSecret } = req.body;
+    if (adminSecret !== process.env.ADMIN_SECRET) {
+        return res.status(403).json({ error: "Unauthorized: Invalid Admin Secret" });
+    }
+    if (!userId || !['Client', 'Agent', 'Admin'].includes(newRole)) {
+        return res.status(400).json({ error: 'Invalid user ID or new role.' });
+    }
+
+    try {
+        const result = await User.findByIdAndUpdate(
+            userId,
+            { role: newRole },
+            { new: true }
+        );
+
+        if (!result) return res.status(404).json({ message: 'User not found.' });
+
+        res.json({ 
+            status: 'success', 
+            message: `User ${result.username}'s role updated to ${newRole}.` 
+        });
+
+    } catch (error) {
+        console.error('Update User Role Error:', error);
+        res.status(500).json({ error: 'Failed to update user role.' });
+    }
 });
 
-// --- ADMIN ENDPOINTS ---
+
 app.get('/api/admin/all-users-status', async (req, res) => {
-    if (req.query.secret !== process.env.ADMIN_SECRET) return res.status(403).json({ error: "Unauthorized" });
-    try {
-        const registeredUsers = await User.find({}).select('username email createdAt role').lean();
-        const sessionsCollection = mongoose.connection.db.collection('sessions');
-        const rawSessions = await sessionsCollection.find({}).toArray();
-        const activeUserIds = new Set();
-        rawSessions.forEach(doc => { try { if (JSON.parse(doc.session).user?.id) activeUserIds.add(JSON.parse(doc.session).user.id); } catch(e){} });
-        const users = registeredUsers.map(u => ({ ...u, isOnline: activeUserIds.has(u._id.toString()) }));
-        res.json({ users });
-    } catch (error) { res.status(500).json({ error: 'Error fetching users.' }); }
+    if (req.query.secret !== process.env.ADMIN_SECRET) return res.status(403).json({ error: "Unauthorized" });
+    
+    try {
+        if (mongoose.connection.readyState !== 1) return res.status(503).json({ error: 'Database not ready.' });
+
+        const registeredUsers = await User.find({}).select('username email createdAt role').lean();
+
+        const sessionsCollection = mongoose.connection.db.collection('sessions');
+        const rawSessions = await sessionsCollection.find({}).toArray();
+
+        const activeUserIds = new Set();
+        rawSessions.forEach(sessionDoc => {
+            try {
+                const sessionData = JSON.parse(sessionDoc.session);
+                if (sessionData.user && sessionData.user.id) {
+                    let sessionId = sessionData.user.id.toString().replace(/['"]+/g, '');
+                    activeUserIds.add(sessionId);
+                }
+            } catch (e) { console.warn("Failed to parse session data:", e.message); }
+        });
+
+        const userListWithStatus = registeredUsers.map(user => ({
+            username: user.username, email: user.email, signedUp: user.createdAt,
+            isOnline: activeUserIds.has(user._id.toString()), role: user.role || 'Client', _id: user._id.toString() // Ensure role exists and we return ID
+        }));
+
+        res.json({ users: userListWithStatus });
+    } catch (error) {
+        res.status(500).json({ error: 'Failed to fetch user list and status' });
+    }
 });
 
 app.get('/api/get-all-orders', async (req, res) => {
-    if (req.query.secret !== process.env.ADMIN_SECRET) return res.status(403).json({ error: "Unauthorized" });
-    try {
-        const orders = await Order.find({}).sort({ createdAt: -1 }).populate('userId', 'username'); 
-        const formatted = orders.map(o => ({ id: o._id, username: o.userId?.username || 'Deleted', phoneNumber: o.phoneNumber, network: o.network, dataPlan: o.dataPlan, amount: o.amount, status: o.status, created_at: o.createdAt, agentId: o.agentId }));
-        res.json({ orders: formatted });
-    } catch (error) { res.status(500).json({ error: "Error fetching orders." }); }
+    if (req.query.secret !== process.env.ADMIN_SECRET) {
+        return res.status(403).json({ error: "Unauthorized: Invalid Admin Secret" });
+    }
+    try {
+        if (mongoose.connection.readyState !== 1) {
+            return res.status(503).json({ error: 'Database not ready for admin query.' });
+        }
+        
+        const orders = await Order.find({})
+                                 .sort({ createdAt: -1 })
+                                 .populate('userId', 'username'); 
+        
+        const formattedOrders = orders.map(order => ({
+            id: order._id, username: order.userId ? order.userId.username : 'Deleted User',
+            phoneNumber: order.phoneNumber, network: order.network || 'N/A', 
+            dataPlan: order.dataPlan, amount: order.amount, status: order.status,
+            created_at: order.createdAt,
+        }));
+        res.json({ orders: formattedOrders });
+    } catch (error) {
+        res.status(500).json({ error: "Failed to fetch orders" });
+    }
 });
 
 app.get('/api/admin/user-count', async (req, res) => {
-    if (req.query.secret !== process.env.ADMIN_SECRET) return res.status(403).json({ error: 'Unauthorized' });
-    try { res.json({ count: await User.countDocuments({}) }); } catch (error) { res.status(500).json({ error: 'Error.' }); }
+    if (req.query.secret !== process.env.ADMIN_SECRET) return res.status(403).json({ error: 'Unauthorized' });
+    try {
+        if (mongoose.connection.readyState !== 1) return res.status(503).json({ error: 'Database not ready.' });
+
+        const count = await User.countDocuments({});
+        res.json({ count: count });
+    } catch (error) {
+        res.status(500).json({ error: 'Failed to fetch user count' });
+    }
 });
 
 app.post('/api/admin/update-order', async (req, res) => {
-    if (req.body.adminSecret !== process.env.ADMIN_SECRET) return res.status(403).json({ error: 'Unauthorized' });
-    try {
-        await Order.findByIdAndUpdate(req.body.orderId, { status: req.body.newStatus }, { new: true });
-        res.json({ status: 'success', message: 'Order updated.' });
-    } catch (error) { res.status(500).json({ error: 'Failed to update.' }); }
+    if (req.body.adminSecret !== process.env.ADMIN_SECRET) return res.status(403).json({ error: 'Unauthorized access.' });
+    const { orderId, newStatus } = req.body;
+    
+    if (!orderId || !newStatus) return res.status(400).json({ error: 'Order ID and new status are required.' });
+
+    try {
+        const result = await Order.findByIdAndUpdate(orderId, { status: newStatus }, { new: true });
+        if (!result) return res.status(404).json({ message: 'Order not found.' });
+        
+        res.json({ status: 'success', message: `Order ${orderId} status updated to ${newStatus}.` });
+
+    } catch (error) {
+        res.status(500).json({ error: 'Failed to update order status.' });
+    }
 });
 
-// 🛑 PROFIT CALCULATION AND RESET ENDPOINTS 🛑
-
-// FIXED: Metrics calculation for Gross Profit
 app.get('/api/admin/metrics', async (req, res) => {
-    if (req.query.secret !== process.env.ADMIN_SECRET) return res.status(403).json({ error: 'Unauthorized' });
-    try {
-        // Find orders that are successful OR successful and archived (metrics_reset)
-        const successfulOrders = await Order.find({ status: { $in: ['data_sent', 'metrics_reset'] } });
-        
-        let totalRevenueGHS = 0; 
-        let totalCostGHS = 0; // Wholesale Cost
-        let totalPaystackFeeGHS = 0;
+    if (req.query.secret !== process.env.ADMIN_SECRET) return res.status(403).json({ error: 'Unauthorized' });
 
-        successfulOrders.forEach(o => {
-            const amountP = Math.round(o.amount * 100);
-            totalRevenueGHS += o.amount;
-            totalPaystackFeeGHS += calculatePaystackFee(amountP) / 100;
-            totalCostGHS += findBaseCost(o.network, o.dataPlan) / 100;
-        });
-        
-        // Requested Logic: Gross Profit = Revenue - Wholesale Cost
-        const totalProfitGHS = totalRevenueGHS - totalCostGHS; 
+    try {
+        if (mongoose.connection.readyState !== 1) return res.status(503).json({ error: 'Database not ready.' });
 
-        res.json({
-            revenue: totalRevenueGHS.toFixed(2), 
-            cost: totalCostGHS.toFixed(2),
-            paystackFee: totalPaystackFeeGHS.toFixed(2), 
-            netProfit: totalProfitGHS.toFixed(2), // Renamed key to keep admin.html functional
-            totalOrders: successfulOrders.length
-        });
-    } catch (error) { res.status(500).json({ error: 'Error calculating metrics.' }); }
+        // Get the last "reset" point
+        const resetPoint = (await Order.findOne({ reference: 'METRICS_RESET' }).sort({ createdAt: -1 }))?.createdAt || new Date(0);
+
+        const successfulOrders = await Order.find({ 
+            status: 'data_sent',
+            createdAt: { $gt: resetPoint } // Only count orders after the last reset point
+        });
+        
+        let totalRevenueGHS = 0;
+        let totalCostGHS = 0;
+        // let totalPaystackFeeGHS = 0; // Keeping this for the revenue calculation logic but not using it for profit.
+
+        for (const order of successfulOrders) {
+            const chargedAmountInPesewas = Math.round(order.amount * 100);
+            
+            const resellerCostInPesewas = findBaseCost(order.network, order.dataPlan);
+            
+            // Recalculate fees only for Paystack-related transactions (not wallet debits)
+            // let paystackFeeInPesewas = 0;
+            // if (order.paymentMethod === 'paystack') {
+            //     paystackFeeInPesewas = calculatePaystackFee(chargedAmountInPesewas);
+            // }
+
+            totalRevenueGHS += order.amount; // Amount paid by client in GHS
+            // totalPaystackFeeGHS += (paystackFeeInPesewas / 100);
+            totalCostGHS += (resellerCostInPesewas / 100); // Wholesale cost to reseller API
+        }
+        
+        // 🛑 UPDATED PROFIT LOGIC: Total Revenue - Total Wholesale Cost 🛑
+        const totalMyProfitGHS = totalRevenueGHS - totalCostGHS;
+
+        res.json({
+            revenue: totalRevenueGHS.toFixed(2),
+            cost: totalCostGHS.toFixed(2),
+            // paystackFee: totalPaystackFeeGHS.toFixed(2), // Removed this line from final output
+            myProfit: totalMyProfitGHS.toFixed(2), 
+            totalOrders: successfulOrders.length
+        });
+
+    } catch (error) {
+        console.error('Metrics calculation error:', error);
+        res.status(500).json({ error: 'Failed to calculate metrics' });
+    }
 });
 
-// NEW: Reset Metrics endpoint
+// 🛑 UPDATED: Reset Metrics Endpoint 🛑
 app.post('/api/admin/reset-metrics', async (req, res) => {
-    const { adminSecret } = req.body;
-    
-    if (adminSecret !== process.env.ADMIN_SECRET) {
-        return res.status(403).json({ status: 'error', message: 'Unauthorized access.' });
-    }
+    const { adminSecret } = req.body;
 
-    try {
-        // Change status of current successful orders to metrics_reset, excluding withdrawal/top-up 
-        const result = await Order.updateMany(
-            { status: 'data_sent' },
-            { $set: { status: 'metrics_reset' } }
-        );
+    if (adminSecret !== process.env.ADMIN_SECRET) {
+        return res.status(403).json({ error: 'Unauthorized: Invalid Admin Secret' });
+    }
 
-        res.json({ 
-            status: 'success', 
-            message: `Metrics reset complete. ${result.modifiedCount} orders archived.`,
-            modifiedCount: result.modifiedCount
-        });
+    try {
+        if (mongoose.connection.readyState !== 1) return res.status(503).json({ error: 'Database not ready.' });
 
-    } catch (error) {
-        console.error('Metric Reset Error:', error);
-        res.status(500).json({ status: 'error', message: 'Server error during metric reset.' });
-    }
+        // Insert a new control document to mark the reset point in the Order collection
+        await Order.create({
+            userId: 'ADMIN', // Use a unique ID or literal to denote the admin action
+            reference: 'METRICS_RESET',
+            phoneNumber: 'N/A', 
+            network: 'ADMIN',
+            dataPlan: 'METRICS RESET',
+            amount: 0,
+            status: 'data_sent', // Set status to 'data_sent' so it doesn't trigger alerts/cron checks
+            paymentMethod: 'ADMIN'
+        });
+        
+        res.json({ 
+            status: 'success', 
+            message: 'Total Revenue and My Profit metrics reset successfully!' 
+        });
+    } catch (error) {
+        console.error('Metrics reset error:', error);
+        res.status(500).json({ error: 'Failed to reset metrics.' });
+    }
 });
 
 
 app.delete('/api/admin/delete-user', async (req, res) => {
-    if (req.body.adminSecret !== process.env.ADMIN_SECRET) return res.status(403).json({ error: 'Unauthorized' });
-    try {
-        await Order.deleteMany({ userId: req.body.userId });
-        await User.findByIdAndDelete(req.body.userId);
-        res.json({ status: 'success', message: 'User deleted.' });
-    } catch (error) { res.status(500).json({ error: 'Failed to delete.' }); }
+    const { userId, adminSecret } = req.body;
+    
+    if (adminSecret !== process.env.ADMIN_SECRET) {
+        return res.status(403).json({ error: 'Unauthorized: Invalid Admin Secret' });
+    }
+
+    if (!userId) {
+        return res.status(400).json({ error: 'User ID is required for deletion.' });
+    }
+
+    try {
+        // 1. Delete all associated orders first
+        const ordersResult = await Order.deleteMany({ userId: userId });
+
+        // 2. Delete the user
+        const userResult = await User.findByIdAndDelete(userId);
+
+        // 3. Delete associated AgentShop if it exists
+        await AgentShop.deleteOne({ userId: userId });
+
+        if (!userResult) {
+            return res.status(404).json({ message: 'User not found.' });
+        }
+
+        res.json({ 
+            status: 'success', 
+            message: `User '${userResult.username}' and ${ordersResult.deletedCount} associated orders deleted successfully.` 
+        });
+    } catch (error) {
+        console.error('User Deletion Error:', error);
+        res.status(500).json({ error: 'Failed to delete user and associated data.' });
+    }
 });
+// 🛑 PUBLIC ORDER TRACKING ENDPOINT 🛑
+app.get('/api/public/track-order', isDbReady, async (req, res) => {
+    const { reference } = req.query;
+
+    if (!reference) {
+        return res.status(400).json({ message: 'Reference number is required.' });
+    }
+
+    try {
+        // Find order by reference (Case insensitive search recommended if possible, but exact match is faster)
+        const order = await Order.findOne({ reference: reference }).select('status network dataPlan amount updatedAt');
+
+        if (!order) {
+            return res.status(404).json({ message: 'Order not found. Please check the reference number.' });
+        }
+
+        // Return limited info for privacy (don't return user IDs or phone numbers publicly)
+        res.json({
+            status: 'success',
+            data: {
+                reference: reference,
+                status: order.status,
+                description: `${order.dataPlan} (${order.network})`,
+                last_updated: order.updatedAt
+            }
+        });
+
+    } catch (error) {
+        console.error('Track Order Error:', error);
+        res.status(500).json({ message: 'Server error while searching for order.' });
+    }
+});
+
+// 🛑 RESTORED: WALLET TOP-UP VERIFICATION ROUTE 🛑
+app.post('/api/verify-payment', isDbReady, isAuthenticated, async (req, res) => {
+    const { reference } = req.body;
+    const userId = req.session.user.id;
+
+    if (!reference) {
+        return res.status(400).json({ status: 'error', message: 'No reference provided.' });
+    }
+
+    try {
+        // 1. Verify with Paystack
+        const paystackUrl = `https://api.paystack.co/transaction/verify/${reference}`;
+        const paystackResponse = await axios.get(paystackUrl, {
+            headers: { Authorization: `Bearer ${process.env.PAYSTACK_SECRET_KEY}` }
+        });
+
+        const { status, data } = paystackResponse.data;
+
+        if (status && data.status === 'success') {
+            // 2. Check for duplicate transaction to prevent double crediting
+            const existingOrder = await Order.findOne({ reference: reference });
+            if (existingOrder) {
+                return res.status(400).json({ status: 'error', message: 'Transaction already processed.' });
+            }
+
+            // 3. Calculate Amount to Credit
+            // We credit the full amount paid (in pesewas)
+            const amountPaidPesewas = data.amount;
+            const amountGHS = amountPaidPesewas / 100;
+
+            // 4. Credit User Wallet
+            const updatedUser = await User.findByIdAndUpdate(
+                userId, 
+                { $inc: { walletBalance: amountPaidPesewas } },
+                { new: true }
+            );
+
+            // 5. Log the Transaction in Orders
+            await Order.create({
+                userId: userId,
+                reference: reference,
+                phoneNumber: 'N/A', // Wallet funding doesn't need a recipient phone
+                network: 'WALLET',
+                dataPlan: 'WALLET TOP-UP',
+                amount: amountGHS,
+                status: 'topup_successful',
+                paymentMethod: 'paystack'
+            });
+
+            // 6. Update Session Balance
+            req.session.user.walletBalance = updatedUser.walletBalance;
+
+            return res.json({ 
+                status: 'success', 
+                message: 'Wallet funded successfully!', 
+                newBalance: updatedUser.walletBalance 
+            });
+
+        } else {
+            return res.status(400).json({ status: 'error', message: 'Paystack verification failed.' });
+        }
+
+    } catch (error) {
+        console.error('Topup Verification Error:', error);
+        // If it's a network error from Paystack
+        if (error.response) {
+             return res.status(500).json({ status: 'error', message: 'Failed to connect to Paystack.' });
+        }
+        res.status(500).json({ status: 'error', message: 'Server error during verification.' });
+    }
+});
+
 
 // --- SERVE HTML FILES (Includes New Agent Shop Routes) ---
 app.get('/', (req, res) => res.sendFile(path.join(__dirname, 'public', 'index.html')));
 app.get('/signup.html', (req, res) => res.sendFile(path.join(__dirname, 'public', 'signup.html')));
-app.get('/login.html', (req, res) => res.sendFile(path.join(__dirname, 'public', 'login.html'))); 
 app.get('/purchase.html', isAuthenticated, (req, res) => res.sendFile(path.join(__dirname, 'public', 'purchase.html')));
 app.get('/checkout.html', isAuthenticated, (req, res) => res.sendFile(path.join(__dirname, 'public', 'checkout.html')));
 app.get('/dashboard.html', isAuthenticated, (req, res) => res.sendFile(path.join(__dirname, 'public', 'dashboard.html')));
@@ -861,12 +1229,13 @@ app.get('/privacy.html', (req, res) => res.sendFile(path.join(__dirname, 'public
 app.get('/support.html', (req, res) => res.sendFile(path.join(__dirname, 'public', 'support.html')));
 // 🛑 NEW AGENT SHOP ROUTES 🛑
 app.get('/agent_shop_setup.html', isAuthenticated, (req, res) => res.sendFile(path.join(__dirname, 'public', 'agent_shop_setup.html')));
-app.get('/agent_shop.html', (req, res) => res.sendFile(path.join(__dirname, 'public', 'agent_shop.html'))); // Public
+app.get('/agent_shop.html', (req, res) => res.sendFile(path.join(__dirname, 'public', 'agent_shop.html'))); // Public, no auth required
+
 
 // --- SERVER START ---
 const server = app.listen(PORT, '0.0.0.0', () => {
-    console.log(`Server is LIVE on port ${PORT}`);
-    console.log('Database connection is initializing...');
-    
-    cron.schedule('*/5 * * * *', runPendingOrderCheck); 
+    console.log(`Server is LIVE on port ${PORT}`);
+    console.log('Database connection is initializing...');
+    
+    cron.schedule('*/5 * * * *', runPendingOrderCheck); // Runs every 5 minutes
 });
