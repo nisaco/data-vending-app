@@ -36,10 +36,9 @@
         .status-data_failed, .status-payment_failed { background-color: #ef4444; } /* Red */
         .status-payment_success { background-color: #3b82f6; } /* Blue */
         
-        /* 🛑 ARCHIVED STATUS COLOR 🛑 */
-        .status-metrics_reset { background-color: #6b7280; } /* Gray for archived */
-        .status-withdrawal_pending { background-color: #f59e0b; } 
-        .status-withdrawal_sent { background-color: #3b82f6; } 
+        /* 🛑 WITHDRAWAL STATUS COLORS 🛑 */
+        .status-withdrawal_pending { background-color: #f59e0b; } /* Orange for pending action */
+        .status-withdrawal_sent { background-color: #3b82f6; } /* Blue/Completed */
 
         /* Client Status Colors */
         .status-online { background-color: #10b981; }
@@ -69,7 +68,7 @@
         .dark .bg-gray-200 { background-color: #374151; }
 
         /* Modal Backdrop */
-        #modal-backdrop, #delete-confirm-modal-backdrop, #metric-reset-confirm-modal-backdrop {
+        #modal-backdrop, #delete-confirm-modal-backdrop {
             background-color: rgba(0, 0, 0, 0.75);
             transition: opacity 0.3s ease;
             z-index: 50;
@@ -133,20 +132,6 @@
             </div>
         </div>
     </div>
-
-    <div id="metric-reset-confirm-modal-backdrop" class="fixed inset-0 hidden items-center justify-center bg-black bg-opacity-75 z-50 opacity-0 transition-opacity duration-300">
-        <div class="bg-white p-6 rounded-xl shadow-2xl w-full max-w-md dark:bg-gray-800">
-            <h3 class="text-xl font-bold text-red-500 mb-4">Confirm Metrics Reset</h3>
-            <p class="text-gray-700 dark:text-gray-300 mb-6">
-                Are you sure you want to **reset the calculated Total Revenue and Profit to zero**? 
-                This archives all current successful orders, removing them from future metric sums. This action cannot be easily undone.
-            </p>
-            <div class="mt-4 flex justify-end space-x-3">
-                <button id="reset-modal-cancel" type="button" class="py-2 px-4 bg-gray-200 text-gray-800 rounded-lg hover:bg-gray-300 transition dark:bg-gray-700 dark:text-white">Cancel</button>
-                <button id="reset-modal-confirm" type="button" class="py-2 px-4 bg-red-600 text-white rounded-lg hover:bg-red-700 transition">Reset Totals</button>
-            </div>
-        </div>
-    </div>
     
     <nav class="bg-white shadow-lg dark:bg-[#1f1f1f]">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex justify-between items-center h-16">
@@ -175,7 +160,7 @@
                 <p id="metric-revenue" class="text-3xl font-extrabold text-gray-800 dark:text-white mt-1">GHS 0.00</p>
             </div>
             <div class="metric-card p-5 dark:border-gray-700">
-                <p class="text-sm font-medium text-gray-500 dark:text-gray-400">Gross Profit</p>
+                <p class="text-sm font-medium text-gray-500 dark:text-gray-400">Net Profit</p>
                 <p id="metric-profit" class="text-3xl font-extrabold text-primary mt-1">GHS 0.00</p>
             </div>
             <div class="metric-card p-5 dark:border-gray-700">
@@ -192,9 +177,6 @@
             <input type="password" id="adminSecret" placeholder="Enter Admin Secret" class="w-full sm:w-64 p-3 border border-gray-300 rounded-lg focus:ring-primary focus:border-primary dark:bg-gray-700 dark:border-gray-600 dark:text-white">
             <button id="fetchDataBtn" class="w-full sm:w-auto py-3 px-6 bg-primary text-white font-bold rounded-lg hover:bg-secondary transition">
                 Fetch All Data
-            </button>
-            <button id="resetMetricsBtn" class="w-full sm:w-auto py-3 px-6 bg-red-500 text-white font-bold rounded-lg hover:bg-red-600 transition" disabled>
-                Reset Metrics
             </button>
         </div>
 
@@ -216,7 +198,6 @@
                         <option value="pending_review">Data Pending (Action Required)</option>
                         <option value="data_sent">Data Sent (Success)</option>
                         <option value="data_failed">Data Failed</option>
-                        <option value="metrics_reset">Metrics Archived (Hidden)</option>
                         <option value="topup_successful">Top Up Success</option>
                         <option value="payment_failed">Payment Failed</option>
                     </select>
@@ -241,9 +222,7 @@
                         </tbody>
                     </table>
                 </div>
-            </div> 
-            
-            <div id="tab-content-clients" class="hidden">
+            </div> <div id="tab-content-clients" class="hidden">
                 <h2 class="text-xl font-bold text-gray-800 dark:text-white mb-4">Client Engagement</h2>
                 <div id="clients-status" class="text-center font-medium mb-4 text-gray-700 dark:text-gray-400">Enter secret to load client data.</div>
 
@@ -253,10 +232,10 @@
                             <tr>
                                 <th scope="col" class="py-3 px-6 rounded-tl-xl">Username</th>
                                 <th scope="col" class="py-3 px-6">Email</th>
-                                <th scope="col" class="py-3 px-6">Current Role</th>
+                                <th scope="col" class="py-3 px-6">Role</th>
                                 <th scope="col" class="py-3 px-6">Online Status</th>
                                 <th scope="col" class="py-3 px-6">Joined</th>
-                                <th scope="col" class="py-3 px-6 rounded-tr-xl">Actions</th> 
+                                <th scope="col" class="py-3 px-6 rounded-tr-xl">Delete</th>
                             </tr>
                         </thead>
                         <tbody id="clientsTableBody" class="bg-white divide-y divide-gray-100 dark:bg-[#1f1f1f] dark:divide-gray-700">
@@ -264,8 +243,7 @@
                         </tbody>
                     </table>
                 </div>
-            </div> 
-        </div>
+            </div> </div>
     </div>
 
     <script>
@@ -333,7 +311,7 @@
         // --- THEME LOGIC END ---
 
         // --- GLOBAL STATE & CONSTANTS ---
-        let adminSecret = ''; 
+        let adminSecret = ''; // This will be set from the input field
         let allOrders = [];
         let allUsers = [];
         const statusMap = {
@@ -344,8 +322,7 @@
             'payment_success': 'Payment Success', 
             'payment_failed': 'Payment Failed',
             'withdrawal_pending': 'Payout Pending',
-            'withdrawal_sent': 'Payout Sent',
-            'metrics_reset': 'Archived Sale'
+            'withdrawal_sent': 'Payout Sent'
         };
 
         // --- DOM Elements ---
@@ -359,7 +336,6 @@
         const tabContentTransactions = document.getElementById('tab-content-transactions');
         const tabContentClients = document.getElementById('tab-content-clients');
         const statusFilter = document.getElementById('status-filter');
-        const resetMetricsBtn = document.getElementById('resetMetricsBtn');
 
         const metrics = {
             revenue: document.getElementById('metric-revenue'), profit: document.getElementById('metric-profit'),
@@ -381,9 +357,6 @@
         const deleteBackdrop = document.getElementById('delete-confirm-modal-backdrop');
         const deleteUsernameDisplay = document.getElementById('delete-username-display');
         let currentDeleteUserId = null;
-
-        // Metric Reset Elements
-        const resetBackdrop = document.getElementById('metric-reset-confirm-modal-backdrop');
 
 
         // --- UTILITY FUNCTIONS ---
@@ -407,7 +380,6 @@
                 const userCountResponse = await fetch(`/api/admin/user-count?secret=${secret}`);
                 
                 if (response.status === 403 || userCountResponse.status === 403) {
-                    resetMetricsBtn.disabled = true;
                     throw new Error('Authorization Failed. Check Admin Secret.');
                 }
                 if (!response.ok || !userCountResponse.ok) throw new Error('Failed to fetch metrics data.');
@@ -415,13 +387,10 @@
                 const metricsData = await response.json();
                 const userData = await userCountResponse.json();
 
-                // 🛑 Profit logic is now Gross Profit (Revenue - COGS)
                 metrics.revenue.textContent = `GHS ${parseFloat(metricsData.revenue).toFixed(2)}`;
-                metrics.profit.textContent = `GHS ${parseFloat(metricsData.netProfit).toFixed(2)}`; 
+                metrics.profit.textContent = `GHS ${parseFloat(metricsData.netProfit).toFixed(2)}`;
                 metrics.orders.textContent = metricsData.totalOrders.toLocaleString();
                 metrics.users.textContent = userData.count.toLocaleString();
-                
-                resetMetricsBtn.disabled = false;
                 return true;
             } catch (error) {
                 console.error('Metrics fetch error:', error);
@@ -486,39 +455,25 @@
                 const row = clientsTableBody.insertRow();
                 const statusText = user.isOnline ? 'Online' : 'Offline';
                 const statusClass = user.isOnline ? 'status-online' : 'status-offline';
-                const roleColor = user.role === 'Agent' ? 'text-primary' : (user.role === 'Admin' ? 'text-red-500' : 'text-gray-500 dark:text-gray-400');
-                const currentRoleDisplay = user.role || 'Undefined';
+                const roleColor = user.role === 'Agent' ? 'text-primary' : 'text-gray-500 dark:text-gray-400';
 
                 row.className = 'hover:bg-gray-50 transition duration-150 dark:hover:bg-gray-800';
 
                 row.innerHTML = `
                     <td class="py-4 px-6 font-medium text-gray-800 dark:text-gray-300">${user.username}</td>
                     <td class="py-4 px-6 text-xs dark:text-gray-400">${user.email}</td>
-                    <td class="py-4 px-6 font-semibold ${roleColor}" data-role="${user.role}">
-                        ${currentRoleDisplay}
-                    </td>
+                    <td class="py-4 px-6 font-semibold ${roleColor}">${user.role}</td>
                     <td class="py-4 px-6">
                         <span class="px-3 py-1 text-white text-xs font-bold uppercase rounded-full ${statusClass}">
                             ${statusText}
                         </span>
                     </td>
                     <td class="py-4 px-6 text-xs dark:text-gray-400">${safeDateFormatter(user.signedUp)}</td>
-                    <td class="py-4 px-6 flex flex-col space-y-1">
-                        <div class="flex space-x-1">
-                            <button data-id="${user._id}" data-role="${user.role}" data-new-role="Agent"
-                                class="update-role-btn bg-green-600 hover:bg-green-700 text-white text-xs font-medium py-1 px-3 rounded transition ${user.role === 'Agent' ? 'hidden' : ''}">
-                                Make Agent
-                            </button>
-                            <button data-id="${user._id}" data-role="${user.role}" data-new-role="Client"
-                                class="update-role-btn bg-yellow-600 hover:bg-yellow-700 text-white text-xs font-medium py-1 px-3 rounded transition ${user.role === 'Client' || user.role === 'Undefined' ? 'hidden' : ''}">
-                                Make Client
-                            </button>
-                        </div>
-                        <input type="hidden" id="user-id-${user._id}" value="${user._id}">
+                    <td class="py-4 px-6">
                         <button data-id="${user._id}" data-username="${user.username}"
-                            class="delete-user-btn bg-red-600 hover:bg-red-700 text-white text-xs font-medium py-1 px-3 rounded transition">
-                            Delete
-                        </button>
+                           class="delete-user-btn bg-red-600 hover:bg-red-700 text-white text-xs font-medium py-1 px-3 rounded transition">
+                           Delete
+                           </button>
                     </td>
                 `;
             });
@@ -561,10 +516,10 @@
                     displayPhone = order.phoneNumber || 'N/A';
                 }
 
-                // Agent Sale Badge
+                // 🛑 NEW: Check if this is an Agent Sale (requires backend to send agentId)
                 let networkDisplay = `${order.dataPlan} (${order.network})`;
                 if (order.agentId) {
-                    networkDisplay += ` <span class="bg-purple-100 text-purple-800 text-xs font-bold px-2 py-0.5 rounded transition dark:bg-purple-900 dark:text-purple-300">[AGENT SALE]</span>`;
+                    networkDisplay += ` <span class="bg-purple-100 text-purple-800 text-xs font-bold px-2 py-0.5 rounded dark:bg-purple-900 dark:text-purple-300">[AGENT SALE]</span>`;
                 }
 
                 row.className = 'hover:bg-gray-50 transition duration-150 dark:hover:bg-gray-800';
@@ -605,6 +560,7 @@
         function openUpdateModal(buttonElement) {
             currentOrderId = buttonElement.dataset.id;
             
+            // Find the order data to populate the modal fields
             const order = allOrders.find(o => o.id === currentOrderId);
             modalPayoutDetails.classList.add('hidden'); 
 
@@ -613,11 +569,16 @@
                 modalCurrentStatus.textContent = statusMap[order.status] || order.status.replace(/_/g, ' ');
                 modalStatusMessage.textContent = ''; 
                 
+                // 1. Check if it's a Payout Request
                 if (order.status === 'withdrawal_pending') {
+                    // Display Payout Details
                     modalPayoutAccount.textContent = `${order.network} (${order.phoneNumber}) - GHS ${order.amount.toFixed(2)}`;
                     modalPayoutDetails.classList.remove('hidden');
+                    
+                    // Pre-select the Payout Sent option
                     modalNewStatus.value = 'withdrawal_sent';
                 } else {
+                    // Default to Data Sent for regular review
                     modalNewStatus.value = 'data_sent'; 
                 }
 
@@ -684,44 +645,6 @@
                 modalUpdateBtn.textContent = 'Update';
             }
         }
-        
-        // --- ROLE CHANGE LOGIC ---
-        
-        async function updateRole(userId, newRole) {
-            const secret = adminSecretInput.value.trim();
-            if (!secret) {
-                return showToast('Admin secret required to change role.', 'error');
-            }
-            
-            const confirmation = confirm(`Are you sure you want to change this user's role to ${newRole}?`);
-            if (!confirmation) return;
-
-            showToast(`Updating role to ${newRole}...`, 'warning');
-
-            try {
-                const response = await fetch('/api/admin/update-role', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ userId, newRole, adminSecret: secret })
-                });
-
-                const data = await response.json();
-
-                if (response.ok) {
-                    showToast(data.message, 'success');
-                    // Refresh data and re-render table
-                    await Promise.all([fetchAllUsers(), fetchMetrics()]);
-                    if (document.querySelector('.admin-tab.active').dataset.tab === 'clients') {
-                         renderUsers(allUsers); 
-                    }
-                } else {
-                    showToast(data.message || 'Role update failed.', 'error');
-                }
-            } catch (error) {
-                showToast('Network error during role update.', 'error');
-            }
-        }
-
 
         // --- DELETE CLIENT LOGIC ---
         
@@ -788,60 +711,6 @@
                 openDeleteModal(userId, username);
             }
         }
-
-        // Listener for the Role Button on the table row (Delegation)
-        function handleUserRoleClick(e) {
-            const button = e.target.closest('.update-role-btn');
-            if (button) {
-                const userId = button.dataset.id;
-                const newRole = button.dataset.newRole;
-                updateRole(userId, newRole);
-            }
-        }
-        
-        // --- METRIC RESET LOGIC ---
-
-        function openMetricResetModal() {
-             resetBackdrop.style.opacity = 1;
-             resetBackdrop.style.display = 'flex';
-        }
-
-        function closeMetricResetModal() {
-            resetBackdrop.style.opacity = 0;
-            setTimeout(() => { resetBackdrop.style.display = 'none'; }, 300);
-        }
-
-        async function resetMetrics() {
-            const secret = adminSecretInput.value.trim();
-            if (!secret) return showToast('Admin secret required for reset.', 'error');
-
-            document.getElementById('reset-modal-confirm').disabled = true;
-            document.getElementById('reset-modal-confirm').textContent = 'Archiving...';
-            
-            try {
-                const response = await fetch('/api/admin/reset-metrics', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ adminSecret: secret })
-                });
-
-                const data = await response.json();
-                
-                if (response.ok) {
-                    showToast(data.message, 'success');
-                    await Promise.all([fetchAllOrders(), fetchMetrics()]);
-                } else {
-                    showToast(data.message || 'Reset failed.', 'error');
-                }
-            } catch (error) {
-                showToast('Network error during reset.', 'error');
-            } finally {
-                closeMetricResetModal();
-                document.getElementById('reset-modal-confirm').disabled = false;
-                document.getElementById('reset-modal-confirm').textContent = 'Reset Totals';
-            }
-        }
-
         
         // --- MAIN FETCH TRIGGER ---
         
@@ -893,15 +762,10 @@
             modalUpdateBtn.addEventListener('click', updateOrderStatus);
             modalCancelBtn.addEventListener('click', closeModal);
             
-            // Delete & Role Listeners (Delegation)
-            clientsTableBody.addEventListener('click', handleUserDeleteClick);
-            clientsTableBody.addEventListener('click', handleUserRoleClick); // 🛑 NEW ROLE LISTENER 🛑
+            // Delete Modal Listeners
+            document.getElementById('delete-modal-cancel').addEventListener('click', closeDeleteModal);
+            document.getElementById('delete-modal-confirm').addEventListener('click', deleteClient);
             
-            // Metric Reset Listeners
-            resetMetricsBtn.addEventListener('click', openMetricResetModal);
-            document.getElementById('reset-modal-confirm').addEventListener('click', resetMetrics);
-            document.getElementById('reset-modal-cancel').addEventListener('click', closeMetricResetModal);
-
             // 🛑 CRITICAL FIX: EVENT DELEGATION FOR ORDER ACTION BUTTONS 🛑
             ordersTableBody.addEventListener('click', (e) => {
                 const targetButton = e.target.closest('.open-modal-btn');
@@ -911,6 +775,10 @@
                 }
             });
             
+            // 🛑 CRITICAL FIX: EVENT DELEGATION FOR CLIENT DELETE BUTTONS 🛑
+            clientsTableBody.addEventListener('click', handleUserDeleteClick);
+
+
             // 4. Status Filter Listener (Applies filter immediately when value changes)
             statusFilter.addEventListener('change', () => {
                 renderOrders(allOrders); 
