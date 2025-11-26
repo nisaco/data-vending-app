@@ -184,8 +184,7 @@
                 <p id="metric-revenue" class="text-3xl font-extrabold text-gray-800 dark:text-white mt-1">GHS 0.00</p>
             </div>
             <div class="metric-card p-5 dark:border-gray-700">
-                <p class="text-sm font-medium text-gray-500 dark:text-gray-400">My Profit</p>
-                <p id="metric-profit" class="text-3xl font-extrabold text-primary mt-1">GHS 0.00</p>
+                <p class="text-sm font-medium text-gray-500 dark:text-gray-400">My Profit</p>                 <p id="metric-profit" class="text-3xl font-extrabold text-primary mt-1">GHS 0.00</p>
             </div>
             <div class="metric-card p-5 dark:border-gray-700">
                 <p class="text-sm font-medium text-gray-500 dark:text-gray-400">Total Orders</p>
@@ -202,7 +201,7 @@
                 🔄 Reset Metrics
             </button>
         </div>
-        
+
         <div class="flex flex-col sm:flex-row gap-3 mb-6 items-center justify-center">
             <input type="password" id="adminSecret" placeholder="Enter Admin Secret" class="w-full sm:w-64 p-3 border border-gray-300 rounded-lg focus:ring-primary focus:border-primary dark:bg-gray-700 dark:border-gray-600 dark:text-white">
             <button id="fetchDataBtn" class="w-full sm:w-auto py-3 px-6 bg-primary text-white font-bold rounded-lg hover:bg-secondary transition">
@@ -252,9 +251,7 @@
                         </tbody>
                     </table>
                 </div>
-            </div> 
-            
-            <div id="tab-content-clients" class="hidden">
+            </div> <div id="tab-content-clients" class="hidden">
                 <h2 class="text-xl font-bold text-gray-800 dark:text-white mb-4">Client Engagement</h2>
                 <div id="clients-status" class="text-center font-medium mb-4 text-gray-700 dark:text-gray-400">Enter secret to load client data.</div>
 
@@ -264,24 +261,21 @@
                             <tr>
                                 <th scope="col" class="py-3 px-6 rounded-tl-xl">Username</th>
                                 <th scope="col" class="py-3 px-6">Email</th>
-                                <th scope="col" class="py-3 px-6">Current Role</th>
+                                <th scope="col" class="py-3 px-6">Role</th>
                                 <th scope="col" class="py-3 px-6">Online Status</th>
                                 <th scope="col" class="py-3 px-6">Joined</th>
-                                <th scope="col" class="py-3 px-6">Change Role</th>
-                                <th scope="col" class="py-3 px-6 rounded-tr-xl">Delete</th>
+                                <th scope="col" class="py-3 px-6">Change Role</th>                                 <th scope="col" class="py-3 px-6 rounded-tr-xl">Delete</th>
                             </tr>
                         </thead>
                         <tbody id="clientsTableBody" class="bg-white divide-y divide-gray-100 dark:bg-[#1f1f1f] dark:divide-gray-700">
-                            <tr><td colspan="7" class="py-4 text-center text-gray-400">Client data requires authentication.</td></tr>
-                        </tbody>
+                            <tr><td colspan="7" class="py-4 text-center text-gray-400">Client data requires authentication.</td></tr>                         </tbody>
                     </table>
                 </div>
-            </div> 
-        </div>
+            </div> </div>
     </div>
 
     <script>
-        // --- TOAST NOTIFICATION SYSTEM (UNCHANGED) ---
+        // --- TOAST NOTIFICATION SYSTEM ---
         function showToast(message, type = 'success') {
             const container = document.getElementById('toast-container');
             const colors = {
@@ -293,10 +287,12 @@
             toast.className = `p-4 mb-2 text-white text-sm font-semibold rounded-lg shadow-lg border-b-4 ${colors[type]} transform translate-x-full transition-all duration-300 ease-out`;
             toast.textContent = message;
 
+            // Animate in
             setTimeout(() => {
                 toast.style.transform = 'translateX(0)';
             }, 10);
 
+            // Animate out and remove
             setTimeout(() => {
                 toast.style.transform = 'translateX(120%)';
                 setTimeout(() => {
@@ -306,7 +302,7 @@
         }
         // --- END TOAST SYSTEM ---
 
-        // --- THEME LOGIC (UNCHANGED) ---
+        // --- THEME LOGIC START ---
         const htmlElement = document.documentElement;
         const toggleButton = document.getElementById('theme-toggle');
 
@@ -364,7 +360,18 @@
         const clientsStatusDiv = document.getElementById('clients-status');
         const adminSecretInput = document.getElementById('adminSecret');
         const fetchDataBtn = document.getElementById('fetchDataBtn');
-        const resetMetricsBtn = document.getElementById('resetMetricsBtn');
+        const resetMetricsBtn = document.createElement('button'); // 🛑 New Button Element 🛑
+        resetMetricsBtn.id = 'resetMetricsBtn';
+        resetMetricsBtn.className = 'w-full sm:w-auto py-2 px-4 bg-red-500 text-white font-bold rounded-lg hover:bg-red-600 transition text-sm';
+        resetMetricsBtn.innerHTML = '🔄 Reset Metrics';
+
+        const metricsContainer = document.getElementById('metrics-container');
+        const resetContainer = document.createElement('div');
+        resetContainer.className = 'flex justify-start mb-6';
+        resetContainer.appendChild(resetMetricsBtn);
+        metricsContainer.parentNode.insertBefore(resetContainer, metricsContainer.nextSibling);
+
+        
         const tabsContainer = document.querySelector('.flex.border-b');
         const tabContentTransactions = document.getElementById('tab-content-transactions');
         const tabContentClients = document.getElementById('tab-content-clients');
@@ -374,6 +381,9 @@
             revenue: document.getElementById('metric-revenue'), profit: document.getElementById('metric-profit'),
             orders: document.getElementById('metric-orders'), users: document.getElementById('metric-users'),
         };
+        // Update "Net Profit" label
+        document.querySelector('#metrics-container > div:nth-child(2) > p:nth-child(1)').textContent = 'My Profit';
+        
         const modalBackdrop = document.getElementById('modal-backdrop');
         const modalStatusMessage = document.getElementById('modal-status-message');
         
@@ -391,7 +401,36 @@
         const deleteUsernameDisplay = document.getElementById('delete-username-display');
         let currentDeleteUserId = null;
         
-        // Role Modal Elements 🛑 NEW 🛑
+        // 🛑 Role Modal Elements 🛑
+        // Injecting the new Role Modal HTML structure before the script block for modal control
+        const roleModalHtml = `
+            <div id="role-modal-backdrop" class="fixed inset-0 hidden items-center justify-center bg-black bg-opacity-75 z-50 opacity-0 transition-opacity duration-300">
+                <div id="role-modal" class="bg-white p-6 rounded-xl shadow-2xl w-full max-w-md transform scale-95 transition-all duration-300 dark:bg-gray-800">
+                    <h3 class="text-xl font-bold text-gray-800 dark:text-white mb-4">Change User Role</h3>
+                    <div class="text-sm text-gray-600 dark:text-gray-400 mb-4">
+                        User: <span id="role-modal-username" class="font-bold"></span>
+                        <br> Current Role: <span id="role-modal-current-role" class="font-bold text-primary"></span>
+                    </div>
+
+                    <label for="new-role" class="block text-gray-700 dark:text-gray-300 mb-2">New Role</label>
+                    <select id="new-role" class="w-full p-2 border border-gray-300 rounded-lg dark:bg-gray-700 dark:border-gray-600 dark:text-white">
+                        <option value="Client">Client</option>
+                        <option value="Agent">Agent</option>
+                        <option value="Admin">Admin</option>
+                    </select>
+                    
+                    <div id="role-modal-message" class="mt-3 text-sm font-medium text-red-500"></div>
+
+                    <div class="mt-6 flex justify-end space-x-3">
+                        <button id="role-modal-cancel" type="button" class="py-2 px-4 bg-gray-200 text-gray-800 rounded-lg hover:bg-gray-300 transition dark:bg-gray-700 dark:text-white dark:hover:bg-gray-600">Cancel</button>
+                        <button id="role-modal-update" type="button" class="py-2 px-4 bg-primary text-white rounded-lg hover:bg-secondary transition">Update Role</button>
+                    </div>
+                </div>
+            </div>
+        `;
+        // Append the new modal structure to the body
+        document.body.insertAdjacentHTML('beforeend', roleModalHtml);
+
         const roleModalBackdrop = document.getElementById('role-modal-backdrop');
         const roleModalUsername = document.getElementById('role-modal-username');
         const roleModalCurrentRole = document.getElementById('role-modal-current-role');
@@ -402,7 +441,7 @@
         let currentRoleUserId = null;
 
 
-        // --- UTILITY FUNCTIONS (UNCHANGED) ---
+        // --- UTILITY FUNCTIONS ---
         function safeDateFormatter(isoString) {
             if (!isoString) return 'N/A';
             try {
@@ -431,7 +470,7 @@
                 const userData = await userCountResponse.json();
 
                 metrics.revenue.textContent = `GHS ${parseFloat(metricsData.revenue).toFixed(2)}`;
-                metrics.profit.textContent = `GHS ${parseFloat(metricsData.myProfit).toFixed(2)}`; // Updated to myProfit
+                metrics.profit.textContent = `GHS ${parseFloat(metricsData.myProfit).toFixed(2)}`; // Use myProfit from the backend
                 metrics.orders.textContent = metricsData.totalOrders.toLocaleString();
                 metrics.users.textContent = userData.count.toLocaleString();
                 return true;
@@ -466,7 +505,8 @@
 
         async function fetchAllUsers() {
             clientsStatusDiv.textContent = 'Loading client data...';
-            clientsTableBody.innerHTML = '<tr><td colspan="7" class="py-4 text-center text-blue-500 font-medium">Loading...</td></tr>'; // Updated colspan to 7
+            // NOTE: Colspan updated to 7 for the loading row to cover the new column
+            clientsTableBody.innerHTML = '<tr><td colspan="7" class="py-4 text-center text-blue-500 font-medium">Loading...</td></tr>'; 
             
             try {
                 const secret = adminSecretInput.value.trim();
@@ -505,7 +545,7 @@
                 row.innerHTML = `
                     <td class="py-4 px-6 font-medium text-gray-800 dark:text-gray-300">${user.username}</td>
                     <td class="py-4 px-6 text-xs dark:text-gray-400">${user.email}</td>
-                    <td class="py-4 px-6 font-semibold ${roleColor}">${user.role || 'Client'}</td>
+                    <td class="py-4 px-6 font-semibold ${roleColor}">${user.role}</td>
                     <td class="py-4 px-6">
                         <span class="px-3 py-1 text-white text-xs font-bold uppercase rounded-full ${statusClass}">
                             ${statusText}
@@ -517,8 +557,7 @@
                            class="open-role-modal-btn bg-blue-600 hover:bg-blue-700 text-white text-xs font-medium py-1 px-3 rounded transition">
                            Change Role
                         </button>
-                    </td>
-                    <td class="py-4 px-6">
+                    </td>                     <td class="py-4 px-6">
                         <button data-id="${user._id}" data-username="${user.username}"
                            class="delete-user-btn bg-red-600 hover:bg-red-700 text-white text-xs font-medium py-1 px-3 rounded transition">
                            Delete
@@ -601,7 +640,7 @@
             });
         }
         
-        // --- MODAL & ACTION LOGIC (Order Status) ---
+        // --- MODAL & ACTION LOGIC ---
         
         let currentOrderId = null;
 
@@ -695,8 +734,9 @@
             }
         }
 
-        // --- DELETE CLIENT LOGIC (UNCHANGED) ---
+        // --- DELETE CLIENT LOGIC ---
         
+        // Function to open the delete modal
         function openDeleteModal(userId, username) {
             currentDeleteUserId = userId;
             deleteUsernameDisplay.textContent = username;
@@ -705,12 +745,14 @@
             deleteBackdrop.style.display = 'flex';
         }
 
+        // Function to close the delete modal
         function closeDeleteModal() {
             deleteBackdrop.style.opacity = 0;
             currentDeleteUserId = null;
             setTimeout(() => { deleteBackdrop.style.display = 'none'; }, 300);
         }
 
+        // Executes the API call to delete the user
         async function deleteClient() {
             const userId = currentDeleteUserId;
             const secret = adminSecretInput.value.trim();
@@ -748,6 +790,7 @@
             }
         }
         
+        // Listener for the Delete Button on the table row (Delegation)
         function handleUserDeleteClick(e) {
             const button = e.target.closest('.delete-user-btn');
             if (button) {
@@ -757,8 +800,7 @@
             }
         }
         
-        // --- USER ROLE CHANGE LOGIC 🛑 NEW 🛑 ---
-
+        // 🛑 USER ROLE CHANGE LOGIC 🛑
         function openRoleModal(buttonElement) {
             currentRoleUserId = buttonElement.dataset.id;
             const username = buttonElement.dataset.username;
@@ -807,7 +849,6 @@
                 if (response.ok) {
                     showToast(data.message, 'success');
                     
-                    // Update local user list and re-render
                     const userIndex = allUsers.findIndex(u => u._id === currentRoleUserId);
                     if (userIndex !== -1) { allUsers[userIndex].role = newRole; }
                     
@@ -841,8 +882,7 @@
             }
         }
 
-        // --- RESET METRICS LOGIC 🛑 NEW 🛑 ---
-
+        // 🛑 RESET METRICS LOGIC 🛑
         async function resetMetrics() {
             const secret = adminSecretInput.value.trim();
             if (!secret) { 
@@ -880,8 +920,8 @@
                 resetMetricsBtn.textContent = '🔄 Reset Metrics';
             }
         }
-        
-        // --- MAIN FETCH TRIGGER (UNCHANGED) ---
+
+        // --- MAIN FETCH TRIGGER ---
         
         async function fetchAllData() {
             const secret = adminSecretInput.value.trim();
@@ -928,7 +968,7 @@
 
             // 3. Attach Listeners
             fetchDataBtn.addEventListener('click', fetchAllData);
-            resetMetricsBtn.addEventListener('click', resetMetrics); // NEW LISTENER
+            resetMetricsBtn.addEventListener('click', resetMetrics); // 🛑 NEW LISTENER 🛑
             modalUpdateBtn.addEventListener('click', updateOrderStatus);
             modalCancelBtn.addEventListener('click', closeModal);
             
@@ -936,9 +976,10 @@
             document.getElementById('delete-modal-cancel').addEventListener('click', closeDeleteModal);
             document.getElementById('delete-modal-confirm').addEventListener('click', deleteClient);
             
-            // Role Modal Listeners (NEW)
+            // 🛑 Role Modal Listeners (NEW) 🛑
             roleModalUpdateBtn.addEventListener('click', updateUserRole);
             roleModalCancelBtn.addEventListener('click', closeRoleModal);
+
             
             // 🛑 CRITICAL FIX: EVENT DELEGATION FOR ORDER ACTION BUTTONS 🛑
             ordersTableBody.addEventListener('click', (e) => {
@@ -951,7 +992,8 @@
             
             // 🛑 CRITICAL FIX: EVENT DELEGATION FOR CLIENT DELETE/ROLE BUTTONS 🛑
             clientsTableBody.addEventListener('click', handleUserDeleteClick);
-            clientsTableBody.addEventListener('click', handleRoleChangeClick); // NEW DELEGATION
+            clientsTableBody.addEventListener('click', handleRoleChangeClick);
+
 
             // 4. Status Filter Listener (Applies filter immediately when value changes)
             statusFilter.addEventListener('change', () => {
