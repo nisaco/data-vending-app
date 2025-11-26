@@ -1,809 +1,990 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <link rel="icon" type="image/x-icon" href="apple-touch-icon.png">
-    <title>Admin Dashboard - Executive Management</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <style>
-        /* Professional Color Palette */
-        :root { 
-            --primary: #009879; 
-            --secondary: #007a63; 
-            --text-dark: #1f2937;
-            --text-light: #f9fafb;
-        }
-        .text-primary { color: var(--primary); }
-        .bg-primary { background-color: var(--primary); }
-        .hover\:bg-secondary:hover { background-color: var(--secondary); }
-        
-        /* Dashboard Card Styles */
-        .metric-card {
-            background-color: #ffffff;
-            border-radius: 0.75rem;
-            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -2px rgba(0, 0, 0, 0.06);
-            transition: all 0.2s ease-in-out;
-        }
-        .metric-card:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -4px rgba(0, 0, 0, 0.05);
-        }
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="icon" type="image/x-icon" href="apple-touch-icon.png">
+    <title>Admin Dashboard - Executive Management</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        /* Professional Color Palette */
+        :root { 
+            --primary: #009879; 
+            --secondary: #007a63; 
+            --text-dark: #1f2937;
+            --text-light: #f9fafb;
+        }
+        .text-primary { color: var(--primary); }
+        .bg-primary { background-color: var(--primary); }
+        .hover\:bg-secondary:hover { background-color: var(--secondary); }
+        
+        /* Dashboard Card Styles */
+        .metric-card {
+            background-color: #ffffff;
+            border-radius: 0.75rem;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -2px rgba(0, 0, 0, 0.06);
+            transition: all 0.2s ease-in-out;
+        }
+        .metric-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -4px rgba(0, 0, 0, 0.05);
+        }
 
-        /* Status Pill Colors */
-        .status-data_sent, .status-topup_successful { background-color: #10b981; } /* Green */
-        .status-pending_review { background-color: #f59e0b; } /* Orange */
-        .status-data_failed, .status-payment_failed { background-color: #ef4444; } /* Red */
-        .status-payment_success { background-color: #3b82f6; } /* Blue */
-        
-        /* 🛑 WITHDRAWAL STATUS COLORS 🛑 */
-        .status-withdrawal_pending { background-color: #f59e0b; } /* Orange for pending action */
-        .status-withdrawal_sent { background-color: #3b82f6; } /* Blue/Completed */
+        /* Status Pill Colors */
+        .status-data_sent, .status-topup_successful { background-color: #10b981; } /* Green */
+        .status-pending_review { background-color: #f59e0b; } /* Orange */
+        .status-data_failed, .status-payment_failed { background-color: #ef4444; } /* Red */
+        .status-payment_success { background-color: #3b82f6; } /* Blue */
+        
+        /* 🛑 WITHDRAWAL STATUS COLORS 🛑 */
+        .status-withdrawal_pending { background-color: #f59e0b; } /* Orange for pending action */
+        .status-withdrawal_sent { background-color: #3b82f6; } /* Blue/Completed */
 
-        /* Client Status Colors */
-        .status-online { background-color: #10b981; }
-        .status-offline { background-color: #6b7280; }
+        /* Client Status Colors */
+        .status-online { background-color: #10b981; }
+        .status-offline { background-color: #6b7280; }
 
-        /* Tab Styles */
-        .admin-tab {
-            padding: 10px 20px;
-            cursor: pointer;
-            font-weight: 500;
-            border-bottom: 2px solid transparent;
-            transition: all 0.2s;
-        }
-        .admin-tab.active {
-            color: var(--primary);
-            font-weight: 700;
-            border-bottom: 2px solid var(--primary);
-        }
+        /* Tab Styles */
+        .admin-tab {
+            padding: 10px 20px;
+            cursor: pointer;
+            font-weight: 500;
+            border-bottom: 2px solid transparent;
+            transition: all 0.2s;
+        }
+        .admin-tab.active {
+            color: var(--primary);
+            font-weight: 700;
+            border-bottom: 2px solid var(--primary);
+        }
 
-        /* Dark Mode Overrides */
-        .dark { background-color: #121212; color: #e0e0e0; }
-        .dark .bg-white, .dark .metric-card { background-color: #1f1f1f; border-color: #374151; }
-        .dark .text-gray-800 { color: #ffffff; }
-        .dark .text-gray-500 { color: #9ca3af; }
-        .dark .bg-gray-100 { background-color: #374151; }
-        .dark input, .dark select { background-color: #374151; border-color: #4b5563; color: #e0e0e0; }
-        .dark .bg-gray-200 { background-color: #374151; }
+        /* Dark Mode Overrides */
+        .dark { background-color: #121212; color: #e0e0e0; }
+        .dark .bg-white, .dark .metric-card { background-color: #1f1f1f; border-color: #374151; }
+        .dark .text-gray-800 { color: #ffffff; }
+        .dark .text-gray-500 { color: #9ca3af; }
+        .dark .bg-gray-100 { background-color: #374151; }
+        .dark input, .dark select { background-color: #374151; border-color: #4b5563; color: #e0e0e0; }
+        .dark .bg-gray-200 { background-color: #374151; }
 
-        /* Modal Backdrop */
-        #modal-backdrop, #delete-confirm-modal-backdrop {
-            background-color: rgba(0, 0, 0, 0.75);
-            transition: opacity 0.3s ease;
-            z-index: 50;
-        }
-        /* Toast Container for Notifications */
-        #toast-container {
-            position: fixed;
-            top: 1rem;
-            right: 1rem;
-            z-index: 1000;
-            max-width: 300px;
-        }
-    </style>
+        /* Modal Backdrop */
+        #modal-backdrop, #delete-confirm-modal-backdrop, #role-modal-backdrop {
+            background-color: rgba(0, 0, 0, 0.75);
+            transition: opacity 0.3s ease;
+            z-index: 50;
+        }
+        /* Toast Container for Notifications */
+        #toast-container {
+            position: fixed;
+            top: 1rem;
+            right: 1rem;
+            z-index: 1000;
+            max-width: 300px;
+        }
+    </style>
 </head>
 <body class="bg-gray-50 min-h-screen font-sans transition-colors duration-300 dark:bg-[#121212] dark:text-gray-200">
 
-    <div id="toast-container"></div>
-    
-    <div id="modal-backdrop" class="fixed inset-0 hidden items-center justify-center bg-black bg-opacity-75 z-50 opacity-0 transition-opacity duration-300">
-        <div id="status-modal" class="bg-white p-6 rounded-xl shadow-2xl w-full max-w-md transform scale-95 transition-all duration-300 dark:bg-gray-800">
-            <h3 class="text-xl font-bold text-gray-800 dark:text-white mb-4">Update Order Status</h3>
-            <div id="modal-current-order" class="text-sm text-gray-600 dark:text-gray-400 mb-4">
-                Reference: <span id="modal-order-ref" class="font-medium"></span>
-                <br> Current Status: <span id="modal-current-status" class="font-bold"></span>
-                <div id="modal-payout-details" class="text-sm text-blue-500 font-semibold mt-2 hidden">
-                    Payout To: <span id="modal-payout-account"></span>
-                </div>
-            </div>
-
-            <label for="new-status" class="block text-gray-700 dark:text-gray-300 mb-2">New Status</label>
-            <select id="new-status" class="w-full p-2 border border-gray-300 rounded-lg dark:bg-gray-700 dark:border-gray-600 dark:text-white">
-                <option value="data_sent">Data Sent (Fulfilled)</option>
-                <option value="pending_review">Pending Review</option>
-                <option value="data_failed">Data Failed</option>
-                <option value="payment_failed">Payment Failed</option>
-                <option value="withdrawal_pending">Awaiting Payout (Manual Action)</option>
-                <option value="withdrawal_sent">Payout Sent (Completed)</option>
-            </select>
-            
-            <div id="modal-status-message" class="mt-3 text-sm font-medium text-red-500"></div>
-
-            <div class="mt-6 flex justify-end space-x-3">
-                <button id="modal-cancel" type="button" class="py-2 px-4 bg-gray-200 text-gray-800 rounded-lg hover:bg-gray-300 transition dark:bg-gray-700 dark:text-white dark:hover:bg-gray-600">Cancel</button>
-                <button id="modal-update" type="button" class="py-2 px-4 bg-primary text-white rounded-lg hover:bg-secondary transition">Update</button>
-            </div>
-        </div>
-    </div>
-
-    <div id="delete-confirm-modal-backdrop" class="fixed inset-0 hidden items-center justify-center bg-black bg-opacity-75 z-50 opacity-0 transition-opacity duration-300">
-        <div id="delete-confirm-modal" class="bg-white p-6 rounded-xl shadow-2xl w-full max-w-sm transform scale-95 transition-all duration-300 dark:bg-gray-800">
-            <h3 class="text-xl font-bold text-red-500 mb-4">Confirm Deletion</h3>
-            <p class="text-gray-700 dark:text-gray-300 mb-6">
-                Are you sure you want to permanently delete user 
-                <span id="delete-username-display" class="font-bold text-red-500"></span>? 
-                This action is irreversible and will delete ALL associated orders.
-            </p>
-
-            <div class="mt-4 flex justify-end space-x-3">
-                <button id="delete-modal-cancel" type="button" class="py-2 px-4 bg-gray-200 text-gray-800 rounded-lg hover:bg-gray-300 transition dark:bg-gray-700 dark:text-white dark:hover:bg-gray-600">Cancel</button>
-                <button id="delete-modal-confirm" type="button" class="py-2 px-4 bg-red-600 text-white rounded-lg hover:bg-red-700 transition">Delete Permanently</button>
-            </div>
-        </div>
-    </div>
-    
-    <nav class="bg-white shadow-lg dark:bg-[#1f1f1f]">
-        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex justify-between items-center h-16">
-            <a href="/admin.html?secret=YOUR_ADMIN_SECRET" class="text-xl font-bold text-primary">Admin Control Panel</a>
-            <div class="flex space-x-4 items-center">
-                <button id="theme-toggle" class="p-2 rounded-full text-gray-500 hover:bg-gray-200 dark:text-gray-400 dark:hover:bg-gray-700 transition">
-                    <svg id="theme-icon-moon" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                        <path stroke-linecap="round" stroke-linejoin="round" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
-                    </svg>
-                    <svg id="theme-icon-sun" class="h-6 w-6 hidden" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                        <path stroke-linecap="round" stroke-linejoin="round" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
-                    </svg>
-                </button>
-                <p id="admin-key-display" class="text-xs text-gray-400 dark:text-gray-500 hidden sm:block">Key: ---</p>
-                <a href="/purchase.html" class="py-1 px-3 bg-primary text-white font-bold rounded-lg transition hover:bg-secondary">Go to Client View</a>
-            </div>
-        </div>
-    </nav>
-
-    <div class="container mx-auto p-4 max-w-7xl">
-        <h1 class="text-3xl font-extrabold text-gray-800 dark:text-white mt-4 mb-8">System Overview</h1>
-
-        <div id="metrics-container" class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-10">
-            <div class="metric-card p-5 dark:border-gray-700">
-                <p class="text-sm font-medium text-gray-500 dark:text-gray-400">Total Revenue</p>
-                <p id="metric-revenue" class="text-3xl font-extrabold text-gray-800 dark:text-white mt-1">GHS 0.00</p>
-            </div>
-            <div class="metric-card p-5 dark:border-gray-700">
-                <p class="text-sm font-medium text-gray-500 dark:text-gray-400">Net Profit</p>
-                <p id="metric-profit" class="text-3xl font-extrabold text-primary mt-1">GHS 0.00</p>
-            </div>
-            <div class="metric-card p-5 dark:border-gray-700">
-                <p class="text-sm font-medium text-gray-500 dark:text-gray-400">Total Orders</p>
-                <p id="metric-orders" class="text-3xl font-extrabold text-gray-800 dark:text-white mt-1">0</p>
-            </div>
-            <div class="metric-card p-5 dark:border-gray-700">
-                <p class="text-sm font-medium text-gray-500 dark:text-gray-400">Total Users</p>
-                <p id="metric-users" class="text-3xl font-extrabold text-gray-800 dark:text-white mt-1">0</p>
-            </div>
-        </div>
-
-        <div class="flex flex-col sm:flex-row gap-3 mb-6 items-center justify-center">
-            <input type="password" id="adminSecret" placeholder="Enter Admin Secret" class="w-full sm:w-64 p-3 border border-gray-300 rounded-lg focus:ring-primary focus:border-primary dark:bg-gray-700 dark:border-gray-600 dark:text-white">
-            <button id="fetchDataBtn" class="w-full sm:w-auto py-3 px-6 bg-primary text-white font-bold rounded-lg hover:bg-secondary transition">
-                Fetch All Data
-            </button>
-        </div>
-
-
-        <div class="bg-white p-6 md:p-8 rounded-2xl shadow-xl border border-gray-100 dark:bg-[#1f1f1f] dark:border-gray-700">
-            
-            <div class="flex border-b border-gray-200 dark:border-gray-700 mb-6">
-                <div class="admin-tab active" data-tab="transactions">All Transactions</div>
-                <div class="admin-tab" data-tab="clients">Client Engagement</div>
-            </div>
-            
-            <div id="tab-content-transactions">
-                <h2 class="text-xl font-bold text-gray-800 dark:text-white mb-4 flex justify-between items-center">
-                    All Transactions
-                    
-                    <select id="status-filter" class="p-2 border border-gray-300 rounded-lg text-sm dark:bg-gray-700 dark:border-gray-600 dark:text-white">
-                        <option value="All">Filter by Status (All)</option>
-                        <option value="withdrawal_pending">Payout Pending (Action Required)</option>
-                        <option value="pending_review">Data Pending (Action Required)</option>
-                        <option value="data_sent">Data Sent (Success)</option>
-                        <option value="data_failed">Data Failed</option>
-                        <option value="topup_successful">Top Up Success</option>
-                        <option value="payment_failed">Payment Failed</option>
-                    </select>
-                </h2>
-                <div id="orders-status" class="text-center font-medium mb-4 text-gray-700 dark:text-gray-400">Enter secret to load data.</div>
-
-                <div class="overflow-x-auto rounded-xl border border-gray-200 shadow-inner dark:border-gray-700">
-                    <table class="w-full text-sm text-left text-gray-500 dark:text-gray-400">
-                        <thead class="text-xs text-white uppercase bg-primary">
-                            <tr>
-                                <th scope="col" class="py-3 px-6 rounded-tl-xl">Time</th>
-                                <th scope="col" class="py-3 px-6">User</th>
-                                <th scope="col" class="py-3 px-6">Phone / Account</th>
-                                <th scope="col" class="py-3 px-6">Item / Network</th>
-                                <th scope="col" class="py-3 px-6">Amount (GHS)</th>
-                                <th scope="col" class="py-3 px-6">Status</th>
-                                <th scope="col" class="py-3 px-6 rounded-tr-xl">Actions</th>
-                            </tr>
-                        </thead>
-                        <tbody id="ordersTableBody" class="bg-white divide-y divide-gray-100 dark:bg-[#1f1f1f] dark:divide-gray-700">
-                            <tr><td colspan="7" class="py-4 text-center text-gray-400">Data requires authentication.</td></tr>
-                        </tbody>
-                    </table>
-                </div>
-            </div> <div id="tab-content-clients" class="hidden">
-                <h2 class="text-xl font-bold text-gray-800 dark:text-white mb-4">Client Engagement</h2>
-                <div id="clients-status" class="text-center font-medium mb-4 text-gray-700 dark:text-gray-400">Enter secret to load client data.</div>
-
-                <div class="overflow-x-auto rounded-xl border border-gray-200 shadow-inner dark:border-gray-700">
-                    <table class="w-full text-sm text-left text-gray-500 dark:text-gray-400">
-                        <thead class="text-xs text-white uppercase bg-primary">
-                            <tr>
-                                <th scope="col" class="py-3 px-6 rounded-tl-xl">Username</th>
-                                <th scope="col" class="py-3 px-6">Email</th>
-                                <th scope="col" class="py-3 px-6">Role</th>
-                                <th scope="col" class="py-3 px-6">Online Status</th>
-                                <th scope="col" class="py-3 px-6">Joined</th>
-                                <th scope="col" class="py-3 px-6 rounded-tr-xl">Delete</th>
-                            </tr>
-                        </thead>
-                        <tbody id="clientsTableBody" class="bg-white divide-y divide-gray-100 dark:bg-[#1f1f1f] dark:divide-gray-700">
-                            <tr><td colspan="6" class="py-4 text-center text-gray-400">Client data requires authentication.</td></tr>
-                        </tbody>
-                    </table>
-                </div>
-            </div> </div>
-    </div>
-
-    <script>
-        // --- TOAST NOTIFICATION SYSTEM ---
-        function showToast(message, type = 'success') {
-            const container = document.getElementById('toast-container');
-            const colors = {
-                success: 'bg-green-500 border-green-700',
-                error: 'bg-red-500 border-red-700',
-                warning: 'bg-yellow-500 border-yellow-700',
-            };
-            const toast = document.createElement('div');
-            toast.className = `p-4 mb-2 text-white text-sm font-semibold rounded-lg shadow-lg border-b-4 ${colors[type]} transform translate-x-full transition-all duration-300 ease-out`;
-            toast.textContent = message;
-
-            // Animate in
-            setTimeout(() => {
-                toast.style.transform = 'translateX(0)';
-            }, 10);
-
-            // Animate out and remove
-            setTimeout(() => {
-                toast.style.transform = 'translateX(120%)';
-                setTimeout(() => {
-                    container.removeChild(toast);
-                }, 400);
-            }, 6000);
-        }
-        // --- END TOAST SYSTEM ---
-
-        // --- THEME LOGIC START ---
-        const htmlElement = document.documentElement;
-        const toggleButton = document.getElementById('theme-toggle');
-
-        function applyTheme(theme) {
-            const isDark = theme === 'dark';
-            const moonIcon = document.getElementById('theme-icon-moon');
-            const sunIcon = document.getElementById('theme-icon-sun');
-
-            if (isDark) {
-                htmlElement.classList.add('dark');
-                moonIcon.classList.add('hidden');
-                sunIcon.classList.remove('hidden');
-            } else {
-                htmlElement.classList.remove('dark');
-                moonIcon.classList.remove('hidden');
-                sunIcon.classList.add('hidden');
-            }
-        }
-
-        const savedTheme = localStorage.getItem('theme');
-        if (savedTheme) {
-            applyTheme(savedTheme);
-        } else if (window.matchMedia('(prefers-color-scheme: dark)').matches) {
-            applyTheme('dark');
-        } else {
-            applyTheme('light');
-        }
-
-        toggleButton.addEventListener('click', () => {
-            const newTheme = htmlElement.classList.contains('dark') ? 'light' : 'dark';
-            localStorage.setItem('theme', newTheme);
-            applyTheme(newTheme);
-        });
-        // --- THEME LOGIC END ---
-
-        // --- GLOBAL STATE & CONSTANTS ---
-        let adminSecret = ''; // This will be set from the input field
-        let allOrders = [];
-        let allUsers = [];
-        const statusMap = {
-            'data_sent': 'Data Sent', 
-            'pending_review': 'Pending Review', 
-            'data_failed': 'Data Failed', 
-            'topup_successful': 'Top Up Success', 
-            'payment_success': 'Payment Success', 
-            'payment_failed': 'Payment Failed',
-            'withdrawal_pending': 'Payout Pending',
-            'withdrawal_sent': 'Payout Sent'
-        };
-
-        // --- DOM Elements ---
-        const ordersTableBody = document.getElementById('ordersTableBody');
-        const ordersStatusDiv = document.getElementById('orders-status');
-        const clientsTableBody = document.getElementById('clientsTableBody');
-        const clientsStatusDiv = document.getElementById('clients-status');
-        const adminSecretInput = document.getElementById('adminSecret');
-        const fetchDataBtn = document.getElementById('fetchDataBtn');
-        const tabsContainer = document.querySelector('.flex.border-b');
-        const tabContentTransactions = document.getElementById('tab-content-transactions');
-        const tabContentClients = document.getElementById('tab-content-clients');
-        const statusFilter = document.getElementById('status-filter');
-
-        const metrics = {
-            revenue: document.getElementById('metric-revenue'), profit: document.getElementById('metric-profit'),
-            orders: document.getElementById('metric-orders'), users: document.getElementById('metric-users'),
-        };
-        const modalBackdrop = document.getElementById('modal-backdrop');
-        const modalStatusMessage = document.getElementById('modal-status-message');
-        
-        // Modal specific elements
-        const modalOrderRef = document.getElementById('modal-order-ref');
-        const modalCurrentStatus = document.getElementById('modal-current-status');
-        const modalUpdateBtn = document.getElementById('modal-update');
-        const modalCancelBtn = document.getElementById('modal-cancel');
-        const modalNewStatus = document.getElementById('new-status');
-        const modalPayoutDetails = document.getElementById('modal-payout-details');
-        const modalPayoutAccount = document.getElementById('modal-payout-account');
-
-        // Delete Modal Elements
-        const deleteBackdrop = document.getElementById('delete-confirm-modal-backdrop');
-        const deleteUsernameDisplay = document.getElementById('delete-username-display');
-        let currentDeleteUserId = null;
-
-
-        // --- UTILITY FUNCTIONS ---
-        function safeDateFormatter(isoString) {
-            if (!isoString) return 'N/A';
-            try {
-                const date = new Date(isoString); 
-                if (isNaN(date.getTime())) return 'Invalid Date';
-                return date.toLocaleString('en-GB', { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
-            } catch (e) {
-                return 'Invalid Date';
-            }
-        }
-
-        // --- FETCHING FUNCTIONS ---
-
-        async function fetchMetrics() {
-            try {
-                const secret = adminSecretInput.value.trim();
-                const response = await fetch(`/api/admin/metrics?secret=${secret}`);
-                const userCountResponse = await fetch(`/api/admin/user-count?secret=${secret}`);
-                
-                if (response.status === 403 || userCountResponse.status === 403) {
-                    throw new Error('Authorization Failed. Check Admin Secret.');
-                }
-                if (!response.ok || !userCountResponse.ok) throw new Error('Failed to fetch metrics data.');
-
-                const metricsData = await response.json();
-                const userData = await userCountResponse.json();
-
-                metrics.revenue.textContent = `GHS ${parseFloat(metricsData.revenue).toFixed(2)}`;
-                metrics.profit.textContent = `GHS ${parseFloat(metricsData.netProfit).toFixed(2)}`;
-                metrics.orders.textContent = metricsData.totalOrders.toLocaleString();
-                metrics.users.textContent = userData.count.toLocaleString();
-                return true;
-            } catch (error) {
-                console.error('Metrics fetch error:', error);
-                metrics.revenue.textContent = 'Error';
-                metrics.profit.textContent = 'Error';
-                return false;
-            }
-        }
-
-        async function fetchAllOrders() {
-            ordersStatusDiv.textContent = 'Loading transactions...';
-            ordersTableBody.innerHTML = '<tr><td colspan="7" class="py-4 text-center text-blue-500 font-medium">Loading...</td></tr>';
-            
-            try {
-                const secret = adminSecretInput.value.trim();
-                const response = await fetch(`/api/get-all-orders?secret=${secret}`);
-                
-                if (response.status === 403) throw new Error('Authorization Failed. Check Admin Secret.');
-                if (!response.ok) throw new Error('Could not fetch all orders.');
-                
-                const data = await response.json();
-                allOrders = data.orders || [];
-                renderOrders(allOrders);
-
-            } catch (error) {
-                ordersStatusDiv.textContent = `Error fetching orders: ${error.message}`;
-                ordersStatusDiv.style.color = 'red';
-            }
-        }
-
-        async function fetchAllUsers() {
-            clientsStatusDiv.textContent = 'Loading client data...';
-            clientsTableBody.innerHTML = '<tr><td colspan="6" class="py-4 text-center text-blue-500 font-medium">Loading...</td></tr>';
-            
-            try {
-                const secret = adminSecretInput.value.trim();
-                const response = await fetch(`/api/admin/all-users-status?secret=${secret}`);
-                
-                if (response.status === 403) throw new Error('Authorization Failed. Check Admin Secret.');
-                if (!response.ok) throw new Error('Could not fetch all users.');
-                
-                const data = await response.json();
-                allUsers = data.users || [];
-                renderUsers(allUsers);
-            } catch (error) {
-                clientsStatusDiv.textContent = `Error fetching users: ${error.message}`;
-                clientsStatusDiv.style.color = 'red';
-            }
-        }
-
-        // --- RENDERING ---
-        
-        function renderUsers(users) {
-            clientsTableBody.innerHTML = '';
-            if (users.length === 0) {
-                clientsStatusDiv.textContent = "No registered clients found.";
-                return;
-            }
-            clientsStatusDiv.textContent = '';
-
-            users.forEach(user => {
-                const row = clientsTableBody.insertRow();
-                const statusText = user.isOnline ? 'Online' : 'Offline';
-                const statusClass = user.isOnline ? 'status-online' : 'status-offline';
-                const roleColor = user.role === 'Agent' ? 'text-primary' : 'text-gray-500 dark:text-gray-400';
-
-                row.className = 'hover:bg-gray-50 transition duration-150 dark:hover:bg-gray-800';
-
-                row.innerHTML = `
-                    <td class="py-4 px-6 font-medium text-gray-800 dark:text-gray-300">${user.username}</td>
-                    <td class="py-4 px-6 text-xs dark:text-gray-400">${user.email}</td>
-                    <td class="py-4 px-6 font-semibold ${roleColor}">${user.role}</td>
-                    <td class="py-4 px-6">
-                        <span class="px-3 py-1 text-white text-xs font-bold uppercase rounded-full ${statusClass}">
-                            ${statusText}
-                        </span>
-                    </td>
-                    <td class="py-4 px-6 text-xs dark:text-gray-400">${safeDateFormatter(user.signedUp)}</td>
-                    <td class="py-4 px-6">
-                        <button data-id="${user._id}" data-username="${user.username}"
-                           class="delete-user-btn bg-red-600 hover:bg-red-700 text-white text-xs font-medium py-1 px-3 rounded transition">
-                           Delete
-                           </button>
-                    </td>
-                `;
-            });
-        }
-        
-        function renderOrders(orders) {
-            // Apply current status filter before rendering
-            const currentStatusFilter = statusFilter.value;
-            let filteredOrders = orders;
-            
-            if (currentStatusFilter !== 'All') {
-                filteredOrders = orders.filter(order => order.status === currentStatusFilter);
-            }
-
-            ordersTableBody.innerHTML = '';
-            if (filteredOrders.length === 0) {
-                ordersStatusDiv.textContent = "No transactions found matching the filter criteria.";
-                ordersStatusDiv.style.color = 'black';
-                return;
-            }
-
-            ordersStatusDiv.textContent = `Displaying ${filteredOrders.length} transactions.`;
-            ordersStatusDiv.style.color = 'black';
-            
-            filteredOrders.forEach(order => {
-                const row = ordersTableBody.insertRow();
-                const statusText = statusMap[order.status] || order.status.replace(/_/g, ' ');
-                const statusClass = `status-${order.status}`;
-                const amountSign = (order.dataPlan === 'WALLET TOP-UP') ? '+' : (order.dataPlan === 'WITHDRAWAL REQUEST' ? 'PAYOUT: ' : 'COST: ');
-                const amountColor = (order.dataPlan === 'WALLET TOP-UP') ? 'text-green-600 dark:text-green-400' : 
-                                     (order.dataPlan === 'WITHDRAWAL REQUEST' ? 'text-blue-600 dark:text-blue-400' : 'text-red-600 dark:text-red-400');
-                
-                // Determine what to display in the Phone column
-                let displayPhone;
-                if (order.dataPlan === 'WITHDRAWAL REQUEST') {
-                    displayPhone = `${order.network || 'Account'}: ${order.phoneNumber || 'N/A'}`;
-                } else if (order.network === 'WALLET') {
-                    displayPhone = 'N/A (Wallet)';
-                } else {
-                    displayPhone = order.phoneNumber || 'N/A';
-                }
-
-                // 🛑 NEW: Check if this is an Agent Sale (requires backend to send agentId)
-                let networkDisplay = `${order.dataPlan} (${order.network})`;
-                if (order.agentId) {
-                    networkDisplay += ` <span class="bg-purple-100 text-purple-800 text-xs font-bold px-2 py-0.5 rounded dark:bg-purple-900 dark:text-purple-300">[AGENT SALE]</span>`;
-                }
-
-                row.className = 'hover:bg-gray-50 transition duration-150 dark:hover:bg-gray-800';
-                
-                // Determine button text based on status
-                let actionButton = 'N/A';
-                if (order.status === 'pending_review') {
-                    actionButton = `<button data-id="${order.id}" class="open-modal-btn text-white bg-blue-600 hover:bg-blue-700 text-xs font-medium py-1 px-3 rounded transition">Fulfill Data</button>`;
-                } else if (order.status === 'withdrawal_pending') {
-                    actionButton = `<button data-id="${order.id}" class="open-modal-btn text-white bg-yellow-600 hover:bg-yellow-700 text-xs font-medium py-1 px-3 rounded transition">Fulfill Payout</button>`;
-                }
-
-                row.innerHTML = `
-                    <td class="py-4 px-6 dark:text-gray-400 text-xs">${safeDateFormatter(order.created_at)}</td>
-                    <td class="py-4 px-6 font-medium text-gray-800 dark:text-gray-300">${order.username || 'N/A'}</td>
-                    <td class="py-4 px-6 dark:text-gray-400 text-xs">${displayPhone}</td>
-                    <td class="py-4 px-6 dark:text-gray-400 text-xs">${networkDisplay}</td>
-                    <td class="py-4 px-6 font-semibold ${amountColor}">
-                        ${amountSign} GHS ${order.amount.toFixed(2)}
-                    </td>
-                    <td class="py-4 px-6">
-                        <span class="px-3 py-1 text-white text-xs font-bold uppercase rounded-full ${statusClass}">
-                            ${statusText}
-                        </span>
-                    </td>
-                    <td class="py-4 px-6">
-                        ${actionButton}
-                    </td>
-                `;
-            });
-        }
-        
-        // --- MODAL & ACTION LOGIC ---
-        
-        let currentOrderId = null;
-
-        // Function to open the modal, accepts the clicked button element
-        function openUpdateModal(buttonElement) {
-            currentOrderId = buttonElement.dataset.id;
-            
-            // Find the order data to populate the modal fields
-            const order = allOrders.find(o => o.id === currentOrderId);
-            modalPayoutDetails.classList.add('hidden'); 
-
-            if (order) {
-                modalOrderRef.textContent = order.reference ? order.reference.substring(0, 16) + '...' : currentOrderId.substring(0, 8) + '...';
-                modalCurrentStatus.textContent = statusMap[order.status] || order.status.replace(/_/g, ' ');
-                modalStatusMessage.textContent = ''; 
-                
-                // 1. Check if it's a Payout Request
-                if (order.status === 'withdrawal_pending') {
-                    // Display Payout Details
-                    modalPayoutAccount.textContent = `${order.network} (${order.phoneNumber}) - GHS ${order.amount.toFixed(2)}`;
-                    modalPayoutDetails.classList.remove('hidden');
-                    
-                    // Pre-select the Payout Sent option
-                    modalNewStatus.value = 'withdrawal_sent';
-                } else {
-                    // Default to Data Sent for regular review
-                    modalNewStatus.value = 'data_sent'; 
-                }
-
-                modalBackdrop.style.opacity = 1;
-                modalBackdrop.style.display = 'flex';
-            }
-        }
-
-        function closeModal() {
-            modalBackdrop.style.opacity = 0;
-            currentOrderId = null;
-            setTimeout(() => { modalBackdrop.style.display = 'none'; }, 300);
-        }
-
-        async function updateOrderStatus() {
-            if (!currentOrderId) return;
-            
-            const newStatus = modalNewStatus.value;
-            const secret = adminSecretInput.value.trim();
-
-            modalUpdateBtn.disabled = true;
-            modalUpdateBtn.textContent = 'Saving...';
-            modalStatusMessage.textContent = 'Updating status...';
-            modalStatusMessage.classList.remove('text-red-500');
-            modalStatusMessage.classList.add('text-yellow-600');
-
-            try {
-                const response = await fetch('/api/admin/update-order', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ 
-                        orderId: currentOrderId, 
-                        newStatus: newStatus,
-                        adminSecret: secret 
-                    })
-                });
-
-                const data = await response.json();
-
-                if (response.ok) {
-                    showToast(data.message, 'success');
-                    
-                    const index = allOrders.findIndex(o => o.id === currentOrderId);
-                    if (index !== -1) { allOrders[index].status = newStatus; }
-                    
-                    setTimeout(() => {
-                        closeModal();
-                        renderOrders(allOrders); 
-                    }, 1000);
-                } else {
-                    showToast(data.error || data.message || 'Update failed.', 'error');
-                    modalStatusMessage.textContent = data.error || data.message || 'Update failed.';
-                    modalStatusMessage.classList.remove('text-yellow-600');
-                    modalStatusMessage.classList.add('text-red-500');
-                }
-
-            } catch (error) {
-                showToast('Network error during update.', 'error');
-                modalStatusMessage.textContent = 'Network error during update.';
-                modalStatusMessage.classList.remove('text-yellow-600');
-                modalStatusMessage.classList.add('text-red-500');
-            } finally {
-                modalUpdateBtn.disabled = false;
-                modalUpdateBtn.textContent = 'Update';
-            }
-        }
-
-        // --- DELETE CLIENT LOGIC ---
-        
-        // Function to open the delete modal
-        function openDeleteModal(userId, username) {
-            currentDeleteUserId = userId;
-            deleteUsernameDisplay.textContent = username;
-            
-            deleteBackdrop.style.opacity = 1;
-            deleteBackdrop.style.display = 'flex';
-        }
-
-        // Function to close the delete modal
-        function closeDeleteModal() {
-            deleteBackdrop.style.opacity = 0;
-            currentDeleteUserId = null;
-            setTimeout(() => { deleteBackdrop.style.display = 'none'; }, 300);
-        }
-
-        // Executes the API call to delete the user
-        async function deleteClient() {
-            const userId = currentDeleteUserId;
-            const secret = adminSecretInput.value.trim();
-            
-            if (!secret) {
-                closeDeleteModal();
-                showToast('Admin secret required to delete user.', 'error');
-                return;
-            }
-
-            document.getElementById('delete-modal-confirm').disabled = true;
-            document.getElementById('delete-modal-confirm').textContent = 'Deleting...';
-
-            try {
-                const response = await fetch('/api/admin/delete-user', {
-                    method: 'DELETE',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ userId, adminSecret: secret })
-                });
-
-                const data = await response.json();
-                
-                if (response.ok) {
-                    showToast(data.message, 'success');
-                    await Promise.all([fetchAllUsers(), fetchAllOrders(), fetchMetrics()]);
-                } else {
-                    showToast(data.error || data.message || 'Deletion failed.', 'error');
-                }
-            } catch (error) {
-                showToast('Network error during client deletion.', 'error');
-            } finally {
-                closeDeleteModal();
-                document.getElementById('delete-modal-confirm').disabled = false;
-                document.getElementById('delete-modal-confirm').textContent = 'Delete Permanently';
-            }
-        }
-        
-        // Listener for the Delete Button on the table row (Delegation)
-        function handleUserDeleteClick(e) {
-            const button = e.target.closest('.delete-user-btn');
-            if (button) {
-                const userId = button.dataset.id;
-                const username = button.dataset.username;
-                openDeleteModal(userId, username);
-            }
-        }
-        
-        // --- MAIN FETCH TRIGGER ---
-        
-        async function fetchAllData() {
-            const secret = adminSecretInput.value.trim();
-            if (!secret) { 
-                showToast("Please enter the Admin Secret.", 'error');
-                return; 
-            }
-            
-            adminSecret = secret;
-
-            fetchDataBtn.disabled = true;
-            fetchDataBtn.textContent = 'Loading...';
-            
-            try {
-                const metricsReady = await fetchMetrics();
-                if (!metricsReady) { 
-                    throw new Error("Failed to load core metrics. Check secret."); 
-                }
-
-                showToast("Metrics and User count loaded successfully.", 'success');
-                
-                await Promise.all([fetchAllOrders(), fetchAllUsers()]);
-
-            } catch (error) {
-                console.error('Master Fetch Error:', error);
-                showToast(`CRITICAL ERROR: ${error.message}`, 'error');
-            } finally {
-                fetchDataBtn.disabled = false;
-                fetchDataBtn.textContent = 'Fetch All Data';
-            }
-        }
-        
-        // --- INITIALIZATION ---
-        document.addEventListener('DOMContentLoaded', async () => {
-            
-            // 2. Get Admin Secret from URL 
-            const urlParams = new URLSearchParams(window.location.search);
-            const initialSecret = urlParams.get('secret');
-            if (initialSecret) {
-                adminSecretInput.value = initialSecret;
-                adminSecret = initialSecret;
-                fetchAllData();
-            }
-
-            // 3. Attach Listeners
-            fetchDataBtn.addEventListener('click', fetchAllData);
-            modalUpdateBtn.addEventListener('click', updateOrderStatus);
-            modalCancelBtn.addEventListener('click', closeModal);
-            
-            // Delete Modal Listeners
-            document.getElementById('delete-modal-cancel').addEventListener('click', closeDeleteModal);
-            document.getElementById('delete-modal-confirm').addEventListener('click', deleteClient);
-            
-            // 🛑 CRITICAL FIX: EVENT DELEGATION FOR ORDER ACTION BUTTONS 🛑
-            ordersTableBody.addEventListener('click', (e) => {
-                const targetButton = e.target.closest('.open-modal-btn');
-                if (targetButton) {
-                    e.preventDefault(); 
-                    openUpdateModal(targetButton); 
-                }
-            });
-            
-            // 🛑 CRITICAL FIX: EVENT DELEGATION FOR CLIENT DELETE BUTTONS 🛑
-            clientsTableBody.addEventListener('click', handleUserDeleteClick);
-
-
-            // 4. Status Filter Listener (Applies filter immediately when value changes)
-            statusFilter.addEventListener('change', () => {
-                renderOrders(allOrders); 
-            });
-
-            // 5. Tab Switching Logic
-            tabsContainer.addEventListener('click', (e) => {
-                const target = e.target.closest('.admin-tab');
-                if (target) {
-                    document.querySelectorAll('.admin-tab').forEach(tab => tab.classList.remove('active'));
-                    target.classList.add('active');
-
-                    tabContentTransactions.classList.add('hidden');
-                    tabContentClients.classList.add('hidden');
-
-                    if (target.dataset.tab === 'transactions') {
-                        tabContentTransactions.classList.remove('hidden');
-                        renderOrders(allOrders); 
-                    } else if (target.dataset.tab === 'clients') {
-                        tabContentClients.classList.remove('hidden');
-                        renderUsers(allUsers);
-                    }
-                }
-            });
-        });
-    </script>
+    <div id="toast-container"></div>
+    
+        <div id="modal-backdrop" class="fixed inset-0 hidden items-center justify-center bg-black bg-opacity-75 z-50 opacity-0 transition-opacity duration-300">
+        <div id="status-modal" class="bg-white p-6 rounded-xl shadow-2xl w-full max-w-md transform scale-95 transition-all duration-300 dark:bg-gray-800">
+            <h3 class="text-xl font-bold text-gray-800 dark:text-white mb-4">Update Order Status</h3>
+            <div id="modal-current-order" class="text-sm text-gray-600 dark:text-gray-400 mb-4">
+                Reference: <span id="modal-order-ref" class="font-medium"></span>
+                <br> Current Status: <span id="modal-current-status" class="font-bold"></span>
+                <div id="modal-payout-details" class="text-sm text-blue-500 font-semibold mt-2 hidden">
+                    Payout To: <span id="modal-payout-account"></span>
+                </div>
+            </div>
+
+            <label for="new-status" class="block text-gray-700 dark:text-gray-300 mb-2">New Status</label>
+            <select id="new-status" class="w-full p-2 border border-gray-300 rounded-lg dark:bg-gray-700 dark:border-gray-600 dark:text-white">
+                <option value="data_sent">Data Sent (Fulfilled)</option>
+                <option value="pending_review">Pending Review</option>
+                <option value="data_failed">Data Failed</option>
+                <option value="payment_failed">Payment Failed</option>
+                <option value="withdrawal_pending">Awaiting Payout (Manual Action)</option>
+                <option value="withdrawal_sent">Payout Sent (Completed)</option>
+            </select>
+            
+            <div id="modal-status-message" class="mt-3 text-sm font-medium text-red-500"></div>
+
+            <div class="mt-6 flex justify-end space-x-3">
+                <button id="modal-cancel" type="button" class="py-2 px-4 bg-gray-200 text-gray-800 rounded-lg hover:bg-gray-300 transition dark:bg-gray-700 dark:text-white dark:hover:bg-gray-600">Cancel</button>
+                <button id="modal-update" type="button" class="py-2 px-4 bg-primary text-white rounded-lg hover:bg-secondary transition">Update</button>
+            </div>
+        </div>
+    </div>
+    
+        <div id="delete-confirm-modal-backdrop" class="fixed inset-0 hidden items-center justify-center bg-black bg-opacity-75 z-50 opacity-0 transition-opacity duration-300">
+        <div id="delete-confirm-modal" class="bg-white p-6 rounded-xl shadow-2xl w-full max-w-sm transform scale-95 transition-all duration-300 dark:bg-gray-800">
+            <h3 class="text-xl font-bold text-red-500 mb-4">Confirm Deletion</h3>
+            <p class="text-gray-700 dark:text-gray-300 mb-6">
+                Are you sure you want to permanently delete user 
+                <span id="delete-username-display" class="font-bold text-red-500"></span>? 
+                This action is irreversible and will delete ALL associated orders.
+            </p>
+
+            <div class="mt-4 flex justify-end space-x-3">
+                <button id="delete-modal-cancel" type="button" class="py-2 px-4 bg-gray-200 text-gray-800 rounded-lg hover:bg-gray-300 transition dark:bg-gray-700 dark:text-white dark:hover:bg-gray-600">Cancel</button>
+                <button id="delete-modal-confirm" type="button" class="py-2 px-4 bg-red-600 text-white rounded-lg hover:bg-red-700 transition">Delete Permanently</button>
+            </div>
+        </div>
+    </div>
+    
+        <div id="role-modal-backdrop" class="fixed inset-0 hidden items-center justify-center bg-black bg-opacity-75 z-50 opacity-0 transition-opacity duration-300">
+        <div id="role-modal" class="bg-white p-6 rounded-xl shadow-2xl w-full max-w-md transform scale-95 transition-all duration-300 dark:bg-gray-800">
+            <h3 class="text-xl font-bold text-gray-800 dark:text-white mb-4">Change User Role</h3>
+            <div class="text-sm text-gray-600 dark:text-gray-400 mb-4">
+                User: <span id="role-modal-username" class="font-bold"></span>
+                <br> Current Role: <span id="role-modal-current-role" class="font-bold text-primary"></span>
+            </div>
+
+            <label for="new-role" class="block text-gray-700 dark:text-gray-300 mb-2">New Role</label>
+            <select id="new-role" class="w-full p-2 border border-gray-300 rounded-lg dark:bg-gray-700 dark:border-gray-600 dark:text-white">
+                <option value="Client">Client</option>
+                <option value="Agent">Agent</option>
+                <option value="Admin">Admin</option>
+            </select>
+            
+            <div id="role-modal-message" class="mt-3 text-sm font-medium text-red-500"></div>
+
+            <div class="mt-6 flex justify-end space-x-3">
+                <button id="role-modal-cancel" type="button" class="py-2 px-4 bg-gray-200 text-gray-800 rounded-lg hover:bg-gray-300 transition dark:bg-gray-700 dark:text-white dark:hover:bg-gray-600">Cancel</button>
+                <button id="role-modal-update" type="button" class="py-2 px-4 bg-primary text-white rounded-lg hover:bg-secondary transition">Update Role</button>
+            </div>
+        </div>
+    </div>
+
+    
+    <nav class="bg-white shadow-lg dark:bg-[#1f1f1f]">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex justify-between items-center h-16">
+            <a href="/admin.html?secret=YOUR_ADMIN_SECRET" class="text-xl font-bold text-primary">Admin Control Panel</a>
+            <div class="flex space-x-4 items-center">
+                <button id="theme-toggle" class="p-2 rounded-full text-gray-500 hover:bg-gray-200 dark:text-gray-400 dark:hover:bg-gray-700 transition">
+                    <svg id="theme-icon-moon" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
+                    </svg>
+                    <svg id="theme-icon-sun" class="h-6 w-6 hidden" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
+                    </svg>
+                </button>
+                <p id="admin-key-display" class="text-xs text-gray-400 dark:text-gray-500 hidden sm:block">Key: ---</p>
+                <a href="/purchase.html" class="py-1 px-3 bg-primary text-white font-bold rounded-lg transition hover:bg-secondary">Go to Client View</a>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container mx-auto p-4 max-w-7xl">
+        <h1 class="text-3xl font-extrabold text-gray-800 dark:text-white mt-4 mb-8">System Overview</h1>
+
+        <div id="metrics-container" class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-4">
+            <div class="metric-card p-5 dark:border-gray-700">
+                <p class="text-sm font-medium text-gray-500 dark:text-gray-400">Total Revenue</p>
+                <p id="metric-revenue" class="text-3xl font-extrabold text-gray-800 dark:text-white mt-1">GHS 0.00</p>
+            </div>
+            <div class="metric-card p-5 dark:border-gray-700">
+                <p class="text-sm font-medium text-gray-500 dark:text-gray-400">My Profit</p>
+                <p id="metric-profit" class="text-3xl font-extrabold text-primary mt-1">GHS 0.00</p>
+            </div>
+            <div class="metric-card p-5 dark:border-gray-700">
+                <p class="text-sm font-medium text-gray-500 dark:text-gray-400">Total Orders</p>
+                <p id="metric-orders" class="text-3xl font-extrabold text-gray-800 dark:text-white mt-1">0</p>
+            </div>
+            <div class="metric-card p-5 dark:border-gray-700">
+                <p class="text-sm font-medium text-gray-500 dark:text-gray-400">Total Users</p>
+                <p id="metric-users" class="text-3xl font-extrabold text-gray-800 dark:text-white mt-1">0</p>
+            </div>
+        </div>
+
+                <div class="flex justify-start mb-6">
+            <button id="resetMetricsBtn" class="w-full sm:w-auto py-2 px-4 bg-red-500 text-white font-bold rounded-lg hover:bg-red-600 transition text-sm">
+                🔄 Reset Metrics
+            </button>
+        </div>
+        
+        <div class="flex flex-col sm:flex-row gap-3 mb-6 items-center justify-center">
+            <input type="password" id="adminSecret" placeholder="Enter Admin Secret" class="w-full sm:w-64 p-3 border border-gray-300 rounded-lg focus:ring-primary focus:border-primary dark:bg-gray-700 dark:border-gray-600 dark:text-white">
+            <button id="fetchDataBtn" class="w-full sm:w-auto py-3 px-6 bg-primary text-white font-bold rounded-lg hover:bg-secondary transition">
+                Fetch All Data
+            </button>
+        </div>
+
+
+        <div class="bg-white p-6 md:p-8 rounded-2xl shadow-xl border border-gray-100 dark:bg-[#1f1f1f] dark:border-gray-700">
+            
+            <div class="flex border-b border-gray-200 dark:border-gray-700 mb-6">
+                <div class="admin-tab active" data-tab="transactions">All Transactions</div>
+                <div class="admin-tab" data-tab="clients">Client Engagement</div>
+            </div>
+            
+            <div id="tab-content-transactions">
+                <h2 class="text-xl font-bold text-gray-800 dark:text-white mb-4 flex justify-between items-center">
+                    All Transactions
+                    
+                    <select id="status-filter" class="p-2 border border-gray-300 rounded-lg text-sm dark:bg-gray-700 dark:border-gray-600 dark:text-white">
+                        <option value="All">Filter by Status (All)</option>
+                        <option value="withdrawal_pending">Payout Pending (Action Required)</option>
+                        <option value="pending_review">Data Pending (Action Required)</option>
+                        <option value="data_sent">Data Sent (Success)</option>
+                        <option value="data_failed">Data Failed</option>
+                        <option value="topup_successful">Top Up Success</option>
+                        <option value="payment_failed">Payment Failed</option>
+                    </select>
+                </h2>
+                <div id="orders-status" class="text-center font-medium mb-4 text-gray-700 dark:text-gray-400">Enter secret to load data.</div>
+
+                <div class="overflow-x-auto rounded-xl border border-gray-200 shadow-inner dark:border-gray-700">
+                    <table class="w-full text-sm text-left text-gray-500 dark:text-gray-400">
+                        <thead class="text-xs text-white uppercase bg-primary">
+                            <tr>
+                                <th scope="col" class="py-3 px-6 rounded-tl-xl">Time</th>
+                                <th scope="col" class="py-3 px-6">User</th>
+                                <th scope="col" class="py-3 px-6">Phone / Account</th>
+                                <th scope="col" class="py-3 px-6">Item / Network</th>
+                                <th scope="col" class="py-3 px-6">Amount (GHS)</th>
+                                <th scope="col" class="py-3 px-6">Status</th>
+                                <th scope="col" class="py-3 px-6 rounded-tr-xl">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="ordersTableBody" class="bg-white divide-y divide-gray-100 dark:bg-[#1f1f1f] dark:divide-gray-700">
+                            <tr><td colspan="7" class="py-4 text-center text-gray-400">Data requires authentication.</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div> <div id="tab-content-clients" class="hidden">
+                <h2 class="text-xl font-bold text-gray-800 dark:text-white mb-4">Client Engagement</h2>
+                <div id="clients-status" class="text-center font-medium mb-4 text-gray-700 dark:text-gray-400">Enter secret to load client data.</div>
+
+                <div class="overflow-x-auto rounded-xl border border-gray-200 shadow-inner dark:border-gray-700">
+                    <table class="w-full text-sm text-left text-gray-500 dark:text-gray-400">
+                        <thead class="text-xs text-white uppercase bg-primary">
+                            <tr>
+                                <th scope="col" class="py-3 px-6 rounded-tl-xl">Username</th>
+                                <th scope="col" class="py-3 px-6">Email</th>
+                                <th scope="col" class="py-3 px-6">Current Role</th>
+                                <th scope="col" class="py-3 px-6">Online Status</th>
+                                <th scope="col" class="py-3 px-6">Joined</th>
+                                <th scope="col" class="py-3 px-6">Change Role</th>
+                                <th scope="col" class="py-3 px-6 rounded-tr-xl">Delete</th>
+                            </tr>
+                        </thead>
+                        <tbody id="clientsTableBody" class="bg-white divide-y divide-gray-100 dark:bg-[#1f1f1f] dark:divide-gray-700">
+                            <tr><td colspan="7" class="py-4 text-center text-gray-400">Client data requires authentication.</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div> </div>
+    </div>
+
+    <script>
+        // --- TOAST NOTIFICATION SYSTEM ---
+        function showToast(message, type = 'success') {
+            const container = document.getElementById('toast-container');
+            const colors = {
+                success: 'bg-green-500 border-green-700',
+                error: 'bg-red-500 border-red-700',
+                warning: 'bg-yellow-500 border-yellow-700',
+            };
+            const toast = document.createElement('div');
+            toast.className = `p-4 mb-2 text-white text-sm font-semibold rounded-lg shadow-lg border-b-4 ${colors[type]} transform translate-x-full transition-all duration-300 ease-out`;
+            toast.textContent = message;
+
+            // Animate in
+            setTimeout(() => {
+                toast.style.transform = 'translateX(0)';
+            }, 10);
+
+            // Animate out and remove
+            setTimeout(() => {
+                toast.style.transform = 'translateX(120%)';
+                setTimeout(() => {
+                    container.removeChild(toast);
+                }, 400);
+            }, 6000);
+        }
+        // --- END TOAST SYSTEM ---
+
+        // --- THEME LOGIC START ---
+        const htmlElement = document.documentElement;
+        const toggleButton = document.getElementById('theme-toggle');
+
+        function applyTheme(theme) {
+            const isDark = theme === 'dark';
+            const moonIcon = document.getElementById('theme-icon-moon');
+            const sunIcon = document.getElementById('theme-icon-sun');
+
+            if (isDark) {
+                htmlElement.classList.add('dark');
+                moonIcon.classList.add('hidden');
+                sunIcon.classList.remove('hidden');
+            } else {
+                htmlElement.classList.remove('dark');
+                moonIcon.classList.remove('hidden');
+                sunIcon.classList.add('hidden');
+            }
+        }
+
+        const savedTheme = localStorage.getItem('theme');
+        if (savedTheme) {
+            applyTheme(savedTheme);
+        } else if (window.matchMedia('(prefers-color-scheme: dark)').matches) {
+            applyTheme('dark');
+        } else {
+            applyTheme('light');
+        }
+
+        toggleButton.addEventListener('click', () => {
+            const newTheme = htmlElement.classList.contains('dark') ? 'light' : 'dark';
+            localStorage.setItem('theme', newTheme);
+            applyTheme(newTheme);
+        });
+        // --- THEME LOGIC END ---
+
+        // --- GLOBAL STATE & CONSTANTS ---
+        let adminSecret = ''; // This will be set from the input field
+        let allOrders = [];
+        let allUsers = [];
+        const statusMap = {
+            'data_sent': 'Data Sent', 
+            'pending_review': 'Pending Review', 
+            'data_failed': 'Data Failed', 
+            'topup_successful': 'Top Up Success', 
+            'payment_success': 'Payment Success', 
+            'payment_failed': 'Payment Failed',
+            'withdrawal_pending': 'Payout Pending',
+            'withdrawal_sent': 'Payout Sent'
+        };
+
+        // --- DOM Elements ---
+        const ordersTableBody = document.getElementById('ordersTableBody');
+        const ordersStatusDiv = document.getElementById('orders-status');
+        const clientsTableBody = document.getElementById('clientsTableBody');
+        const clientsStatusDiv = document.getElementById('clients-status');
+        const adminSecretInput = document.getElementById('adminSecret');
+        const fetchDataBtn = document.getElementById('fetchDataBtn');
+        const resetMetricsBtn = document.getElementById('resetMetricsBtn');
+        const tabsContainer = document.querySelector('.flex.border-b');
+        const tabContentTransactions = document.getElementById('tab-content-transactions');
+        const tabContentClients = document.getElementById('tab-content-clients');
+        const statusFilter = document.getElementById('status-filter');
+
+        const metrics = {
+            revenue: document.getElementById('metric-revenue'), profit: document.getElementById('metric-profit'),
+            orders: document.getElementById('metric-orders'), users: document.getElementById('metric-users'),
+        };
+        const modalBackdrop = document.getElementById('modal-backdrop');
+        const modalStatusMessage = document.getElementById('modal-status-message');
+        
+        // Order Update Modal specific elements
+        const modalOrderRef = document.getElementById('modal-order-ref');
+        const modalCurrentStatus = document.getElementById('modal-current-status');
+        const modalUpdateBtn = document.getElementById('modal-update');
+        const modalCancelBtn = document.getElementById('modal-cancel');
+        const modalNewStatus = document.getElementById('new-status');
+        const modalPayoutDetails = document.getElementById('modal-payout-details');
+        const modalPayoutAccount = document.getElementById('modal-payout-account');
+
+        // Delete Modal Elements
+        const deleteBackdrop = document.getElementById('delete-confirm-modal-backdrop');
+        const deleteUsernameDisplay = document.getElementById('delete-username-display');
+        let currentDeleteUserId = null;
+        
+        // Role Modal Elements
+        const roleModalBackdrop = document.getElementById('role-modal-backdrop');
+        const roleModalUsername = document.getElementById('role-modal-username');
+        const roleModalCurrentRole = document.getElementById('role-modal-current-role');
+        const roleModalNewRole = document.getElementById('new-role');
+        const roleModalUpdateBtn = document.getElementById('role-modal-update');
+        const roleModalCancelBtn = document.getElementById('role-modal-cancel');
+        const roleModalMessage = document.getElementById('role-modal-message');
+        let currentRoleUserId = null;
+
+
+        // --- UTILITY FUNCTIONS ---
+        function safeDateFormatter(isoString) {
+            if (!isoString) return 'N/A';
+            try {
+                const date = new Date(isoString); 
+                if (isNaN(date.getTime())) return 'Invalid Date';
+                return date.toLocaleString('en-GB', { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+            } catch (e) {
+                return 'Invalid Date';
+            }
+        }
+
+        // --- FETCHING FUNCTIONS ---
+
+        async function fetchMetrics() {
+            try {
+                const secret = adminSecretInput.value.trim();
+                const response = await fetch(`/api/admin/metrics?secret=${secret}`);
+                const userCountResponse = await fetch(`/api/admin/user-count?secret=${secret}`);
+                
+                if (response.status === 403 || userCountResponse.status === 403) {
+                    throw new Error('Authorization Failed. Check Admin Secret.');
+                }
+                if (!response.ok || !userCountResponse.ok) throw new Error('Failed to fetch metrics data.');
+
+                const metricsData = await response.json();
+                const userData = await userCountResponse.json();
+
+                metrics.revenue.textContent = `GHS ${parseFloat(metricsData.revenue).toFixed(2)}`;
+                metrics.profit.textContent = `GHS ${parseFloat(metricsData.myProfit).toFixed(2)}`; // Updated to myProfit
+                metrics.orders.textContent = metricsData.totalOrders.toLocaleString();
+                metrics.users.textContent = userData.count.toLocaleString();
+                return true;
+            } catch (error) {
+                console.error('Metrics fetch error:', error);
+                metrics.revenue.textContent = 'Error';
+                metrics.profit.textContent = 'Error';
+                return false;
+            }
+        }
+
+        async function fetchAllOrders() {
+            ordersStatusDiv.textContent = 'Loading transactions...';
+            ordersTableBody.innerHTML = '<tr><td colspan="7" class="py-4 text-center text-blue-500 font-medium">Loading...</td></tr>';
+            
+            try {
+                const secret = adminSecretInput.value.trim();
+                const response = await fetch(`/api/get-all-orders?secret=${secret}`);
+                
+                if (response.status === 403) throw new Error('Authorization Failed. Check Admin Secret.');
+                if (!response.ok) throw new Error('Could not fetch all orders.');
+                
+                const data = await response.json();
+                allOrders = data.orders || [];
+                renderOrders(allOrders);
+
+            } catch (error) {
+                ordersStatusDiv.textContent = `Error fetching orders: ${error.message}`;
+                ordersStatusDiv.style.color = 'red';
+            }
+        }
+
+        async function fetchAllUsers() {
+            clientsStatusDiv.textContent = 'Loading client data...';
+            clientsTableBody.innerHTML = '<tr><td colspan="7" class="py-4 text-center text-blue-500 font-medium">Loading...</td></tr>';
+            
+            try {
+                const secret = adminSecretInput.value.trim();
+                const response = await fetch(`/api/admin/all-users-status?secret=${secret}`);
+                
+                if (response.status === 403) throw new Error('Authorization Failed. Check Admin Secret.');
+                if (!response.ok) throw new Error('Could not fetch all users.');
+                
+                const data = await response.json();
+                allUsers = data.users || [];
+                renderUsers(allUsers);
+            } catch (error) {
+                clientsStatusDiv.textContent = `Error fetching users: ${error.message}`;
+                clientsStatusDiv.style.color = 'red';
+            }
+        }
+
+        // --- RENDERING ---
+        
+        function renderUsers(users) {
+            clientsTableBody.innerHTML = '';
+            if (users.length === 0) {
+                clientsStatusDiv.textContent = "No registered clients found.";
+                return;
+            }
+            clientsStatusDiv.textContent = '';
+
+            users.forEach(user => {
+                const row = clientsTableBody.insertRow();
+                const statusText = user.isOnline ? 'Online' : 'Offline';
+                const statusClass = user.isOnline ? 'status-online' : 'status-offline';
+                const roleColor = user.role === 'Agent' ? 'text-primary' : (user.role === 'Admin' ? 'text-red-500' : 'text-gray-500 dark:text-gray-400');
+
+                row.className = 'hover:bg-gray-50 transition duration-150 dark:hover:bg-gray-800';
+
+                row.innerHTML = `
+                    <td class="py-4 px-6 font-medium text-gray-800 dark:text-gray-300">${user.username}</td>
+                    <td class="py-4 px-6 text-xs dark:text-gray-400">${user.email}</td>
+                    <td class="py-4 px-6 font-semibold ${roleColor}">${user.role || 'Client'}</td>
+                    <td class="py-4 px-6">
+                        <span class="px-3 py-1 text-white text-xs font-bold uppercase rounded-full ${statusClass}">
+                            ${statusText}
+                        </span>
+                    </td>
+                    <td class="py-4 px-6 text-xs dark:text-gray-400">${safeDateFormatter(user.signedUp)}</td>
+                    <td class="py-4 px-6">
+                        <button data-id="${user._id}" data-username="${user.username}" data-role="${user.role || 'Client'}"
+                           class="open-role-modal-btn bg-blue-600 hover:bg-blue-700 text-white text-xs font-medium py-1 px-3 rounded transition">
+                           Change Role
+                        </button>
+                    </td>
+                    <td class="py-4 px-6">
+                        <button data-id="${user._id}" data-username="${user.username}"
+                           class="delete-user-btn bg-red-600 hover:bg-red-700 text-white text-xs font-medium py-1 px-3 rounded transition">
+                           Delete
+                           </button>
+                    </td>
+                `;
+            });
+        }
+        
+        function renderOrders(orders) {
+            // Apply current status filter before rendering
+            const currentStatusFilter = statusFilter.value;
+            let filteredOrders = orders;
+            
+            if (currentStatusFilter !== 'All') {
+                filteredOrders = orders.filter(order => order.status === currentStatusFilter);
+            }
+
+            ordersTableBody.innerHTML = '';
+            if (filteredOrders.length === 0) {
+                ordersStatusDiv.textContent = "No transactions found matching the filter criteria.";
+                ordersStatusDiv.style.color = 'black';
+                return;
+            }
+
+            ordersStatusDiv.textContent = `Displaying ${filteredOrders.length} transactions.`;
+            ordersStatusDiv.style.color = 'black';
+            
+            filteredOrders.forEach(order => {
+                const row = ordersTableBody.insertRow();
+                const statusText = statusMap[order.status] || order.status.replace(/_/g, ' ');
+                const statusClass = `status-${order.status}`;
+                const amountSign = (order.dataPlan === 'WALLET TOP-UP') ? '+' : (order.dataPlan === 'WITHDRAWAL REQUEST' ? 'PAYOUT: ' : 'COST: ');
+                const amountColor = (order.dataPlan === 'WALLET TOP-UP') ? 'text-green-600 dark:text-green-400' : 
+                                     (order.dataPlan === 'WITHDRAWAL REQUEST' ? 'text-blue-600 dark:text-blue-400' : 'text-red-600 dark:text-red-400');
+                
+                // Determine what to display in the Phone column
+                let displayPhone;
+                if (order.dataPlan === 'WITHDRAWAL REQUEST') {
+                    displayPhone = `${order.network || 'Account'}: ${order.phoneNumber || 'N/A'}`;
+                } else if (order.network === 'WALLET') {
+                    displayPhone = 'N/A (Wallet)';
+                } else {
+                    displayPhone = order.phoneNumber || 'N/A';
+                }
+
+                // 🛑 NEW: Check if this is an Agent Sale (requires backend to send agentId)
+                let networkDisplay = `${order.dataPlan} (${order.network})`;
+                if (order.agentId) {
+                    networkDisplay += ` <span class="bg-purple-100 text-purple-800 text-xs font-bold px-2 py-0.5 rounded dark:bg-purple-900 dark:text-purple-300">[AGENT SALE]</span>`;
+                }
+
+                row.className = 'hover:bg-gray-50 transition duration-150 dark:hover:bg-gray-800';
+                
+                // Determine button text based on status
+                let actionButton = 'N/A';
+                if (order.status === 'pending_review') {
+                    actionButton = `<button data-id="${order.id}" class="open-modal-btn text-white bg-blue-600 hover:bg-blue-700 text-xs font-medium py-1 px-3 rounded transition">Fulfill Data</button>`;
+                } else if (order.status === 'withdrawal_pending') {
+                    actionButton = `<button data-id="${order.id}" class="open-modal-btn text-white bg-yellow-600 hover:bg-yellow-700 text-xs font-medium py-1 px-3 rounded transition">Fulfill Payout</button>`;
+                }
+
+                row.innerHTML = `
+                    <td class="py-4 px-6 dark:text-gray-400 text-xs">${safeDateFormatter(order.created_at)}</td>
+                    <td class="py-4 px-6 font-medium text-gray-800 dark:text-gray-300">${order.username || 'N/A'}</td>
+                    <td class="py-4 px-6 dark:text-gray-400 text-xs">${displayPhone}</td>
+                    <td class="py-4 px-6 dark:text-gray-400 text-xs">${networkDisplay}</td>
+                    <td class="py-4 px-6 font-semibold ${amountColor}">
+                        ${amountSign} GHS ${order.amount.toFixed(2)}
+                    </td>
+                    <td class="py-4 px-6">
+                        <span class="px-3 py-1 text-white text-xs font-bold uppercase rounded-full ${statusClass}">
+                            ${statusText}
+                        </span>
+                    </td>
+                    <td class="py-4 px-6">
+                        ${actionButton}
+                    </td>
+                `;
+            });
+        }
+        
+        // --- MODAL & ACTION LOGIC (Order Status) ---
+        
+        let currentOrderId = null;
+
+        // Function to open the modal, accepts the clicked button element
+        function openUpdateModal(buttonElement) {
+            currentOrderId = buttonElement.dataset.id;
+            
+            // Find the order data to populate the modal fields
+            const order = allOrders.find(o => o.id === currentOrderId);
+            modalPayoutDetails.classList.add('hidden'); 
+
+            if (order) {
+                modalOrderRef.textContent = order.reference ? order.reference.substring(0, 16) + '...' : currentOrderId.substring(0, 8) + '...';
+                modalCurrentStatus.textContent = statusMap[order.status] || order.status.replace(/_/g, ' ');
+                modalStatusMessage.textContent = ''; 
+                
+                // 1. Check if it's a Payout Request
+                if (order.status === 'withdrawal_pending') {
+                    // Display Payout Details
+                    modalPayoutAccount.textContent = `${order.network} (${order.phoneNumber}) - GHS ${order.amount.toFixed(2)}`;
+                    modalPayoutDetails.classList.remove('hidden');
+                    
+                    // Pre-select the Payout Sent option
+                    modalNewStatus.value = 'withdrawal_sent';
+                } else {
+                    // Default to Data Sent for regular review
+                    modalNewStatus.value = 'data_sent'; 
+                }
+
+                modalBackdrop.style.opacity = 1;
+                modalBackdrop.style.display = 'flex';
+            }
+        }
+
+        function closeModal() {
+            modalBackdrop.style.opacity = 0;
+            currentOrderId = null;
+            setTimeout(() => { modalBackdrop.style.display = 'none'; }, 300);
+        }
+
+        async function updateOrderStatus() {
+            if (!currentOrderId) return;
+            
+            const newStatus = modalNewStatus.value;
+            const secret = adminSecretInput.value.trim();
+
+            modalUpdateBtn.disabled = true;
+            modalUpdateBtn.textContent = 'Saving...';
+            modalStatusMessage.textContent = 'Updating status...';
+            modalStatusMessage.classList.remove('text-red-500');
+            modalStatusMessage.classList.add('text-yellow-600');
+
+            try {
+                const response = await fetch('/api/admin/update-order', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ 
+                        orderId: currentOrderId, 
+                        newStatus: newStatus,
+                        adminSecret: secret 
+                    })
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    showToast(data.message, 'success');
+                    
+                    const index = allOrders.findIndex(o => o.id === currentOrderId);
+                    if (index !== -1) { allOrders[index].status = newStatus; }
+                    
+                    setTimeout(() => {
+                        closeModal();
+                        renderOrders(allOrders); 
+                    }, 1000);
+                } else {
+                    showToast(data.error || data.message || 'Update failed.', 'error');
+                    modalStatusMessage.textContent = data.error || data.message || 'Update failed.';
+                    modalStatusMessage.classList.remove('text-yellow-600');
+                    modalStatusMessage.classList.add('text-red-500');
+                }
+
+            } catch (error) {
+                showToast('Network error during update.', 'error');
+                modalStatusMessage.textContent = 'Network error during update.';
+                modalStatusMessage.classList.remove('text-yellow-600');
+                modalStatusMessage.classList.add('text-red-500');
+            } finally {
+                modalUpdateBtn.disabled = false;
+                modalUpdateBtn.textContent = 'Update';
+            }
+        }
+
+        // --- DELETE CLIENT LOGIC ---
+        
+        // Function to open the delete modal
+        function openDeleteModal(userId, username) {
+            currentDeleteUserId = userId;
+            deleteUsernameDisplay.textContent = username;
+            
+            deleteBackdrop.style.opacity = 1;
+            deleteBackdrop.style.display = 'flex';
+        }
+
+        // Function to close the delete modal
+        function closeDeleteModal() {
+            deleteBackdrop.style.opacity = 0;
+            currentDeleteUserId = null;
+            setTimeout(() => { deleteBackdrop.style.display = 'none'; }, 300);
+        }
+
+        // Executes the API call to delete the user
+        async function deleteClient() {
+            const userId = currentDeleteUserId;
+            const secret = adminSecretInput.value.trim();
+            
+            if (!secret) {
+                closeDeleteModal();
+                showToast('Admin secret required to delete user.', 'error');
+                return;
+            }
+
+            document.getElementById('delete-modal-confirm').disabled = true;
+            document.getElementById('delete-modal-confirm').textContent = 'Deleting...';
+
+            try {
+                const response = await fetch('/api/admin/delete-user', {
+                    method: 'DELETE',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ userId, adminSecret: secret })
+                });
+
+                const data = await response.json();
+                
+                if (response.ok) {
+                    showToast(data.message, 'success');
+                    // Re-fetch all data to refresh tables and metrics
+                    await Promise.all([fetchAllUsers(), fetchAllOrders(), fetchMetrics()]);
+                } else {
+                    showToast(data.error || data.message || 'Deletion failed.', 'error');
+                }
+            } catch (error) {
+                showToast('Network error during client deletion.', 'error');
+            } finally {
+                closeDeleteModal();
+                document.getElementById('delete-modal-confirm').disabled = false;
+                document.getElementById('delete-modal-confirm').textContent = 'Delete Permanently';
+            }
+        }
+        
+        // Listener for the Delete Button on the table row (Delegation)
+        function handleUserDeleteClick(e) {
+            const button = e.target.closest('.delete-user-btn');
+            if (button) {
+                const userId = button.dataset.id;
+                const username = button.dataset.username;
+                openDeleteModal(userId, username);
+            }
+        }
+        
+        // --- USER ROLE CHANGE LOGIC ---
+
+        function openRoleModal(buttonElement) {
+            currentRoleUserId = buttonElement.dataset.id;
+            const username = buttonElement.dataset.username;
+            const currentRole = buttonElement.dataset.role;
+
+            roleModalUsername.textContent = username;
+            roleModalCurrentRole.textContent = currentRole;
+            roleModalNewRole.value = currentRole; // Set default selection
+            roleModalMessage.textContent = ''; 
+            
+            roleModalBackdrop.style.opacity = 1;
+            roleModalBackdrop.style.display = 'flex';
+        }
+
+        function closeRoleModal() {
+            roleModalBackdrop.style.opacity = 0;
+            currentRoleUserId = null;
+            setTimeout(() => { roleModalBackdrop.style.display = 'none'; }, 300);
+        }
+
+        async function updateUserRole() {
+            if (!currentRoleUserId) return;
+            
+            const newRole = roleModalNewRole.value;
+            const secret = adminSecretInput.value.trim();
+
+            roleModalUpdateBtn.disabled = true;
+            roleModalUpdateBtn.textContent = 'Updating...';
+            roleModalMessage.textContent = 'Sending request...';
+            roleModalMessage.classList.remove('text-red-500');
+            roleModalMessage.classList.add('text-yellow-600');
+
+            try {
+                const response = await fetch('/api/admin/update-user-role', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ 
+                        userId: currentRoleUserId, 
+                        newRole: newRole,
+                        adminSecret: secret 
+                    })
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    showToast(data.message, 'success');
+                    
+                    // Update local user list and re-render
+                    const userIndex = allUsers.findIndex(u => u._id === currentRoleUserId);
+                    if (userIndex !== -1) { allUsers[userIndex].role = newRole; }
+                    
+                    setTimeout(() => {
+                        closeRoleModal();
+                        renderUsers(allUsers); 
+                    }, 1000);
+                } else {
+                    showToast(data.error || data.message || 'Role update failed.', 'error');
+                    roleModalMessage.textContent = data.error || data.message || 'Role update failed.';
+                    roleModalMessage.classList.remove('text-yellow-600');
+                    roleModalMessage.classList.add('text-red-500');
+                }
+
+            } catch (error) {
+                showToast('Network error during role update.', 'error');
+                roleModalMessage.textContent = 'Network error during role update.';
+                roleModalMessage.classList.remove('text-yellow-600');
+                roleModalMessage.classList.add('text-red-500');
+            } finally {
+                roleModalUpdateBtn.disabled = false;
+                roleModalUpdateBtn.textContent = 'Update Role';
+            }
+        }
+
+        // Listener for the Change Role Button on the table row (Delegation)
+        function handleRoleChangeClick(e) {
+            const button = e.target.closest('.open-role-modal-btn');
+            if (button) {
+                e.preventDefault();
+                openRoleModal(button);
+            }
+        }
+
+        // --- RESET METRICS LOGIC ---
+
+        async function resetMetrics() {
+            const secret = adminSecretInput.value.trim();
+            if (!secret) { 
+                showToast("Admin secret required to reset metrics.", 'error');
+                return; 
+            }
+
+            if (!confirm("ARE YOU SURE YOU WANT TO RESET METRICS? This action cannot be undone and will permanently zero out Total Revenue/My Profit metrics.")) {
+                return;
+            }
+
+            resetMetricsBtn.disabled = true;
+            resetMetricsBtn.textContent = 'Resetting...';
+
+            try {
+                const response = await fetch('/api/admin/reset-metrics', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ adminSecret: secret })
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    showToast(data.message, 'success');
+                    await fetchMetrics(); // Refresh to show zeros/new data
+                } else {
+                    showToast(data.error || data.message || 'Metrics reset failed.', 'error');
+                }
+
+            } catch (error) {
+                showToast('Network error during metrics reset.', 'error');
+            } finally {
+                resetMetricsBtn.disabled = false;
+                resetMetricsBtn.textContent = '🔄 Reset Metrics';
+            }
+        }
+        
+        // --- MAIN FETCH TRIGGER ---
+        
+        async function fetchAllData() {
+            const secret = adminSecretInput.value.trim();
+            if (!secret) { 
+                showToast("Please enter the Admin Secret.", 'error');
+                return; 
+            }
+            
+            adminSecret = secret;
+
+            fetchDataBtn.disabled = true;
+            fetchDataBtn.textContent = 'Loading...';
+            
+            try {
+                const metricsReady = await fetchMetrics();
+                if (!metricsReady) { 
+                    throw new Error("Failed to load core metrics. Check secret."); 
+                }
+
+                showToast("Metrics and User count loaded successfully.", 'success');
+                
+                await Promise.all([fetchAllOrders(), fetchAllUsers()]);
+
+            } catch (error) {
+                console.error('Master Fetch Error:', error);
+                showToast(`CRITICAL ERROR: ${error.message}`, 'error');
+            } finally {
+                fetchDataBtn.disabled = false;
+                fetchDataBtn.textContent = 'Fetch All Data';
+            }
+        }
+        
+        // --- INITIALIZATION ---
+        document.addEventListener('DOMContentLoaded', async () => {
+            
+            // 2. Get Admin Secret from URL 
+            const urlParams = new URLSearchParams(window.location.search);
+            const initialSecret = urlParams.get('secret');
+            if (initialSecret) {
+                adminSecretInput.value = initialSecret;
+                adminSecret = initialSecret;
+                fetchAllData();
+            }
+
+            // 3. Attach Listeners
+            fetchDataBtn.addEventListener('click', fetchAllData);
+            resetMetricsBtn.addEventListener('click', resetMetrics); // NEW LISTENER
+            modalUpdateBtn.addEventListener('click', updateOrderStatus);
+            modalCancelBtn.addEventListener('click', closeModal);
+            
+            // Delete Modal Listeners
+            document.getElementById('delete-modal-cancel').addEventListener('click', closeDeleteModal);
+            document.getElementById('delete-modal-confirm').addEventListener('click', deleteClient);
+            
+            // Role Modal Listeners (NEW)
+            roleModalUpdateBtn.addEventListener('click', updateUserRole);
+            roleModalCancelBtn.addEventListener('click', closeRoleModal);
+            
+            // 🛑 CRITICAL FIX: EVENT DELEGATION FOR ORDER ACTION BUTTONS 🛑
+            ordersTableBody.addEventListener('click', (e) => {
+                const targetButton = e.target.closest('.open-modal-btn');
+                if (targetButton) {
+                    e.preventDefault(); 
+                    openUpdateModal(targetButton); 
+                }
+            });
+            
+            // 🛑 CRITICAL FIX: EVENT DELEGATION FOR CLIENT DELETE/ROLE BUTTONS 🛑
+            clientsTableBody.addEventListener('click', handleUserDeleteClick);
+            clientsTableBody.addEventListener('click', handleRoleChangeClick); // NEW DELEGATION
+
+
+            // 4. Status Filter Listener (Applies filter immediately when value changes)
+            statusFilter.addEventListener('change', () => {
+                renderOrders(allOrders); 
+            });
+
+            // 5. Tab Switching Logic
+            tabsContainer.addEventListener('click', (e) => {
+                const target = e.target.closest('.admin-tab');
+                if (target) {
+                    document.querySelectorAll('.admin-tab').forEach(tab => tab.classList.remove('active'));
+                    target.classList.add('active');
+
+                    tabContentTransactions.classList.add('hidden');
+                    tabContentClients.classList.add('hidden');
+
+                    if (target.dataset.tab === 'transactions') {
+                        tabContentTransactions.classList.remove('hidden');
+                        renderOrders(allOrders); 
+                    } else if (target.dataset.tab === 'clients') {
+                        tabContentClients.classList.remove('hidden');
+                        renderUsers(allUsers);
+                    }
+                }
+            });
+        });
+    </script>
 </body>
 </html>
