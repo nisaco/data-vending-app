@@ -116,7 +116,7 @@
             </div>
         </div>
     </div>
-    
+
         <div id="delete-confirm-modal-backdrop" class="fixed inset-0 hidden items-center justify-center bg-black bg-opacity-75 z-50 opacity-0 transition-opacity duration-300">
         <div id="delete-confirm-modal" class="bg-white p-6 rounded-xl shadow-2xl w-full max-w-sm transform scale-95 transition-all duration-300 dark:bg-gray-800">
             <h3 class="text-xl font-bold text-red-500 mb-4">Confirm Deletion</h3>
@@ -156,7 +156,6 @@
             </div>
         </div>
     </div>
-
     
     <nav class="bg-white shadow-lg dark:bg-[#1f1f1f]">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex justify-between items-center h-16">
@@ -253,7 +252,9 @@
                         </tbody>
                     </table>
                 </div>
-            </div> <div id="tab-content-clients" class="hidden">
+            </div> 
+            
+            <div id="tab-content-clients" class="hidden">
                 <h2 class="text-xl font-bold text-gray-800 dark:text-white mb-4">Client Engagement</h2>
                 <div id="clients-status" class="text-center font-medium mb-4 text-gray-700 dark:text-gray-400">Enter secret to load client data.</div>
 
@@ -275,11 +276,12 @@
                         </tbody>
                     </table>
                 </div>
-            </div> </div>
+            </div> 
+        </div>
     </div>
 
     <script>
-        // --- TOAST NOTIFICATION SYSTEM ---
+        // --- TOAST NOTIFICATION SYSTEM (UNCHANGED) ---
         function showToast(message, type = 'success') {
             const container = document.getElementById('toast-container');
             const colors = {
@@ -291,12 +293,10 @@
             toast.className = `p-4 mb-2 text-white text-sm font-semibold rounded-lg shadow-lg border-b-4 ${colors[type]} transform translate-x-full transition-all duration-300 ease-out`;
             toast.textContent = message;
 
-            // Animate in
             setTimeout(() => {
                 toast.style.transform = 'translateX(0)';
             }, 10);
 
-            // Animate out and remove
             setTimeout(() => {
                 toast.style.transform = 'translateX(120%)';
                 setTimeout(() => {
@@ -306,7 +306,7 @@
         }
         // --- END TOAST SYSTEM ---
 
-        // --- THEME LOGIC START ---
+        // --- THEME LOGIC (UNCHANGED) ---
         const htmlElement = document.documentElement;
         const toggleButton = document.getElementById('theme-toggle');
 
@@ -391,7 +391,7 @@
         const deleteUsernameDisplay = document.getElementById('delete-username-display');
         let currentDeleteUserId = null;
         
-        // Role Modal Elements
+        // Role Modal Elements 🛑 NEW 🛑
         const roleModalBackdrop = document.getElementById('role-modal-backdrop');
         const roleModalUsername = document.getElementById('role-modal-username');
         const roleModalCurrentRole = document.getElementById('role-modal-current-role');
@@ -402,7 +402,7 @@
         let currentRoleUserId = null;
 
 
-        // --- UTILITY FUNCTIONS ---
+        // --- UTILITY FUNCTIONS (UNCHANGED) ---
         function safeDateFormatter(isoString) {
             if (!isoString) return 'N/A';
             try {
@@ -466,7 +466,7 @@
 
         async function fetchAllUsers() {
             clientsStatusDiv.textContent = 'Loading client data...';
-            clientsTableBody.innerHTML = '<tr><td colspan="7" class="py-4 text-center text-blue-500 font-medium">Loading...</td></tr>';
+            clientsTableBody.innerHTML = '<tr><td colspan="7" class="py-4 text-center text-blue-500 font-medium">Loading...</td></tr>'; // Updated colspan to 7
             
             try {
                 const secret = adminSecretInput.value.trim();
@@ -695,9 +695,8 @@
             }
         }
 
-        // --- DELETE CLIENT LOGIC ---
+        // --- DELETE CLIENT LOGIC (UNCHANGED) ---
         
-        // Function to open the delete modal
         function openDeleteModal(userId, username) {
             currentDeleteUserId = userId;
             deleteUsernameDisplay.textContent = username;
@@ -706,14 +705,12 @@
             deleteBackdrop.style.display = 'flex';
         }
 
-        // Function to close the delete modal
         function closeDeleteModal() {
             deleteBackdrop.style.opacity = 0;
             currentDeleteUserId = null;
             setTimeout(() => { deleteBackdrop.style.display = 'none'; }, 300);
         }
 
-        // Executes the API call to delete the user
         async function deleteClient() {
             const userId = currentDeleteUserId;
             const secret = adminSecretInput.value.trim();
@@ -738,7 +735,6 @@
                 
                 if (response.ok) {
                     showToast(data.message, 'success');
-                    // Re-fetch all data to refresh tables and metrics
                     await Promise.all([fetchAllUsers(), fetchAllOrders(), fetchMetrics()]);
                 } else {
                     showToast(data.error || data.message || 'Deletion failed.', 'error');
@@ -752,7 +748,6 @@
             }
         }
         
-        // Listener for the Delete Button on the table row (Delegation)
         function handleUserDeleteClick(e) {
             const button = e.target.closest('.delete-user-btn');
             if (button) {
@@ -762,7 +757,7 @@
             }
         }
         
-        // --- USER ROLE CHANGE LOGIC ---
+        // --- USER ROLE CHANGE LOGIC 🛑 NEW 🛑 ---
 
         function openRoleModal(buttonElement) {
             currentRoleUserId = buttonElement.dataset.id;
@@ -771,7 +766,7 @@
 
             roleModalUsername.textContent = username;
             roleModalCurrentRole.textContent = currentRole;
-            roleModalNewRole.value = currentRole; // Set default selection
+            roleModalNewRole.value = currentRole; 
             roleModalMessage.textContent = ''; 
             
             roleModalBackdrop.style.opacity = 1;
@@ -838,7 +833,6 @@
             }
         }
 
-        // Listener for the Change Role Button on the table row (Delegation)
         function handleRoleChangeClick(e) {
             const button = e.target.closest('.open-role-modal-btn');
             if (button) {
@@ -847,7 +841,7 @@
             }
         }
 
-        // --- RESET METRICS LOGIC ---
+        // --- RESET METRICS LOGIC 🛑 NEW 🛑 ---
 
         async function resetMetrics() {
             const secret = adminSecretInput.value.trim();
@@ -874,7 +868,7 @@
 
                 if (response.ok) {
                     showToast(data.message, 'success');
-                    await fetchMetrics(); // Refresh to show zeros/new data
+                    await fetchMetrics(); 
                 } else {
                     showToast(data.error || data.message || 'Metrics reset failed.', 'error');
                 }
@@ -887,7 +881,7 @@
             }
         }
         
-        // --- MAIN FETCH TRIGGER ---
+        // --- MAIN FETCH TRIGGER (UNCHANGED) ---
         
         async function fetchAllData() {
             const secret = adminSecretInput.value.trim();
@@ -958,7 +952,6 @@
             // 🛑 CRITICAL FIX: EVENT DELEGATION FOR CLIENT DELETE/ROLE BUTTONS 🛑
             clientsTableBody.addEventListener('click', handleUserDeleteClick);
             clientsTableBody.addEventListener('click', handleRoleChangeClick); // NEW DELEGATION
-
 
             // 4. Status Filter Listener (Applies filter immediately when value changes)
             statusFilter.addEventListener('change', () => {
