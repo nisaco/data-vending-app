@@ -1,58 +1,111 @@
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <link rel="icon" type="image/x-icon" href="apple-touch-icon.png">
+    <link rel="icon" type="image/x-icon" href="apple-touch-icon.png">
     <title>Privacy Policy - AJEnterprise</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
-        :root { --primary: #ffffff; }
-        .text-primary { color: var(--primary); }
-        .dark { background-color: #121212; color: #e0e0e0; }
+        /* Professional Color Palette (Adjusted based on standard system usage) */
+        :root { 
+            --primary: #009879; /* Used for accents/links */
+            --secondary: #007a63; 
+        }
+        /* Custom Styles for Dark Mode */
+        .dark { background-color: #121212; }
         .dark .bg-white { background-color: #1f1f1f; color: #e0e0e0; }
         .dark h1, .dark h2 { color: #ffffff; }
-        .dark p, .dark li { color: #ffffff; }
+        .dark p, .dark li { color: #e0eeef; } /* Lighter text color for readability in dark mode */
+        .dark a { color: #5ad4a9; } /* Light accent for links in dark mode */
     </style>
 </head>
 <body class="bg-gray-50 min-h-screen font-sans p-4 transition-colors duration-300 dark:bg-[#121212]">
 
     <div class="container mx-auto max-w-4xl bg-white p-8 rounded-xl shadow-xl mt-8 dark:bg-[#1f1f1f]">
         
+        <div class="flex justify-end mb-6">
+            <button id="theme-toggle" class="p-2 rounded-full text-gray-500 hover:bg-gray-200 dark:text-gray-400 dark:hover:bg-gray-700 transition">
+                <svg id="theme-icon-moon" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
+                </svg>
+                <svg id="theme-icon-sun" class="h-6 w-6 hidden" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
+                </svg>
+            </button>
+        </div>
+
         <h1 class="text-4xl font-extrabold text-gray-800 mb-6 border-b pb-3 dark:border-gray-700">
             Privacy Policy
         </h1>
 
-        <p class="mb-4">
+        <p class="mb-4 text-gray-700 dark:text-gray-300">
             **Effective Date: November 11, 2025**
         </p>
 
         <h2 class="text-2xl font-bold text-gray-800 mt-6 mb-3">1. Information We Collect</h2>
-        <p class="mb-4">
+        <p class="mb-4 text-gray-700 dark:text-gray-300">
             We collect information necessary to process your data purchases and maintain your account security.
         </p>
-        <ul class="list-disc list-inside space-y-2 ml-4 mb-4">
+        <ul class="list-disc list-inside space-y-2 ml-4 mb-4 text-gray-700 dark:text-gray-300">
             <li>**Personal Data:** Username, Email address, and Password (stored securely as a hash).</li>
             <li>**Transaction Data:** Recipient phone number, Network, Data plan amount, and Payment reference (Paystack).</li>
             <li>**Session Data:** We use cookies and MongoDB session storage to keep you logged in and to monitor active user status for security purposes.</li>
         </ul>
 
         <h2 class="text-2xl font-bold text-gray-800 mt-6 mb-3">2. How We Use Your Information</h2>
-        <ul class="list-disc list-inside space-y-2 ml-4 mb-4">
+        <ul class="list-disc list-inside space-y-2 ml-4 mb-4 text-gray-700 dark:text-gray-300">
             <li>To process and fulfill data orders (e.g., sharing your phone number with the network API).</li>
             <li>To maintain and update your digital wallet balance.</li>
             <li>For system administration and security (e.g., preventing fraud and monitoring login attempts).</li>
         </ul>
         
         <h2 class="text-2xl font-bold text-gray-800 mt-6 mb-3">3. Data Security and Sharing</h2>
-        <p class="mb-4">
+        <p class="mb-4 text-gray-700 dark:text-gray-300">
             We do not sell your personal data. We share only necessary transaction details (recipient phone, network, data plan ID) with the third-party network reseller API to fulfill your order. Your payment information (card numbers, MoMo PINs) is handled entirely by Paystack and is never stored on our servers.
         </p>
 
-        <p class="text-sm pt-6 border-t border-gray-200 dark:border-gray-700 mt-6">
-            For questions regarding this policy, please contact us via the Support page.
+        <p class="text-sm pt-6 border-t border-gray-200 dark:border-gray-700 mt-6 text-gray-700 dark:text-gray-300">
+            For questions regarding this policy, please contact us via the <a href="/support.html" class="text-primary hover:underline">Support page</a>.
         </p>
     </div>
+
+    <script>
+        // --- THEME LOGIC START ---
+        const htmlElement = document.documentElement;
+        const toggleButton = document.getElementById('theme-toggle');
+
+        function applyTheme(theme) {
+            const isDark = theme === 'dark';
+            const moonIcon = document.getElementById('theme-icon-moon');
+            const sunIcon = document.getElementById('theme-icon-sun');
+
+            if (isDark) {
+                htmlElement.classList.add('dark');
+                moonIcon.classList.add('hidden');
+                sunIcon.classList.remove('hidden');
+            } else {
+                htmlElement.classList.remove('dark');
+                moonIcon.classList.remove('hidden');
+                sunIcon.classList.add('hidden');
+            }
+        }
+
+        const savedTheme = localStorage.getItem('theme');
+        if (savedTheme) {
+            applyTheme(savedTheme);
+        } else if (window.matchMedia('(prefers-color-scheme: dark)').matches) {
+            applyTheme('dark');
+        } else {
+            applyTheme('light');
+        }
+
+        toggleButton.addEventListener('click', () => {
+            const newTheme = htmlElement.classList.contains('dark') ? 'light' : 'dark';
+            localStorage.setItem('theme', newTheme);
+            applyTheme(newTheme);
+        });
+        // --- THEME LOGIC END ---
+    </script>
 </body>
 </html>
